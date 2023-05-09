@@ -1,9 +1,13 @@
 {
   "name": "keck",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Proxy-style state observations for React and vanilla",
   "author": "Alex Brombal",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brombal/keck.git"
+  },
   "scripts": {
     "start": "parcel example/index.html --dist-dir ./example-dist",
     "build": "rm -rf dist && parcel build && npm run compress-benchmark",

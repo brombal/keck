@@ -11,7 +11,8 @@
   "scripts": {
     "start": "parcel example/index.html --dist-dir ./example-dist",
     "build": "rm -rf dist && parcel build && npm run compress-benchmark",
-    "compress-benchmark": "gzip --best -k dist/compressed-benchmark.js"
+    "compress-benchmark": "gzip --best -k dist/compressed-benchmark.js",
+    "test": "jest --coverage"
   },
   "source": "./src/index.ts",
   "main": "./dist/index.js",

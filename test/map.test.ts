@@ -96,10 +96,10 @@ describe("Maps", () => {
   test("Callback is triggered when modifying set after calling get()", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const { store, unobserve } = createObserver(data, mockListener);
+    const { store, stop } = createObserver(data, mockListener);
 
     store.alphaMap.get("d");
-    unobserve();
+    stop();
 
     store.alphaMap.set("d", "d");
     expect(mockListener).toHaveBeenCalledTimes(1);
@@ -112,10 +112,10 @@ describe("Maps", () => {
   test("Callback is not triggered when modifying set after calling get() for unrelated value", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const { store, unobserve } = createObserver(data, mockListener);
+    const { store, stop } = createObserver(data, mockListener);
 
     store.alphaMap.get("a");
-    unobserve();
+    stop();
 
     store.alphaMap.set("d", "d");
     expect(mockListener).toHaveBeenCalledTimes(0);
@@ -124,10 +124,10 @@ describe("Maps", () => {
   test("Callback is triggered when modifying set after calling has()", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const { store, unobserve } = createObserver(data, mockListener);
+    const { store, stop } = createObserver(data, mockListener);
 
     store.alphaMap.has("d");
-    unobserve();
+    stop();
 
     store.alphaMap.set("d", "d");
     expect(mockListener).toHaveBeenCalledTimes(1);
@@ -140,10 +140,10 @@ describe("Maps", () => {
   test("Callback is not triggered when modifying set after calling has() for unrelated value", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const { store, unobserve } = createObserver(data, mockListener);
+    const { store, stop } = createObserver(data, mockListener);
 
     store.alphaMap.has("a");
-    unobserve();
+    stop();
 
     store.alphaMap.set("d", "d");
     expect(mockListener).toHaveBeenCalledTimes(0);
@@ -152,7 +152,7 @@ describe("Maps", () => {
   test("Callback is not triggered when adding existing values or deleting non-existent values", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const { store, unobserve } = createObserver(data, mockListener);
+    const { store, stop } = createObserver(data, mockListener);
 
     unwrap(store.alphaMap);
 
@@ -164,7 +164,7 @@ describe("Maps", () => {
 
   test("Callback is not triggered when clearing empty set", () => {
     const mockListener = jest.fn();
-    const { store, unobserve } = createObserver({ emptySet: new Set() }, mockListener);
+    const { store, stop } = createObserver({ emptySet: new Set() }, mockListener);
 
     unwrap(store.emptySet);
 
@@ -175,7 +175,7 @@ describe("Maps", () => {
   test("Callback is triggered only when modifying set size after calling forEach()", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const { store, unobserve } = createObserver(data, mockListener);
+    const { store, stop } = createObserver(data, mockListener);
 
     store.alphaMap.forEach((value) => {});
 
@@ -202,7 +202,7 @@ describe("Maps", () => {
   test("Callback is triggered only when modifying set size after calling keys()", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const { store, unobserve } = createObserver(data, mockListener);
+    const { store, stop } = createObserver(data, mockListener);
 
     void [...store.alphaMap.keys()]; // keys() only returns an iterable so we need to spread it to trigger the callback
 
@@ -229,7 +229,7 @@ describe("Maps", () => {
   test("Callback is triggered only when modifying set size after calling values()", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const { store, unobserve } = createObserver(data, mockListener);
+    const { store, stop } = createObserver(data, mockListener);
 
     void [...store.alphaMap.values()];
 
@@ -256,7 +256,7 @@ describe("Maps", () => {
   test("Callback is triggered only when modifying set size after calling entries()", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const { store, unobserve } = createObserver(data, mockListener);
+    const { store, stop } = createObserver(data, mockListener);
 
     void [...store.alphaMap.entries()];
 
@@ -283,7 +283,7 @@ describe("Maps", () => {
   test("Callback is triggered when modifying set inner value", () => {
     const mockListener = jest.fn();
     const { data, objectMapValues } = createData();
-    const { store, unobserve } = createObserver(data, mockListener);
+    const { store, stop } = createObserver(data, mockListener);
 
     // Collect the observables; this is just a mechanism to test setting values on the inner observables
     const values: { y: number }[] = [];

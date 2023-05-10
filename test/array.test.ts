@@ -24,11 +24,11 @@ describe("Arrays", () => {
 
     const data = createData();
 
-    const { store, unobserve } = createObserver(data, mockListener);
+    const { store, stop } = createObserver(data, mockListener);
 
     unwrap(store.array1);
     unwrap(store.array2);
-    unobserve();
+    stop();
 
     store.array1.push({ value1: "array1-2-value1", value2: "array1-2-value2" });
     expect(mockListener).toHaveBeenCalledTimes(2);
@@ -87,8 +87,8 @@ describe("Arrays", () => {
 
     const data = createData();
 
-    const { store: store1, unobserve: unobserve1 } = createObserver(data, mockListener1);
-    const { store: store2, unobserve: unobserve2 } = createObserver(data, mockListener2);
+    const { store: store1, stop: unobserve1 } = createObserver(data, mockListener1);
+    const { store: store2, stop: unobserve2 } = createObserver(data, mockListener2);
 
     // Observe store1
     unwrap(store1.array1);
@@ -122,8 +122,8 @@ describe("Arrays", () => {
 
     const data = createData();
 
-    const { store: store1, unobserve: unobserve1 } = createObserver(data, mockListener1);
-    const { store: store2, unobserve: unobserve2 } = createObserver(data, mockListener2);
+    const { store: store1, stop: unobserve1 } = createObserver(data, mockListener1);
+    const { store: store2, stop: unobserve2 } = createObserver(data, mockListener2);
 
     // Observe store1
     unwrap(store1.array1);

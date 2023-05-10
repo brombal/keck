@@ -1,29 +1,100 @@
-import { Root } from "react-dom/client";
+/**
+ * DataNodes
+ *
+ * A given data object to be observed is represented in Keck by a tree of DataNode object. Each
+ * DataNode represents a single object in the tree, and contains a reference to the object's value,
+ * as well as a reference to the parent DataNode and a map of child DataNodes. The root DataNode
+ * represents the root of the tree, and is shared by all Observers of the same object. All existing
+ * root DataNodes are stored in a WeakMap, so that they can be garbage collected when their corresponding
+ * data value is no longer referenced.
+ *
+ * DataNode children are created lazily when an Observer accesses a property of the object. Child
+ * DataNodes are identified by any uniquely-identifying value. For example, if the object is a plain
+ * object, the Identifier is the property name. If the object is an array, the Identifier is the
+ * index of the array. If the object is a Map, the Identifier is the key of the Map. If the object
+ * is a Set, the Identifier is the value itself.
+ *
+ * Observers
+ *
+ * Observers are the instances that are returned by `createObserver`. Each Observer represents a
+ * a single callback to be triggered when its observed DataNodes are modified.
+ *
+ * A DataNode contains a Map of child Identifier keys, each with a Set of Observers that are
+ * observing that child. When a child value
+ * is modified, the Set is iterated over and each Observer's callback is triggered. Since child Identifiers
+ * can be primitive values, and the Set needs to be iterated, they cannot be "weak" versions. Instead, the Observers are each stored in a WeakRef. When an Observer is garbage
+ * collected, its WeakRef is removed from the Set the next time the Set is iterated (when the child is modified).
+ *
+ * ObservableFactory
+ *
+ * An ObservableFactory is an object with methods that Keck uses to create observable versions of data values.
+ * The factory defines how to create an observable version of a given data value, and how to modify and clone it.
+ * External libraries can provide support for custom data types by implementing their own ObservableFactory.
+ *
+ * ObservableContext
+ *
+ * An ObservableContext
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ */
 
-interface SharedRef {
+/**
+ * Represents a node in an observable tree. Nodes are shared by all Observers of the same object.
+ */
+interface DataNode {
   identifier: Identifier;
   value: object;
   factory: ObservableFactory;
-  parent: SharedRef | undefined;
-  children: Map<Identifier, SharedRef>;
-  observersForId: Map<Identifier, Set<Observer>>;
-  contextForObserver: Map<Observer, ObservableContext>;
+  parent: DataNode | undefined;
+  children: Map<Identifier, DataNode>;
+  observersForChild: Map<Identifier, Set<WeakRef<Observer<unknown>>>>;
+  contextForObserver: Map<Observer<unknown>, ObservableContext>;
 }
 
-interface RootSharedRef extends SharedRef {
+/**
+ * The root node of the observable tree.
+ */
+interface RootSharedRef extends DataNode {
   __root: true;
 }
 
-interface Observer {
-  isObserving: boolean;
-  callback: Callback | undefined;
-  disposers: Set<() => void>;
+interface Observer<T> {
+  [isObserving]: boolean;
+  [callback]: Callback<any> | undefined;
+  [disposers]: Set<() => void>;
+
+  store: T;
+
+  /**
+   * Begins listening to property access. This is called automatically when the observer is created, but may be called
+   * again to re-enable the observer after it has been disabled.
+   */
+  start(): void;
+
+  /**
+   * Stops listening to property access.
+   */
+  stop(): void;
+
+  /**
+   * Un-registers all observations.
+   */
+  reset(): void;
+
+  disable(): void;
+
+  enable(): void;
 }
 
 const rootIdentifier = Symbol("root");
 type Identifier = unknown | typeof rootIdentifier;
 
-export interface PublicObservableContext<TValue = any, TMeta = any> {
+export interface PublicObservableContext<TValue extends object = any> {
   readonly value: TValue;
 
   /**
@@ -45,19 +116,20 @@ export interface PublicObservableContext<TValue = any, TMeta = any> {
   modifyIdentifier(childIdentifier: Identifier): void;
 }
 
-interface ObservableContext<TValue = any, TMeta = any>
-  extends PublicObservableContext<TValue, TMeta> {
-  sharedRef: SharedRef;
-  observer: Observer;
+interface ObservableContext<TValue extends object = any> extends PublicObservableContext<TValue> {
+  sharedRef: DataNode;
+  observer: Observer<TValue>;
   readonly observable: Observable;
   invalidateObservable(): void;
 }
+
+export const getContext = Symbol("getContext");
 
 export type Observable = {
   [getContext](): PublicObservableContext;
 };
 
-type Callback = (value: any, identifier: any) => void;
+type Callback<T> = (value: T, identifier: Identifier) => void;
 
 /**
  * The set of supported observable factories. Implement an `ObservableFactory` and add it to this map to add support
@@ -68,13 +140,11 @@ export const observableFactories = new Map<
   ObservableFactory<any, any>
 >();
 
-export const getContext = Symbol("getContext");
-
 /**
  * This interface is used to create observable objects. To create an observable for a class, implement this interface
  * and add it to `observableFactories` using the class as the key.
  */
-export interface ObservableFactory<TValue = unknown, TIdentifier = unknown> {
+export interface ObservableFactory<TValue extends object = object, TIdentifier = unknown> {
   /**
    * Returns an object that stands in place of the original value, and can be observed.
    */
@@ -92,19 +162,19 @@ export interface ObservableFactory<TValue = unknown, TIdentifier = unknown> {
   createClone(value: TValue): object;
 }
 
-const rootSharedRefs = new Map<unknown, RootSharedRef>();
+const rootSharedRefs = new WeakMap<object, RootSharedRef>();
 
 function getSharedRef(
   identifier: Exclude<Identifier, typeof rootIdentifier>,
   value: object,
-  parent: SharedRef
-): SharedRef | undefined;
+  parent: DataNode
+): DataNode | undefined;
 function getSharedRef(identifier: typeof rootIdentifier, value: object): RootSharedRef | undefined;
 function getSharedRef(
   identifier: Identifier,
   value: object,
-  parent?: SharedRef
-): SharedRef | undefined {
+  parent?: DataNode
+): DataNode | undefined {
   let sharedRef = parent ? parent.children.get(identifier) : rootSharedRefs.get(value);
   if (sharedRef) {
     sharedRef.value = value;
@@ -120,7 +190,7 @@ function getSharedRef(
     children: new Map(),
     parent,
     factory,
-    observersForId: new Map(),
+    observersForChild: new Map(),
     contextForObserver: new Map(),
   };
   if (parent) parent.children.set(identifier, sharedRef);
@@ -131,7 +201,7 @@ function getSharedRef(
   return sharedRef;
 }
 
-function getObservableContext(observer: Observer, sharedRef: SharedRef): ObservableContext {
+function getObservableContext(observer: Observer<unknown>, sharedRef: DataNode): ObservableContext {
   let ctx = sharedRef.contextForObserver.get(observer);
   if (ctx) return ctx;
 
@@ -155,11 +225,12 @@ function getObservableContext(observer: Observer, sharedRef: SharedRef): Observa
       }
 
       function addObserver() {
-        if (!observer.isObserving) return;
-        let observers = sharedRef.observersForId.get(identifier);
-        if (!observers) sharedRef.observersForId.set(identifier, (observers = new Set()));
-        observers.add(observer);
-        observer.disposers.add(() => observers!.delete(observer));
+        if (!observer[isObserving]) return;
+        let observers = sharedRef.observersForChild.get(identifier);
+        if (!observers) sharedRef.observersForChild.set(identifier, (observers = new Set()));
+        const observerWeakRef = new WeakRef(observer);
+        observers.add(observerWeakRef);
+        observer[disposers].add(() => observers!.delete(observerWeakRef));
       }
 
       if (childValue) {
@@ -189,8 +260,10 @@ function getObservableContext(observer: Observer, sharedRef: SharedRef): Observa
         ?.contextForObserver.forEach((ctx) => ctx.invalidateObservable());
 
       // Trigger all Observer callbacks for the child Identifier
-      sharedRef.observersForId.get(childIdentifier)?.forEach((observer) => {
-        observer.callback?.(sharedRef.value, childIdentifier);
+      sharedRef.observersForChild.get(childIdentifier)?.forEach((observer) => {
+        const ref = observer.deref();
+        if (!ref) sharedRef.observersForChild.get(childIdentifier)!.delete(observer);
+        else ref[callback]?.(sharedRef.value, childIdentifier);
       });
 
       // Let the parent Observable update itself with the cloned child
@@ -211,37 +284,40 @@ function getObservableContext(observer: Observer, sharedRef: SharedRef): Observa
   return ctx;
 }
 
-export function createObserver<T extends object>(data: T, callback: Callback) {
+const isObserving = Symbol("isObserving");
+const callback = Symbol("callback");
+const disposers = Symbol("disposers");
+
+export function createObserver<T extends object>(data: T, cb: Callback<T>): Observer<T> {
   data = unwrap(data, false);
   const rootSharedRef = getSharedRef(rootIdentifier, data);
   if (!rootSharedRef) throw new Error(`Cannot observe value ${data}`);
 
-  const observer: Observer = {
-    isObserving: true,
-    callback,
-    disposers: new Set(),
-  };
+  const observer: Observer<T> = {
+    [isObserving]: true,
+    [callback]: cb,
+    [disposers]: new Set(),
 
-  return {
-    store: getObservableContext(observer, rootSharedRef).observable as T,
-    observe() {
-      observer.isObserving = true;
+    store: null!,
+    start() {
+      observer[isObserving] = true;
     },
-    unobserve() {
-      observer.isObserving = false;
-    },
-    reset() {
-      observer.disposers.forEach((disposer) => disposer());
-      observer.disposers.clear();
+    stop() {
+      observer[isObserving] = false;
     },
     disable() {
-      observer.isObserving = false;
-      observer.callback = undefined;
+      observer[callback] = undefined;
     },
     enable() {
-      observer.callback = callback;
+      observer[callback] = cb;
+    },
+    reset() {
+      observer[disposers].forEach((disposer) => disposer());
+      observer[disposers].clear();
     },
   };
+  observer.store = getObservableContext(observer, rootSharedRef).observable as T;
+  return observer;
 }
 
 export function unwrap<T>(observable: T, observe = true): T {
@@ -260,24 +336,3 @@ export function unwrap<T>(observable: T, observe = true): T {
   }
   return ctx.sharedRef.value as T;
 }
-
-/**
- * When an identifier is modified, I need to get all the observers that are observing that identifier, and trigger each callback.
- * I don't want to iterate every existing observer.
- * 1. Get the context's shared ref
- * 2. Use the identifier being modified to get its Set of observers
- * 3. Call each observer's callback
- *
- * When an observation is created:
- * 1. Get the context's shared ref
- * 2. Use the identifier being observed to get its Set of observers
- * 3. Add the observer to the Set
- * 4. Add a cleanup function to the observer that will remove it from the Set on reset
- *
- * When an observer is reset, I need to clear out all of the observers that are observing that identifier for each shared ref.
- * 1. Get the observer
- * 2. Run all the cleanup functions
- *
- * An observable instance needs to compare equal to itself when its underlying value hasn't changed (for things like React's useEffect dependencies)
- *
- */

@@ -41,11 +41,11 @@ describe("Objects & arrays", () => {
 
     const data = createData();
 
-    const { store, unobserve, disable } = createObserver(data, mockListener);
+    const { store, stop, disable } = createObserver(data, mockListener);
 
     void store.value1;
 
-    unobserve();
+    stop();
 
     store.value1 = "new-value1-1";
     expect(mockListener).toHaveBeenCalledTimes(1);
@@ -64,7 +64,7 @@ describe("Objects & arrays", () => {
 
     const data = createData();
 
-    const { store, observe, disable, enable } = createObserver(data, mockListener);
+    const { store, start, disable, enable } = createObserver(data, mockListener);
 
     void store.value1;
     store.value1 = "new-value1-1";

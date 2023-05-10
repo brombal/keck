@@ -26,8 +26,8 @@ describe("Multiple stores", () => {
 
     const data = createData();
 
-    const { store: store1, unobserve: unobserve1 } = createObserver(data, mockListener1);
-    const { store: store2, unobserve: unobserve2 } = createObserver(data, mockListener2);
+    const { store: store1, stop: unobserve1 } = createObserver(data, mockListener1);
+    const { store: store2, stop: unobserve2 } = createObserver(data, mockListener2);
 
     const store1_object1 = store1.object1;
     const store1_object2 = store1.object2;
@@ -76,8 +76,8 @@ describe("Multiple stores", () => {
 
     const data = createData();
 
-    const { store: store1, unobserve: unobserve1 } = createObserver(data, mockListener1);
-    const { store: store2, unobserve: unobserve2 } = createObserver(data, mockListener2);
+    const { store: store1, stop: unobserve1 } = createObserver(data, mockListener1);
+    const { store: store2, stop: unobserve2 } = createObserver(data, mockListener2);
 
     void store1.value1;
     void store1.object1.value1;

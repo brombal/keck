@@ -3,17 +3,17 @@ import { createObserver } from "./";
 
 export function useObservable<T extends object>(data: T) {
   const [, forceRerender] = useState({});
-  const { store, reset, observe, unobserve } = useRef(
+  const { store, reset, start, stop } = useRef(
     createObserver(data, () => forceRerender({}))
   ).current;
 
   // Begin observing on render
   reset();
-  observe();
+  start();
 
   // Stop observing as soon as component finishes rendering
   useEffect(() => {
-    unobserve();
+    stop();
   });
 
   // Disable callback when component unmounts
@@ -21,5 +21,5 @@ export function useObservable<T extends object>(data: T) {
     return () => reset();
   }, []);
 
-  return { store, observe, unobserve };
+  return { store, start: start, stop: stop };
 }

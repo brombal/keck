@@ -40,7 +40,7 @@ describe("unwrap", () => {
 
     const data = createData();
 
-    const { store, unobserve: unobserve1 } = createObserver(data, mockListener);
+    const { store, stop: unobserve1 } = createObserver(data, mockListener);
     unwrap(store);
     unobserve1();
 
@@ -58,11 +58,11 @@ describe("unwrap", () => {
 
     const data = createData();
 
-    const { store, unobserve } = createObserver(data, mockListener1);
+    const { store, stop } = createObserver(data, mockListener1);
     unwrap(store.value1);
     unwrap(store.object1.value1);
     unwrap(store.array1[0].value1);
-    unobserve();
+    stop();
 
     store.value1 = "new-value1";
     store.object1.value1 = "new-object1-value1";
@@ -81,10 +81,10 @@ describe("unwrap", () => {
 
     const data = createData();
 
-    const { store, unobserve } = createObserver(data, mockListener1);
+    const { store, stop } = createObserver(data, mockListener1);
     unwrap(store.object1);
     unwrap(store.array1);
-    unobserve();
+    stop();
 
     store.object1.value1 = "new-object1-value1";
     store.array1[0].value1 = "new-array1-0-value1";
@@ -101,10 +101,10 @@ describe("unwrap", () => {
 
     const data = createData();
 
-    const { store, unobserve } = createObserver(data, mockListener1);
+    const { store, stop } = createObserver(data, mockListener1);
     unwrap(store.object1);
     unwrap(store.array1, false);
-    unobserve();
+    stop();
 
     store.object1.value1 = "new-object1-value1";
     store.array1[0].value1 = "new-array1-0-value1";

@@ -21,10 +21,11 @@ describe("createObserver", () => {
 
     const data = createData();
 
-    const { store, unobserve } = createObserver(data, mockListener);
+    const { store, stop } = createObserver(data, mockListener);
+    const o = createObserver(data, mockListener);
 
     void store.value1;
-    unobserve();
+    stop();
 
     store.value1 = "new-value1";
 
@@ -40,12 +41,12 @@ describe("createObserver", () => {
 
     const data = createData();
 
-    const { store: store1, unobserve } = createObserver(data, mockListener);
+    const { store: store1, stop } = createObserver(data, mockListener);
 
-    const { store: store2, unobserve: unobserve2 } = createObserver(store1, mockListener);
+    const { store: store2, stop: unobserve2 } = createObserver(store1, mockListener);
 
     void store2.value1;
-    unobserve();
+    stop();
 
     store2.value1 = "new-value1";
 
@@ -65,11 +66,11 @@ describe("createObserver", () => {
 
     const data = createData();
 
-    const { store, unobserve } = createObserver(data, mockListener);
+    const { store, stop } = createObserver(data, mockListener);
 
     void store.object1;
     void store.array1[0];
-    unobserve();
+    stop();
 
     store.object1.value1 = "array1-0-value1";
     store.array1[0].value1 = "array2-0-value1";
@@ -87,10 +88,10 @@ describe("createObserver", () => {
     const originalarray10 = data.array1[0];
     const originalarray11 = data.array1[1];
 
-    const { store, unobserve } = createObserver(data, () => {});
+    const { store, stop } = createObserver(data, () => {});
 
     store.array1[0].value1 = "new-array1-0-value1";
-    unobserve();
+    stop();
 
     // Check that object references that were modified are different; but those that weren't modified are identical
     expect(data.array2).toBe(originalarray2);
@@ -102,14 +103,14 @@ describe("createObserver", () => {
   test("References to intermediate properties of store change if modified", () => {
     const data = createData();
 
-    const { store, unobserve } = createObserver(data, () => {});
+    const { store, stop } = createObserver(data, () => {});
 
     // Grab references to original arrays to test references
     const originalarray2 = store.array2;
     const originalarray1 = store.array1;
     const originalarray10 = store.array1[0];
     const originalarray11 = store.array1[1];
-    unobserve();
+    stop();
 
     store.array1[0].value1 = "new-array1-0-value1"; // Triggers callback
 

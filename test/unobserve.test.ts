@@ -22,8 +22,8 @@ describe("unobserve", () => {
 
     const data = createData();
 
-    const { store, unobserve } = createObserver(data, mockListener);
-    unobserve();
+    const { store, stop } = createObserver(data, mockListener);
+    stop();
 
     void store.value2;
 
@@ -44,8 +44,8 @@ describe("unobserve", () => {
 
     const data = createData();
 
-    const { store, unobserve } = createObserver(data, mockListener);
-    unobserve();
+    const { store, stop } = createObserver(data, mockListener);
+    stop();
 
     unwrap(store.array1);
     unwrap(store.array2[0]);
@@ -62,10 +62,10 @@ describe("unobserve", () => {
 
     const data = createData();
 
-    const { store, observe, unobserve } = createObserver(data, mockListener);
+    const { store, start, stop } = createObserver(data, mockListener);
 
     void store.value1;
-    unobserve();
+    stop();
     store.value1 = "new-value1";
 
     expect(mockListener).toHaveBeenCalledTimes(1);
@@ -76,9 +76,9 @@ describe("unobserve", () => {
     store.value2 = 123;
     expect(mockListener).toHaveBeenCalledTimes(0);
 
-    observe();
+    start();
     void store.value2;
-    unobserve();
+    stop();
     store.value2 = 456;
     expect(mockListener).toHaveBeenCalledTimes(1);
     mockListener.mockClear();

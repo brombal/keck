@@ -161,7 +161,6 @@ function getObservableContext(
         if (!observer.isObserving) return;
         let observers = dataNode.observersForChild.get(identifier);
         if (!observers) dataNode.observersForChild.set(identifier, (observers = new Set()));
-        // const observerWeakRef = new WeakRef(observer);
         observers.add(observer);
         observer.disposers.add(() => observers!.delete(observer));
       }

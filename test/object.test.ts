@@ -91,6 +91,8 @@ describe("Objects", () => {
     const data = createData();
     const [store] = observe(data, mockFn);
 
+    expect("value2" in store.object1).toBe(true);
+
     void ("value2" in store.object1);
     store.object1.value2 = "new-object1-value2";
 
@@ -135,8 +137,11 @@ describe("Objects", () => {
     const data = createData();
     const [store] = observe(data, mockFn);
 
+    const keys = [];
     for (const key in store.object1) {
+      keys.push(key);
     }
+    expect(keys).toEqual(["value1", "value2"]);
 
     store.object1.value2 = "new-object1-value2";
 

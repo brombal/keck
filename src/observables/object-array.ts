@@ -10,11 +10,14 @@ export const objectAndArrayObservableFactory: ObservableFactory<
       // We only use the context to make debugging easier.
       ctx,
       {
+        getPrototypeOf() {
+          return Reflect.getPrototypeOf(ctx.value);
+        },
+        getOwnPropertyDescriptor(target, p) {
+          ctx.observeIdentifier(p);
+          return Reflect.getOwnPropertyDescriptor(ctx.value, p);
+        },
         ownKeys() {
-          ctx.dataNode.parent &&
-            ctx.observer.contextForNode
-              .get(ctx.dataNode.parent)
-              ?.observeIdentifier(ctx.dataNode.identifier);
           return Reflect.ownKeys(ctx.value);
         },
         has(_, prop) {

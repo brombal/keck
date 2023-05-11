@@ -55,7 +55,6 @@ function $d4d00b2c18281bdc$var$getObservableContext(observer, dataNode) {
                 if (!observer.isObserving) return;
                 let observers = dataNode.observersForChild.get(identifier);
                 if (!observers) dataNode.observersForChild.set(identifier, observers = new Set());
-                // const observerWeakRef = new WeakRef(observer);
                 observers.add(observer);
                 observer.disposers.add(()=>observers.delete(observer));
             }
@@ -174,9 +173,20 @@ function $d4d00b2c18281bdc$export$debb760848ca95a(observable, observe = true) {
 const $379af7c1c9c51789$export$521eebe5cf3f8bee = {
     makeObservable: (ctx)=>{
         return new Proxy(// The target of the proxy is not relevant since we always get/set values directly on the context value object.
-        // We only use the context object to make debugging easier.
+        // We only use the context to make debugging easier.
         ctx, {
+            getPrototypeOf () {
+                return Reflect.getPrototypeOf(ctx.value);
+            },
+            getOwnPropertyDescriptor (target, p) {
+                ctx.observeIdentifier(p);
+                return Reflect.getOwnPropertyDescriptor(ctx.value, p);
+            },
+            ownKeys () {
+                return Reflect.ownKeys(ctx.value);
+            },
             has (_, prop) {
+                ctx.observeIdentifier(prop);
                 return Reflect.has(ctx.value, prop);
             },
             get (_, prop) {
@@ -199,10 +209,9 @@ const $379af7c1c9c51789$export$521eebe5cf3f8bee = {
                 ctx.modifyIdentifier(prop);
                 return result;
             },
-            deleteProperty (_, p) {
-                const result = Reflect.deleteProperty(ctx.value, p);
-                ctx.modifyIdentifier(p);
-                return result;
+            deleteProperty (_, prop) {
+                if (Reflect.has(ctx.value, prop)) ctx.modifyIdentifier(prop);
+                return Reflect.deleteProperty(ctx.value, prop);
             }
         });
     },

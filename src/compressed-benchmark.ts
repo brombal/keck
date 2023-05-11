@@ -1,6 +1,6 @@
-import { observe, unwrap } from "./";
-import { useObserver } from "./react";
+import * as keck from "./";
+import * as react from "./react";
 
-observe({}, () => {});
-unwrap({});
-useObserver({});
+declare const x: (...args: any[]) => {};
+x(keck);
+x(react);

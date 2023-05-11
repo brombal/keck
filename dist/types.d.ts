@@ -9,21 +9,21 @@
 interface DataNode {
     identifier: Identifier;
     value: object;
-    factory: ObservableFactory;
+    factory: ObservableFactory<object>;
     parent: DataNode | undefined;
     children: Map<Identifier, DataNode>;
     observersForChild: Map<Identifier, Set<Observer<object>>>;
-    allContexts: WeakSet<ObservableContext>;
+    allContexts: WeakSet<ObservableContext<object>>;
 }
 interface Observer<T extends object> {
     isObserving: boolean;
     callback: Callback<any> | undefined;
     disposers: Set<() => void>;
-    contextForNode: WeakMap<DataNode, ObservableContext>;
+    contextForNode: WeakMap<DataNode, ObservableContext<object>>;
 }
 declare const rootIdentifier: unique symbol;
 type Identifier = unknown | typeof rootIdentifier;
-export interface ObservableContext<TValue extends object = any> {
+export interface ObservableContext<TValue extends object> {
     dataNode: DataNode;
     observer: Observer<TValue>;
     observable: Observable;
@@ -53,7 +53,7 @@ export const observableFactories: Map<new (...args: any[]) => any, ObservableFac
  * This interface is used to create observable objects. To create an observable for a class, implement this interface
  * and add it to `observableFactories` using the class as the key.
  */
-interface ObservableFactory<TValue extends object = object, TIdentifier = unknown> {
+interface ObservableFactory<TValue extends object, TIdentifier = unknown> {
     /**
      * Returns an object that stands in place of the original value, and can be observed.
      */
@@ -94,7 +94,8 @@ type ObserveResponse<T> = [
         reset(): void;
     }
 ];
-export function observe<T extends object>(data: T, cb: Callback<T>): ObserveResponse<T>;
+export function observe<TValue extends object>(value: TValue, cb: Callback<TValue>): ObserveResponse<TValue>;
+export function observe<TData extends object, TSelectorResult>(data: TData, selector: (data: TData) => TSelectorResult, action: (selectorResult: TSelectorResult, value: TData) => void): [TData, () => void];
 export function unwrap<T>(observable: T, observe?: boolean): T;
 export const objectAndArrayObservableFactory: ObservableFactory<Record<string | symbol, unknown>, string | symbol>;
 export function useObserver<T extends object>(data: T): [T, {

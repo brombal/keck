@@ -20,7 +20,7 @@ describe("Objects & arrays", () => {
 
     const data = createData();
 
-    const [store] =observe(data, mockListener);
+    const [store] = observe(data, mockListener);
 
     void store.value1;
     void store.array1[0].value1;
@@ -48,7 +48,7 @@ describe("Objects & arrays", () => {
     const mockListener = jest.fn();
     const data = createData();
 
-    const [store] =observe(data, mockListener);
+    const [store] = observe(data, mockListener);
 
     unwrap(store.array1);
     void store.array1[0].value1;
@@ -64,7 +64,7 @@ describe("Objects & arrays", () => {
 
     const data = createData();
 
-    const [store] =observe(data, mockListener);
+    const [store] = observe(data, mockListener);
 
     unwrap(store.value1);
     unwrap(store.array1);
@@ -75,5 +75,15 @@ describe("Objects & arrays", () => {
 
     // Check that callback was called correctly
     expect(mockListener).toHaveBeenCalledTimes(0);
+  });
+
+  test("Calling toJSON on observables works on objects and arrays", () => {
+    const object = { object: "object" };
+    const [store] = observe(object, () => {});
+    expect((store as any).toJSON()).toEqual(object);
+
+    const array = [1, 2, 3];
+    const [store2] = observe(array, () => {});
+    expect((store2 as any).toJSON()).toEqual(array);
   });
 });

@@ -39,7 +39,6 @@ function ExampleApp() {
 
   return (
     <StylixProvider devMode={true}>
-      <Counter />
       <$.div
         margin-top="10vh"
         max-width={600}

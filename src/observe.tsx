@@ -10,7 +10,7 @@
 interface DataNode {
   identifier: Identifier;
   value: object;
-  factory: ObservableFactory;
+  factory: ObservableFactory<object>;
   parent: DataNode | undefined;
   children: Map<Identifier, DataNode>;
 
@@ -18,7 +18,7 @@ interface DataNode {
   observersForChild: Map<Identifier, Set<Observer<object>>>;
 
   // Used to determine whether an ObservableContext is still valid
-  allContexts: WeakSet<ObservableContext>;
+  allContexts: WeakSet<ObservableContext<object>>;
 }
 
 interface Observer<T extends object> {
@@ -27,7 +27,7 @@ interface Observer<T extends object> {
   disposers: Set<() => void>;
 
   // Used to look up existing ObservableContext for a given DataNode (necessary for maintaining ref equality of observables)
-  contextForNode: WeakMap<DataNode, ObservableContext>;
+  contextForNode: WeakMap<DataNode, ObservableContext<object>>;
 }
 
 const rootIdentifier = Symbol("root");
@@ -37,10 +37,9 @@ type Identifier = unknown | typeof rootIdentifier;
 /**
  * Allows looking up an Observable's ObservableContext, so that it can be unwrapped
  */
-const contextForObservable = new WeakMap<Observable, ObservableContext>();
+const contextForObservable = new WeakMap<Observable, ObservableContext<object>>();
 
-// TODO TValue extends object = any - should be unknown or object?
-export interface ObservableContext<TValue extends object = any> {
+export interface ObservableContext<TValue extends object> {
   dataNode: DataNode;
   observer: Observer<TValue>;
   observable: Observable;
@@ -84,7 +83,7 @@ export const observableFactories = new Map<
  * This interface is used to create observable objects. To create an observable for a class, implement this interface
  * and add it to `observableFactories` using the class as the key.
  */
-export interface ObservableFactory<TValue extends object = object, TIdentifier = unknown> {
+export interface ObservableFactory<TValue extends object, TIdentifier = unknown> {
   /**
    * Returns an object that stands in place of the original value, and can be observed.
    */
@@ -169,7 +168,7 @@ function getObservableContext(
 
       if (childValue) {
         // If the property is something we know how to observe, return the observable value
-        const childNode = getDataNode(identifier, childValue, dataNode); // TODO: sharedRef.getChildSharedRef(identifier, childValue); ?
+        const childNode = getDataNode(identifier, childValue, dataNode);
         if (childNode) {
           if (observeIntermediate) addObserver();
           return getObservableContext(observer, childNode).observable;
@@ -194,8 +193,6 @@ function getObservableContext(
 
       // Trigger all Observer callbacks for the child Identifier
       dataNode.observersForChild.get(childIdentifier)?.forEach((observer) => {
-        // if (!observer) dataNode.observersForChild.get(childIdentifier)!.delete(ref);
-        // else
         observer.callback?.(dataNode.value, childIdentifier);
       });
 
@@ -251,20 +248,38 @@ type ObserveResponse<T> = [
   }
 ];
 
-export function observe<T extends object>(data: T, cb: Callback<T>): ObserveResponse<T> {
+export function observe<TValue extends object>(
+  value: TValue,
+  cb: Callback<TValue>
+): ObserveResponse<TValue>;
+export function observe<TData extends object, TSelectorResult>(
+  data: TData,
+  selector: (data: TData) => TSelectorResult,
+  action: (selectorResult: TSelectorResult, value: TData) => void
+): [TData, () => void];
+
+export function observe(...args: any) {
+  if (args.length === 2) return createObserver(args[0], args[1]);
+  else return createObserverSelector(args[0], args[1], args[2]);
+}
+
+export function createObserver<TData extends object>(
+  data: TData,
+  cb: Callback<TData>
+): ObserveResponse<TData> {
   // Get an existing context, if possible. This happens when an observable from another tree is passed to observe().
   const ctx = contextForObservable.get(data);
   const rootNode = ctx?.dataNode || getDataNode(rootIdentifier, data);
   if (!rootNode) throw new Error(`Cannot observe value ${data}`);
 
-  const observer: Observer<T> = {
+  const observer: Observer<TData> = {
     isObserving: true,
     callback: cb,
     disposers: new Set(),
     contextForNode: new WeakMap(),
   };
 
-  const store = getObservableContext(observer, rootNode).observable as T;
+  const store = getObservableContext(observer, rootNode).observable as TData;
   return [
     store,
     {
@@ -284,6 +299,57 @@ export function observe<T extends object>(data: T, cb: Callback<T>): ObserveResp
         observer.disposers.forEach((disposer) => disposer());
         observer.disposers.clear();
       },
+    },
+  ];
+}
+
+/**
+ * Creates an observer and immediately observes the result of the selector function. The selector function is called
+ * whenever the value of the observable changes, and the action callback is called whenever the result of the selector
+ * function changes.
+ *
+ * The if the selector function returns a plain array (observables that represent arrays will work normally), it will be
+ * shallow compared with the previous value to determine if the observer callback should be called.
+ */
+export function createObserverSelector<TData extends object, TSelectorResult>(
+  data: TData,
+  selector: (data: TData) => TSelectorResult,
+  action: (selectorResult: TSelectorResult, value: TData) => void
+): [TData, () => void] {
+  const [state, actions] = observe(data, () => {
+    const newSelectorResult = selector(state);
+    let isEqual = false;
+
+    let newResult: any;
+    if (Array.isArray(newSelectorResult) && !contextForObservable.has(newSelectorResult)) {
+      newResult = newSelectorResult.map((v) => unwrap(v, false));
+      isEqual =
+        prevResult.length === newResult.length &&
+        newResult.every((v: any, i: number) => prevResult[i] === v);
+    } else {
+      newResult = unwrap(newSelectorResult, false);
+      isEqual = newResult === prevResult;
+    }
+
+    if (!isEqual) action(newResult, data);
+    prevResult = newResult;
+  });
+  const selectorResult = selector(state);
+  let prevResult: any;
+
+  // If the selector returns a new, non-observable array, unwrap each element to observe it individually.
+  if (Array.isArray(selectorResult) && !contextForObservable.has(selectorResult)) {
+    prevResult = selectorResult.map((v) => unwrap(v));
+  } else {
+    prevResult = unwrap(selectorResult);
+  }
+
+  return [
+    state,
+    () => {
+      actions.stop();
+      actions.disable();
+      actions.reset();
     },
   ];
 }

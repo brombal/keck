@@ -70,7 +70,7 @@ function $d2f50327f5a80b8f$var$getObservableContext(observer, dataNode) {
             }
             if (childValue) {
                 // If the property is something we know how to observe, return the observable value
-                const childNode = $d2f50327f5a80b8f$var$getDataNode(identifier, childValue, dataNode); // TODO: sharedRef.getChildSharedRef(identifier, childValue); ?
+                const childNode = $d2f50327f5a80b8f$var$getDataNode(identifier, childValue, dataNode);
                 if (childNode) {
                     if (observeIntermediate) addObserver();
                     return $d2f50327f5a80b8f$var$getObservableContext(observer, childNode).observable;
@@ -91,8 +91,6 @@ function $d2f50327f5a80b8f$var$getObservableContext(observer, dataNode) {
             if (dataNode.children.get(childIdentifier)) dataNode.children.get(childIdentifier).allContexts = new Set();
             // Trigger all Observer callbacks for the child Identifier
             dataNode.observersForChild.get(childIdentifier)?.forEach((observer)=>{
-                // if (!observer) dataNode.observersForChild.get(childIdentifier)!.delete(ref);
-                // else
                 observer.callback?.(dataNode.value, childIdentifier);
             });
             // Let the parent Observable update itself with the cloned child
@@ -107,7 +105,11 @@ function $d2f50327f5a80b8f$var$getObservableContext(observer, dataNode) {
     dataNode.allContexts.add(ctx);
     return ctx;
 }
-function $d2f50327f5a80b8f$export$d1203567a167490e(data, cb) {
+function $d2f50327f5a80b8f$export$d1203567a167490e(...args) {
+    if (args.length === 2) return $d2f50327f5a80b8f$export$9e6a5ff84f57576(args[0], args[1]);
+    else return $d2f50327f5a80b8f$export$6db4992b88b03a85(args[0], args[1], args[2]);
+}
+function $d2f50327f5a80b8f$export$9e6a5ff84f57576(data, cb) {
     // Get an existing context, if possible. This happens when an observable from another tree is passed to observe().
     const ctx = $d2f50327f5a80b8f$var$contextForObservable.get(data);
     const rootNode = ctx?.dataNode || $d2f50327f5a80b8f$var$getDataNode($d2f50327f5a80b8f$var$rootIdentifier, data);
@@ -138,6 +140,35 @@ function $d2f50327f5a80b8f$export$d1203567a167490e(data, cb) {
                 observer.disposers.forEach((disposer)=>disposer());
                 observer.disposers.clear();
             }
+        }
+    ];
+}
+function $d2f50327f5a80b8f$export$6db4992b88b03a85(data, selector, action) {
+    const [state, actions] = $d2f50327f5a80b8f$export$d1203567a167490e(data, ()=>{
+        const newSelectorResult = selector(state);
+        let isEqual = false;
+        let newResult;
+        if (Array.isArray(newSelectorResult) && !$d2f50327f5a80b8f$var$contextForObservable.has(newSelectorResult)) {
+            newResult = newSelectorResult.map((v)=>$d2f50327f5a80b8f$export$debb760848ca95a(v, false));
+            isEqual = prevResult.length === newResult.length && newResult.every((v, i)=>prevResult[i] === v);
+        } else {
+            newResult = $d2f50327f5a80b8f$export$debb760848ca95a(newSelectorResult, false);
+            isEqual = newResult === prevResult;
+        }
+        if (!isEqual) action(newResult, data);
+        prevResult = newResult;
+    });
+    const selectorResult = selector(state);
+    let prevResult;
+    // If the selector returns a new, non-observable array, unwrap each element to observe it individually.
+    if (Array.isArray(selectorResult) && !$d2f50327f5a80b8f$var$contextForObservable.has(selectorResult)) prevResult = selectorResult.map((v)=>$d2f50327f5a80b8f$export$debb760848ca95a(v));
+    else prevResult = $d2f50327f5a80b8f$export$debb760848ca95a(selectorResult);
+    return [
+        state,
+        ()=>{
+            actions.stop();
+            actions.disable();
+            actions.reset();
         }
     ];
 }

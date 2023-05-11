@@ -1,4 +1,4 @@
-import { createObserver, unwrap } from "#src";
+import { observe, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -14,15 +14,13 @@ const createData = () => ({
   ],
 });
 
-function noop() {}
-
 describe("Objects & arrays", () => {
   test("Modifying children does not trigger callback for intermediates when disabled", () => {
     const mockListener = jest.fn();
 
     const data = createData();
 
-    const { store, disable } = createObserver(data, mockListener);
+    const [store, { disable }] = observe(data, mockListener);
 
     unwrap(store.array1);
     unwrap(store.array2[0]);
@@ -41,7 +39,7 @@ describe("Objects & arrays", () => {
 
     const data = createData();
 
-    const { store, stop, disable } = createObserver(data, mockListener);
+    const [store, { stop, disable }] = observe(data, mockListener);
 
     void store.value1;
 
@@ -64,7 +62,7 @@ describe("Objects & arrays", () => {
 
     const data = createData();
 
-    const { store, start, disable, enable } = createObserver(data, mockListener);
+    const [store, { start, disable, enable }] = observe(data, mockListener);
 
     void store.value1;
     store.value1 = "new-value1-1";

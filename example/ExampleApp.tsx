@@ -1,9 +1,9 @@
-import React, { Suspense, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import ReactDOM from "react-dom/client";
 import $, { StylixProvider, useGlobalStyles } from "@stylix/core";
 import MeViewer from "./MeViewer";
 import MeEditor from "./MeEditor";
-import { useObservable } from "/src";
+import { unwrap, useObserver } from "/src";
 
 const data = {
   me: {
@@ -35,10 +35,11 @@ function ExampleApp() {
 
   const [editMe, setEditMe] = useState(false);
 
-  const { store } = useObservable(data);
+  const [store] = useObserver(data);
 
   return (
     <StylixProvider devMode={true}>
+      <Counter />
       <$.div
         margin-top="10vh"
         max-width={600}
@@ -57,10 +58,6 @@ function ExampleApp() {
         <$.h2 font-weight="100" font-size={22} margin-bottom={10}>
           My Information
         </$.h2>
-
-        <Suspense fallback={<div>loading...</div>}>
-          <SomethingLong />
-        </Suspense>
 
         {editMe ? (
           <MeEditor

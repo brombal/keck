@@ -1,9 +1,8 @@
 import {
-  PublicObservableContext as ObservableContext,
+  ObservableContext,
   observableFactories,
   ObservableFactory,
-  getContext,
-} from "../createObserver";
+} from "../observe";
 
 const _size = Symbol("size");
 
@@ -85,10 +84,6 @@ export class ObservableMap<K, V> extends Map<K, V> {
     for (const [key, value] of this[Symbol.iterator]()) {
       yield value;
     }
-  }
-
-  [getContext]() {
-    return this.ctx;
   }
 }
 

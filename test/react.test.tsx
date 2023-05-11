@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useObservable } from "#src";
+import { useObserver } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -13,17 +13,16 @@ const createData = () => ({
   ],
   array2: [
     { value1: "array2-0-value1", value2: "array2-0-value2" },
-    { value1: "array2-1-value1", value2: "array2-1-value2" }
+    { value1: "array2-1-value1", value2: "array2-1-value2" },
   ],
 });
-
 
 test("Subscriptions are reset on each render", async () => {
   const mockListener = jest.fn();
   const data = createData();
 
   function NameAge() {
-    const { store } = useObservable(data);
+    const [store] = useObserver(data);
 
     mockListener();
 

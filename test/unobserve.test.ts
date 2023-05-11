@@ -1,4 +1,4 @@
-import { createObserver, unwrap } from "#src";
+import { observe, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -14,15 +14,13 @@ const createData = () => ({
   ],
 });
 
-function noop() {}
-
 describe("unobserve", () => {
   test("Accessing properties after unobserving does not create observers", () => {
     const mockListener = jest.fn();
 
     const data = createData();
 
-    const { store, stop } = createObserver(data, mockListener);
+    const [store, { stop }] = observe(data, mockListener);
     stop();
 
     void store.value2;
@@ -44,7 +42,7 @@ describe("unobserve", () => {
 
     const data = createData();
 
-    const { store, stop } = createObserver(data, mockListener);
+    const [store, { stop }] = observe(data, mockListener);
     stop();
 
     unwrap(store.array1);
@@ -62,7 +60,7 @@ describe("unobserve", () => {
 
     const data = createData();
 
-    const { store, start, stop } = createObserver(data, mockListener);
+    const [store,{ start, stop }] = observe(data, mockListener);
 
     void store.value1;
     stop();

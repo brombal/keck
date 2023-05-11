@@ -1,4 +1,4 @@
-import { createObserver, unwrap } from "#src";
+import { observe, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -14,15 +14,13 @@ const createData = () => ({
   ],
 });
 
-function noop() {}
-
 describe("Objects & arrays", () => {
   test("Writing deep properties triggers callback and modifies store & source", () => {
     const mockListener = jest.fn();
 
     const data = createData();
 
-    const { store } = createObserver(data, mockListener);
+    const [store] =observe(data, mockListener);
 
     void store.value1;
     void store.array1[0].value1;
@@ -50,7 +48,7 @@ describe("Objects & arrays", () => {
     const mockListener = jest.fn();
     const data = createData();
 
-    const { store } = createObserver(data, mockListener);
+    const [store] =observe(data, mockListener);
 
     unwrap(store.array1);
     void store.array1[0].value1;
@@ -66,7 +64,7 @@ describe("Objects & arrays", () => {
 
     const data = createData();
 
-    const { store } = createObserver(data, mockListener);
+    const [store] =observe(data, mockListener);
 
     unwrap(store.value1);
     unwrap(store.array1);

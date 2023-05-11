@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import ReactDOM from "react-dom/client";
-import { useObservable, unwrap } from "#src";
+import { useObserver, unwrap } from "#src";
 
 const obj = {
   name: "Alex",
@@ -16,7 +16,7 @@ const obj = {
 };
 
 function NameAge() {
-  const { store, observe, unobserve } = useObservable(obj);
+  const { store, observe, unobserve } = useObserver(obj);
 
   const renderCount = useRef(0);
   renderCount.current++;
@@ -71,7 +71,7 @@ function NameAge() {
 
 function Movie(props: { movieIndex: number }) {
   const { movieIndex } = props;
-  const { store } = useObservable(obj);
+  const [store] =useObserver(obj);
 
   const movie = store.movies[movieIndex];
 
@@ -113,7 +113,7 @@ function Movie(props: { movieIndex: number }) {
 let movieI = 0;
 
 function Movies() {
-  const { store } = useObservable(obj);
+  const [store] =useObserver(obj);
 
   const { movies } = store;
 
@@ -150,7 +150,7 @@ function Movies() {
 
 function Book(props: { bookIndex: number }) {
   const { bookIndex } = props;
-  const { store } = useObservable(obj);
+  const [store] =useObserver(obj);
 
   const book = store.books[bookIndex];
 
@@ -183,7 +183,7 @@ function Book(props: { bookIndex: number }) {
 function Books() {
   const {
     store: { books },
-  } = useObservable(obj);
+  } = useObserver(obj);
 
   const renderCount = useRef(0);
   renderCount.current++;
@@ -224,12 +224,12 @@ const profile = {
 };
 
 function Profile() {
-  const { store } = useObservable(profile);
+  const [store] =useObserver(profile);
   return store.editing ? <ProfileEditor /> : <ProfileViewer />;
 }
 
 function ProfileEditor() {
-  const { store } = useObservable(profile);
+  const [store] =useObserver(profile);
   return (
     <div>
       <input
@@ -266,7 +266,7 @@ function ProfileEditor() {
 }
 
 function ProfileViewer() {
-  const { store } = useObservable(profile);
+  const [store] =useObserver(profile);
   return (
     <div>
       <h1>{store.name}</h1>

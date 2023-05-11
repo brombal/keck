@@ -1,65 +1,70 @@
 import {useState as $hgUW1$useState, useRef as $hgUW1$useRef, useEffect as $hgUW1$useEffect, useLayoutEffect as $hgUW1$useLayoutEffect} from "react";
 
-const $c6b5ef5d3dd49329$var$rootIdentifier = Symbol("root");
-const $c6b5ef5d3dd49329$export$e0440d5a58076798 = new Map();
-const $c6b5ef5d3dd49329$export$31553aaa555c1514 = Symbol("getContext");
-const $c6b5ef5d3dd49329$var$rootSharedRefs = new Map();
-function $c6b5ef5d3dd49329$var$getSharedRef(identifier, value, parent) {
-    let sharedRef = parent ? parent.children.get(identifier) : $c6b5ef5d3dd49329$var$rootSharedRefs.get(value);
-    if (sharedRef) {
-        sharedRef.value = value;
-        return sharedRef;
+/**
+ *
+ *
+ *
+ */ /**
+ * Represents a node in an observable tree. Nodes are shared by all Observers of the same object.
+ */ const $d4d00b2c18281bdc$var$rootIdentifier = Symbol("root");
+/**
+ * Allows looking up an Observable's ObservableContext, so that it can be unwrapped
+ */ const $d4d00b2c18281bdc$var$contextForObservable = new WeakMap();
+const $d4d00b2c18281bdc$export$e0440d5a58076798 = new Map();
+const $d4d00b2c18281bdc$var$rootDataNodes = new WeakMap();
+function $d4d00b2c18281bdc$var$getDataNode(identifier, value, parent) {
+    let dataNode = parent ? parent.children.get(identifier) : $d4d00b2c18281bdc$var$rootDataNodes.get(value);
+    if (dataNode) {
+        dataNode.value = value;
+        return dataNode;
     }
-    const factory = $c6b5ef5d3dd49329$export$e0440d5a58076798.get(value.constructor);
+    const factory = $d4d00b2c18281bdc$export$e0440d5a58076798.get(value.constructor);
     if (!factory) return undefined;
-    sharedRef = {
+    dataNode = {
         identifier: identifier,
         value: value,
         children: new Map(),
         parent: parent,
         factory: factory,
-        observersForId: new Map(),
-        contextForObserver: new Map()
+        observersForChild: new Map(),
+        allContexts: new WeakSet()
     };
-    if (parent) parent.children.set(identifier, sharedRef);
-    else {
-        sharedRef.__root = true;
-        $c6b5ef5d3dd49329$var$rootSharedRefs.set(value, sharedRef);
-    }
-    return sharedRef;
+    if (parent) parent.children.set(identifier, dataNode);
+    else $d4d00b2c18281bdc$var$rootDataNodes.set(value, dataNode);
+    return dataNode;
 }
-function $c6b5ef5d3dd49329$var$getObservableContext(observer, sharedRef) {
-    let ctx = sharedRef.contextForObserver.get(observer);
+function $d4d00b2c18281bdc$var$getObservableContext(observer, dataNode) {
+    let ctx = observer.contextForNode.get(dataNode);
+    // Check that the context was not previously invalidated
+    if (ctx && !dataNode.allContexts.has(ctx)) {
+        ctx = undefined;
+        observer.contextForNode.delete(dataNode);
+    }
     if (ctx) return ctx;
-    let observable;
     ctx = {
-        sharedRef: sharedRef,
+        dataNode: dataNode,
         observer: observer,
+        observable: null,
         get value () {
-            return this.sharedRef.value;
-        },
-        get observable () {
-            return observable || (observable = this.sharedRef.factory.makeObservable(this));
-        },
-        invalidateObservable () {
-            observable = undefined;
+            return this.dataNode.value;
         },
         observeIdentifier (identifier, childValue, observeIntermediate = false) {
             // If the value is a function, bind it to its parent
             if (typeof childValue === "function") return childValue.bind(this.observable);
             function addObserver() {
                 if (!observer.isObserving) return;
-                let observers = sharedRef.observersForId.get(identifier);
-                if (!observers) sharedRef.observersForId.set(identifier, observers = new Set());
+                let observers = dataNode.observersForChild.get(identifier);
+                if (!observers) dataNode.observersForChild.set(identifier, observers = new Set());
+                // const observerWeakRef = new WeakRef(observer);
                 observers.add(observer);
                 observer.disposers.add(()=>observers.delete(observer));
             }
             if (childValue) {
                 // If the property is something we know how to observe, return the observable value
-                const childSharedRef = $c6b5ef5d3dd49329$var$getSharedRef(identifier, childValue, sharedRef); // TODO: sharedRef.getChildSharedRef(identifier, childValue); ?
-                if (childSharedRef) {
+                const childNode = $d4d00b2c18281bdc$var$getDataNode(identifier, childValue, dataNode); // TODO: sharedRef.getChildSharedRef(identifier, childValue); ?
+                if (childNode) {
                     if (observeIntermediate) addObserver();
-                    return $c6b5ef5d3dd49329$var$getObservableContext(observer, childSharedRef).observable;
+                    return $d4d00b2c18281bdc$var$getObservableContext(observer, childNode).observable;
                 }
             }
             // If it's a non-observable (i.e. a primitive or unknown object type), just observe and return
@@ -67,86 +72,72 @@ function $c6b5ef5d3dd49329$var$getObservableContext(observer, sharedRef) {
             return childValue;
         },
         modifyIdentifier (childIdentifier) {
-            if (sharedRef.parent) {
+            if (dataNode.parent) {
                 // Get the factory for the new value
-                sharedRef.factory = $c6b5ef5d3dd49329$export$e0440d5a58076798.get(sharedRef.value.constructor);
+                dataNode.factory = $d4d00b2c18281bdc$export$e0440d5a58076798.get(dataNode.value.constructor);
                 // Clone the value
-                sharedRef.value = sharedRef.factory.createClone(sharedRef.value);
+                dataNode.value = dataNode.factory.createClone(dataNode.value);
             }
             // Invalidate Observables for all ObservableContexts of the child Identifier
-            sharedRef.children.get(childIdentifier)?.contextForObserver.forEach((ctx)=>ctx.invalidateObservable());
+            if (dataNode.children.get(childIdentifier)) dataNode.children.get(childIdentifier).allContexts = new Set();
             // Trigger all Observer callbacks for the child Identifier
-            sharedRef.observersForId.get(childIdentifier)?.forEach((observer)=>{
-                observer.callback?.(sharedRef.value, childIdentifier);
+            dataNode.observersForChild.get(childIdentifier)?.forEach((observer)=>{
+                // if (!observer) dataNode.observersForChild.get(childIdentifier)!.delete(ref);
+                // else
+                observer.callback?.(dataNode.value, childIdentifier);
             });
             // Let the parent Observable update itself with the cloned child
-            sharedRef.parent?.factory.handleChange(sharedRef.parent.value, sharedRef.identifier, sharedRef.value);
+            dataNode.parent?.factory.handleChange(dataNode.parent.value, dataNode.identifier, dataNode.value);
             // Call modifyIdentifier on the parent/root ObservableContext
-            if (sharedRef.parent) sharedRef.parent?.contextForObserver.get(observer).modifyIdentifier(sharedRef.identifier);
-            else if (childIdentifier !== $c6b5ef5d3dd49329$var$rootIdentifier) sharedRef.contextForObserver.get(observer).modifyIdentifier($c6b5ef5d3dd49329$var$rootIdentifier);
+            if (childIdentifier !== $d4d00b2c18281bdc$var$rootIdentifier) $d4d00b2c18281bdc$var$getObservableContext(observer, dataNode.parent || dataNode)?.modifyIdentifier(dataNode.identifier);
         }
     };
-    sharedRef.contextForObserver.set(observer, ctx);
+    ctx.observable = dataNode.factory.makeObservable(ctx);
+    observer.contextForNode.set(dataNode, ctx);
+    $d4d00b2c18281bdc$var$contextForObservable.set(ctx.observable, ctx);
+    dataNode.allContexts.add(ctx);
     return ctx;
 }
-function $c6b5ef5d3dd49329$export$9e6a5ff84f57576(data, callback) {
-    data = $c6b5ef5d3dd49329$export$debb760848ca95a(data, false);
-    const rootSharedRef = $c6b5ef5d3dd49329$var$getSharedRef($c6b5ef5d3dd49329$var$rootIdentifier, data);
-    if (!rootSharedRef) throw new Error(`Cannot observe value ${data}`);
+function $d4d00b2c18281bdc$export$d1203567a167490e(data, cb) {
+    // Get an existing context, if possible. This happens when an observable from another tree is passed to observe().
+    const ctx = $d4d00b2c18281bdc$var$contextForObservable.get(data);
+    const rootNode = ctx?.dataNode || $d4d00b2c18281bdc$var$getDataNode($d4d00b2c18281bdc$var$rootIdentifier, data);
+    if (!rootNode) throw new Error(`Cannot observe value ${data}`);
     const observer = {
         isObserving: true,
-        callback: callback,
-        disposers: new Set()
+        callback: cb,
+        disposers: new Set(),
+        contextForNode: new WeakMap()
     };
-    return {
-        store: $c6b5ef5d3dd49329$var$getObservableContext(observer, rootSharedRef).observable,
-        observe () {
-            observer.isObserving = true;
-        },
-        unobserve () {
-            observer.isObserving = false;
-        },
-        reset () {
-            observer.disposers.forEach((disposer)=>disposer());
-            observer.disposers.clear();
-        },
-        disable () {
-            observer.isObserving = false;
-            observer.callback = undefined;
-        },
-        enable () {
-            observer.callback = callback;
+    const store = $d4d00b2c18281bdc$var$getObservableContext(observer, rootNode).observable;
+    return [
+        store,
+        {
+            start () {
+                observer.isObserving = true;
+            },
+            stop () {
+                observer.isObserving = false;
+            },
+            disable () {
+                observer.callback = undefined;
+            },
+            enable () {
+                observer.callback = cb;
+            },
+            reset () {
+                observer.disposers.forEach((disposer)=>disposer());
+                observer.disposers.clear();
+            }
         }
-    };
+    ];
 }
-function $c6b5ef5d3dd49329$export$debb760848ca95a(observable, observe = true) {
-    const ctx = observable?.[$c6b5ef5d3dd49329$export$31553aaa555c1514]?.();
+function $d4d00b2c18281bdc$export$debb760848ca95a(observable, observe = true) {
+    const ctx = $d4d00b2c18281bdc$var$contextForObservable.get(observable);
     if (!ctx) return observable;
-    if (observe) {
-        if (ctx.sharedRef.parent) ctx.sharedRef.parent.contextForObserver.get(ctx.observer)?.observeIdentifier(ctx.sharedRef.identifier, ctx.sharedRef.value, true);
-        else ctx.sharedRef.contextForObserver.get(ctx.observer)?.observeIdentifier($c6b5ef5d3dd49329$var$rootIdentifier, observable);
-    }
-    return ctx.sharedRef.value;
-} /**
- * When an identifier is modified, I need to get all the observers that are observing that identifier, and trigger each callback.
- * I don't want to iterate every existing observer.
- * 1. Get the context's shared ref
- * 2. Use the identifier being modified to get its Set of observers
- * 3. Call each observer's callback
- *
- * When an observation is created:
- * 1. Get the context's shared ref
- * 2. Use the identifier being observed to get its Set of observers
- * 3. Add the observer to the Set
- * 4. Add a cleanup function to the observer that will remove it from the Set on reset
- *
- * When an observer is reset, I need to clear out all of the observers that are observing that identifier for each shared ref.
- * 1. Get the observer
- * 2. Run all the cleanup functions
- *
- * An observable instance needs to compare equal to itself when its underlying value hasn't changed (for things like React's useEffect dependencies)
- *
- */ 
+    if (observe) $d4d00b2c18281bdc$var$getObservableContext(ctx.observer, ctx.dataNode.parent || ctx.dataNode)?.observeIdentifier(ctx.dataNode.identifier, ctx.value, true);
+    return ctx.dataNode.value;
+}
 
 
 const $379af7c1c9c51789$export$521eebe5cf3f8bee = {
@@ -155,17 +146,15 @@ const $379af7c1c9c51789$export$521eebe5cf3f8bee = {
         // We only use the context object to make debugging easier.
         ctx, {
             has (_, prop) {
-                if (prop === (0, $c6b5ef5d3dd49329$export$31553aaa555c1514)) return true;
                 return Reflect.has(ctx.value, prop);
             },
             get (_, prop) {
-                if (prop === (0, $c6b5ef5d3dd49329$export$31553aaa555c1514)) return ()=>ctx;
+                if (prop === "toJSON") return ()=>ctx.value;
                 const value = Reflect.get(ctx.value, prop, ctx.value);
                 return ctx.observeIdentifier(prop, value);
             },
             set (_, prop, value) {
-                if (prop === (0, $c6b5ef5d3dd49329$export$31553aaa555c1514)) return true;
-                const rawValue = (0, $c6b5ef5d3dd49329$export$debb760848ca95a)(value);
+                const rawValue = (0, $d4d00b2c18281bdc$export$debb760848ca95a)(value);
                 const oldValue = Reflect.get(ctx.value, prop, ctx.value);
                 if (oldValue === rawValue) return true;
                 if (Array.isArray(ctx.value)) {
@@ -200,8 +189,8 @@ const $379af7c1c9c51789$export$521eebe5cf3f8bee = {
         return clone;
     }
 };
-(0, $c6b5ef5d3dd49329$export$e0440d5a58076798).set(Object, $379af7c1c9c51789$export$521eebe5cf3f8bee);
-(0, $c6b5ef5d3dd49329$export$e0440d5a58076798).set(Array, $379af7c1c9c51789$export$521eebe5cf3f8bee);
+(0, $d4d00b2c18281bdc$export$e0440d5a58076798).set(Object, $379af7c1c9c51789$export$521eebe5cf3f8bee);
+(0, $d4d00b2c18281bdc$export$e0440d5a58076798).set(Array, $379af7c1c9c51789$export$521eebe5cf3f8bee);
 
 
 
@@ -223,11 +212,9 @@ class $f5dafa803dcddca0$var$ObservableSet extends Set {
     clear() {
         const size = this.set.size;
         this.set.clear();
-        // this.ctx.childContexts.clear();
         if (size !== this.set.size) this.ctx.modifyIdentifier($f5dafa803dcddca0$var$_size);
     }
     delete(value) {
-        const size = this.set.size;
         const res = this.set.delete(value);
         if (res) this.ctx.modifyIdentifier($f5dafa803dcddca0$var$_size);
         return res;
@@ -262,11 +249,8 @@ class $f5dafa803dcddca0$var$ObservableSet extends Set {
     values() {
         return this[Symbol.iterator]();
     }
-    [(0, $c6b5ef5d3dd49329$export$31553aaa555c1514)]() {
-        return this.ctx;
-    }
 }
-(0, $c6b5ef5d3dd49329$export$e0440d5a58076798).set(Set, {
+(0, $d4d00b2c18281bdc$export$e0440d5a58076798).set(Set, {
     makeObservable: (ctx)=>{
         return new $f5dafa803dcddca0$var$ObservableSet(ctx);
     },
@@ -297,7 +281,10 @@ class $1133320785147c80$export$db1c0901f08fc6fd extends Map {
     }
     delete(key) {
         const res = this.map.delete(key);
-        if (res) this.ctx.modifyIdentifier(key);
+        if (res) {
+            this.ctx.modifyIdentifier(key);
+            this.ctx.modifyIdentifier($1133320785147c80$var$_size);
+        }
         return res;
     }
     forEach(callbackFn, thisArg) {
@@ -318,11 +305,14 @@ class $1133320785147c80$export$db1c0901f08fc6fd extends Map {
     set(key, value) {
         const size = this.map.size;
         this.map.set(key, value);
-        if (size !== this.map.size) this.ctx.modifyIdentifier(key);
+        if (size !== this.map.size) {
+            this.ctx.modifyIdentifier(key);
+            this.ctx.modifyIdentifier($1133320785147c80$var$_size);
+        }
         return this;
     }
     get size() {
-        return this.ctx.observeIdentifier($1133320785147c80$var$_size, this.map.size);
+        return this.ctx.observeIdentifier($1133320785147c80$var$_size, this.ctx.value.size);
     }
     /** Returns an iterable of entries in the map. */ *[Symbol.iterator]() {
         this.ctx.observeIdentifier($1133320785147c80$var$_size);
@@ -344,11 +334,8 @@ class $1133320785147c80$export$db1c0901f08fc6fd extends Map {
     *values() {
         for (const [key, value] of this[Symbol.iterator]())yield value;
     }
-    [(0, $c6b5ef5d3dd49329$export$31553aaa555c1514)]() {
-        return this.ctx;
-    }
 }
-(0, $c6b5ef5d3dd49329$export$e0440d5a58076798).set(Map, {
+(0, $d4d00b2c18281bdc$export$e0440d5a58076798).set(Map, {
     makeObservable: (ctx)=>{
         return new $1133320785147c80$export$db1c0901f08fc6fd(ctx);
     },
@@ -366,29 +353,31 @@ class $1133320785147c80$export$db1c0901f08fc6fd extends Map {
 
 
 
-function $5edb3eb33d1a0dbb$export$262b072b280a540c(data) {
+function $5edb3eb33d1a0dbb$export$b9c7ecd090a87b14(data) {
     const [, forceRerender] = (0, $hgUW1$useState)({});
-    const { store: store , reset: reset , observe: observe , unobserve: unobserve  } = (0, $hgUW1$useRef)((0, $c6b5ef5d3dd49329$export$9e6a5ff84f57576)(data, ()=>forceRerender({}))).current;
+    const [store, { reset: reset , start: start , stop: stop  }] = (0, $hgUW1$useRef)((0, $d4d00b2c18281bdc$export$d1203567a167490e)(data, ()=>forceRerender({}))).current;
     // Begin observing on render
     reset();
-    observe();
+    start();
     // Stop observing as soon as component finishes rendering
     (0, $hgUW1$useEffect)(()=>{
-        unobserve();
+        stop();
     });
     // Disable callback when component unmounts
     (0, $hgUW1$useLayoutEffect)(()=>{
         return ()=>reset();
     }, []);
-    return {
-        store: store,
-        observe: observe,
-        unobserve: unobserve
-    };
+    return [
+        store,
+        {
+            start: start,
+            stop: stop
+        }
+    ];
 }
 
 
 
 
-export {$c6b5ef5d3dd49329$export$9e6a5ff84f57576 as createObserver, $c6b5ef5d3dd49329$export$debb760848ca95a as unwrap, $c6b5ef5d3dd49329$export$e0440d5a58076798 as observableFactories, $379af7c1c9c51789$export$521eebe5cf3f8bee as objectAndArrayObservableFactory, $5edb3eb33d1a0dbb$export$262b072b280a540c as useObservable};
+export {$d4d00b2c18281bdc$export$d1203567a167490e as observe, $d4d00b2c18281bdc$export$debb760848ca95a as unwrap, $d4d00b2c18281bdc$export$e0440d5a58076798 as observableFactories, $379af7c1c9c51789$export$521eebe5cf3f8bee as objectAndArrayObservableFactory, $5edb3eb33d1a0dbb$export$b9c7ecd090a87b14 as useObserver};
 //# sourceMappingURL=index.mjs.map

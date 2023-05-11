@@ -1,7 +1,7 @@
 import $, { StylixProps } from "@stylix/core";
 import { Button } from "./ui";
 import React from "react";
-import { useObservable } from "/src";
+import { useObserver } from "/src";
 import { ContactInfo } from "./types";
 
 function Input(props: StylixProps<"div", { label: string; field: string; object: any }>) {
@@ -27,7 +27,7 @@ export default function MeEditor(props: {
   info: ContactInfo;
   onSave: (info: ContactInfo) => void;
 }) {
-  const { store } = useObservable(props.info);
+  const [store] =useObserver(props.info);
 
   return (
     <$.div display="flex">

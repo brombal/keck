@@ -1,4 +1,4 @@
-import { createObserver, observableFactories, objectAndArrayObservableFactory } from "#src";
+import { observe, observableFactories, objectAndArrayObservableFactory } from "#src";
 
 class Counter {
   private _number = 0;
@@ -32,7 +32,7 @@ observableFactories.set(InnerCounter, objectAndArrayObservableFactory);
 describe("Custom classes", () => {
   test("Value is modified and callback is triggered", () => {
     const mockListener = jest.fn();
-    const { store } = createObserver(new Counter(), mockListener);
+    const [store] =observe(new Counter(), mockListener);
 
     void store.number;
     void store.innerCounter.number;

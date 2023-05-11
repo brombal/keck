@@ -1,8 +1,8 @@
 import {
-  PublicObservableContext as ObservableContext,
+  ObservableContext,
   observableFactories,
-  ObservableFactory, getContext
-} from "../createObserver";
+  ObservableFactory,
+} from "../observe";
 
 const _size = Symbol("size");
 
@@ -34,10 +34,7 @@ class ObservableSet<T> extends Set<T> {
     return res;
   }
 
-  forEach(
-    callbackFn: (value: T, _key: T, set: Set<T>) => void,
-    thisArg?: any
-  ): void {
+  forEach(callbackFn: (value: T, _key: T, set: Set<T>) => void, thisArg?: any): void {
     this.set.forEach((value, _key) => {
       const observable = this.ctx.observeIdentifier(value, value);
       callbackFn.call(thisArg, observable, observable, this);
@@ -73,10 +70,6 @@ class ObservableSet<T> extends Set<T> {
 
   values(): IterableIterator<T> {
     return this[Symbol.iterator]();
-  }
-
-  [getContext]() {
-    return this.ctx;
   }
 }
 

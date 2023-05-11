@@ -1,6 +1,6 @@
-import { createObserver, unwrap } from "./";
-import { useObservable } from "./react";
+import { observe, unwrap } from "./";
+import { useObserver } from "./react";
 
-createObserver({}, () => {});
+observe({}, () => {});
 unwrap({});
-useObservable({});
+useObserver({});

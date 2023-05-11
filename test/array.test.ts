@@ -1,4 +1,4 @@
-import { createObserver, unwrap } from "#src";
+import { observe, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -16,15 +16,13 @@ const createData = () => ({
   ],
 });
 
-function noop() {}
-
 describe("Arrays", () => {
   test("Writing properties triggers callback and modifies store & source", () => {
     const mockListener = jest.fn();
 
     const data = createData();
 
-    const { store, stop } = createObserver(data, mockListener);
+    const [store, { stop }] = observe(data, mockListener);
 
     unwrap(store.array1);
     unwrap(store.array2);
@@ -52,7 +50,7 @@ describe("Arrays", () => {
 
     const data = createData();
 
-    const { store } = createObserver(data, mockListener);
+    const [store] = observe(data, mockListener);
 
     unwrap(store.array1);
 
@@ -71,7 +69,7 @@ describe("Arrays", () => {
 
     const data = createData();
 
-    const { store } = createObserver(data, mockListener);
+    const [store] = observe(data, mockListener);
 
     void store.array1.length;
 
@@ -87,8 +85,8 @@ describe("Arrays", () => {
 
     const data = createData();
 
-    const { store: store1, stop: unobserve1 } = createObserver(data, mockListener1);
-    const { store: store2, stop: unobserve2 } = createObserver(data, mockListener2);
+    const [store1, { stop: unobserve1 }] = observe(data, mockListener1);
+    const [store2, { stop: unobserve2 }] = observe(data, mockListener2);
 
     // Observe store1
     unwrap(store1.array1);
@@ -122,8 +120,8 @@ describe("Arrays", () => {
 
     const data = createData();
 
-    const { store: store1, stop: unobserve1 } = createObserver(data, mockListener1);
-    const { store: store2, stop: unobserve2 } = createObserver(data, mockListener2);
+    const [store1, { stop: unobserve1 }] = observe(data, mockListener1);
+    const [store2, { stop: unobserve2 }] = observe(data, mockListener2);
 
     // Observe store1
     unwrap(store1.array1);

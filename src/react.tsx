@@ -1,10 +1,12 @@
 import React, { useState, useRef, useLayoutEffect, useEffect, useInsertionEffect } from "react";
-import { createObserver } from "./";
+import { observe } from "./";
 
-export function useObservable<T extends object>(data: T) {
+export function useObserver<T extends object>(
+  data: T
+): [T, { start: () => void; stop: () => void }] {
   const [, forceRerender] = useState({});
-  const { store, reset, start, stop } = useRef(
-    createObserver(data, () => forceRerender({}))
+  const [store, { reset, start, stop }] = useRef(
+    observe(data, () => forceRerender({}))
   ).current;
 
   // Begin observing on render
@@ -21,5 +23,5 @@ export function useObservable<T extends object>(data: T) {
     return () => reset();
   }, []);
 
-  return { store, start: start, stop: stop };
+  return [store, { start, stop }];
 }

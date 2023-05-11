@@ -1,10 +1,4 @@
-import {
-  ObservableFactory,
-  observableFactories,
-  getContext,
-  Observable,
-  unwrap,
-} from "../createObserver";
+import { ObservableFactory, observableFactories, unwrap } from "../observe";
 
 export const objectAndArrayObservableFactory: ObservableFactory<
   Record<string | symbol, unknown>,
@@ -20,8 +14,7 @@ export const objectAndArrayObservableFactory: ObservableFactory<
           return Reflect.has(ctx.value, prop);
         },
         get(_, prop) {
-          if (prop === getContext) return () => ctx;
-
+          if (prop === "toJSON") return () => ctx.value;
           const value = Reflect.get(ctx.value, prop, ctx.value);
           return ctx.observeIdentifier(prop, value);
         },
@@ -51,7 +44,7 @@ export const objectAndArrayObservableFactory: ObservableFactory<
           return result;
         },
       }
-    ) as Observable;
+    );
   },
   handleChange(value, identifier, newValue) {
     value[identifier] = newValue;

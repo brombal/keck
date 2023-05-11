@@ -41,7 +41,6 @@ describe("Objects", () => {
     expect(store.array1[0].value1).toBe("new-array1-0-value1");
     expect(store.array1[0].value2).toBe("new-array1-0-value2");
 
-    
     expect(mockListener).toHaveBeenCalledTimes(3);
   });
 

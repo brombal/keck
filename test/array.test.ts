@@ -107,7 +107,6 @@ describe("Arrays", () => {
     expect(store2.array1[1].value1).toBe("array1-2-value1");
     expect(store2.array1[2]).toBeUndefined();
 
-    
     expect(mockListener1).toHaveBeenCalledTimes(4);
     expect(mockListener2).toHaveBeenCalledTimes(1);
   });
@@ -147,8 +146,6 @@ describe("Arrays", () => {
     expect(store2.array1[0].value1).toBe("array1-0-value1");
     expect(store2.array1[1].value1).toBe("new-array1-1-value1");
     expect(store2.array1[2]).toBeUndefined();
-
-    
 
     expect(mockListener1).toHaveBeenCalledTimes(3);
     expect(mockListener2).toHaveBeenCalledTimes(2);

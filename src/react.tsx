@@ -5,9 +5,7 @@ export function useObserver<T extends object>(
   data: T
 ): [T, { start: () => void; stop: () => void }] {
   const [, forceRerender] = useState({});
-  const [store, { reset, start, stop }] = useRef(
-    observe(data, () => forceRerender({}))
-  ).current;
+  const [store, { reset, start, stop }] = useRef(observe(data, () => forceRerender({}))).current;
 
   // Begin observing on render
   reset();

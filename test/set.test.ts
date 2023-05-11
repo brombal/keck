@@ -24,7 +24,7 @@ const createData = () => {
 describe("Sets", () => {
   test("Set is modified", () => {
     const { data } = createData();
-    const [store] =observe(data, noop);
+    const [store] = observe(data, noop);
 
     // Modify set & check values
     store.alphaSet.add("d");
@@ -38,7 +38,7 @@ describe("Sets", () => {
   test("Callback is triggered when modifying set after observing size", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const [store] =observe(data, mockListener);
+    const [store] = observe(data, mockListener);
 
     void store.alphaSet.size;
 
@@ -66,7 +66,7 @@ describe("Sets", () => {
   test("Callback is triggered when modifying set after unwrapping set", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const [store] =observe(data, mockListener);
+    const [store] = observe(data, mockListener);
 
     unwrap(store.alphaSet);
 
@@ -254,7 +254,7 @@ describe("Sets", () => {
   test("Callback is triggered when modifying set inner value after unwrapping", () => {
     const mockListener = jest.fn();
     const { data, objectSetValues } = createData();
-    const [store] =observe(data, mockListener);
+    const [store] = observe(data, mockListener);
 
     const values: any[] = [];
     unwrap(store.objectSet);
@@ -273,7 +273,7 @@ describe("Sets", () => {
   test("Object references are changed when modifying set inner value", () => {
     const mockListener = jest.fn();
     const { data, objectSetValues } = createData();
-    const [store] =observe(data, mockListener);
+    const [store] = observe(data, mockListener);
 
     const originalObjectSet = store.objectSet;
 

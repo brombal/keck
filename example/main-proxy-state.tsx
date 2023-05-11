@@ -71,7 +71,7 @@ function NameAge() {
 
 function Movie(props: { movieIndex: number }) {
   const { movieIndex } = props;
-  const [store] =useObserver(obj);
+  const [store] = useObserver(obj);
 
   const movie = store.movies[movieIndex];
 
@@ -113,7 +113,7 @@ function Movie(props: { movieIndex: number }) {
 let movieI = 0;
 
 function Movies() {
-  const [store] =useObserver(obj);
+  const [store] = useObserver(obj);
 
   const { movies } = store;
 
@@ -150,7 +150,7 @@ function Movies() {
 
 function Book(props: { bookIndex: number }) {
   const { bookIndex } = props;
-  const [store] =useObserver(obj);
+  const [store] = useObserver(obj);
 
   const book = store.books[bookIndex];
 
@@ -224,12 +224,12 @@ const profile = {
 };
 
 function Profile() {
-  const [store] =useObserver(profile);
+  const [store] = useObserver(profile);
   return store.editing ? <ProfileEditor /> : <ProfileViewer />;
 }
 
 function ProfileEditor() {
-  const [store] =useObserver(profile);
+  const [store] = useObserver(profile);
   return (
     <div>
       <input
@@ -266,7 +266,7 @@ function ProfileEditor() {
 }
 
 function ProfileViewer() {
-  const [store] =useObserver(profile);
+  const [store] = useObserver(profile);
   return (
     <div>
       <h1>{store.name}</h1>

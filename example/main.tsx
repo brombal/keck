@@ -1,12 +1,7 @@
 import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { z } from "zod";
-import {
-  useForm,
-  useFormContext,
-  useInputProps,
-  zodValidator,
-} from "./valtio-forms";
+import { useForm, useFormContext, useInputProps, zodValidator } from "./valtio-forms";
 import { get } from "lodash-es";
 
 function Input(props: { field: string } & React.HTMLProps<HTMLInputElement>) {
@@ -93,13 +88,10 @@ const myForm = z
     message: "Hobby can't match name",
     path: ["hobbies-name"],
   })
-  .refine(
-    (v) => v.hobbies.length === new Set(v.hobbies.map((h) => h.value)).size,
-    {
-      message: "Hobbies must be unique",
-      path: ["hobbies-unique"],
-    }
-  );
+  .refine((v) => v.hobbies.length === new Set(v.hobbies.map((h) => h.value)).size, {
+    message: "Hobbies must be unique",
+    path: ["hobbies-unique"],
+  });
 type MyForm = z.infer<typeof myForm>;
 
 function Debugger() {

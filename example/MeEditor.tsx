@@ -27,7 +27,7 @@ export default function MeEditor(props: {
   info: ContactInfo;
   onSave: (info: ContactInfo) => void;
 }) {
-  const [store] =useObserver(props.info);
+  const [store] = useObserver(props.info);
 
   return (
     <$.div display="flex">

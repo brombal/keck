@@ -16,7 +16,7 @@ export function Button(props: StylixProps) {
       $css={{
         "&:hover": {
           background: "hsl(200, 80%, 92%)",
-        }
+        },
       }}
       {...props}
     />

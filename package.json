@@ -13,7 +13,7 @@
     "build": "rm -rf dist && parcel build && npm run compress-benchmark",
     "compress-benchmark": "gzip --best -k dist/compressed-benchmark.js",
     "test": "jest --coverage",
-    "lint": "prettier -w ."
+    "lint": "prettier -w ./src ./test ./example"
   },
   "source": "./src/index.ts",
   "main": "./dist/index.js",

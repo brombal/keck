@@ -25,7 +25,7 @@ describe("Multiple stores", () => {
     const data = createData();
 
     const [store1, { stop: unobserve1 }] = observe(data, mockListener1);
-    const [store2, { stop: unobserve2 }] =observe(data, mockListener2);
+    const [store2, { stop: unobserve2 }] = observe(data, mockListener2);
 
     const store1_object1 = store1.object1;
     const store1_object2 = store1.object2;
@@ -75,7 +75,7 @@ describe("Multiple stores", () => {
     const data = createData();
 
     const [store1, { stop: unobserve1 }] = observe(data, mockListener1);
-    const [store2, { stop: unobserve2 }] =observe(data, mockListener2);
+    const [store2, { stop: unobserve2 }] = observe(data, mockListener2);
 
     void store1.value1;
     void store1.object1.value1;
@@ -94,7 +94,7 @@ describe("Multiple stores", () => {
     expect(mockListener2).toHaveBeenCalledTimes(2);
   });
 
-  test('Creating an observer from another observable should work', () => {
+  test("Creating an observer from another observable should work", () => {
     const mockListener1 = jest.fn();
     const mockListener2 = jest.fn();
 
@@ -105,9 +105,9 @@ describe("Multiple stores", () => {
 
     void store1.object1.value1;
 
-    store1.object1.value1 = 'new-object1-value1-1';
-    store2.value1 = 'new-object1-value1-2';
+    store1.object1.value1 = "new-object1-value1-1";
+    store2.value1 = "new-object1-value1-2";
 
     expect(mockListener1).toHaveBeenCalledTimes(2);
-  })
+  });
 });

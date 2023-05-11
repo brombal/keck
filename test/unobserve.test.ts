@@ -33,7 +33,6 @@ describe("unobserve", () => {
     // Check that proxy object was modified
     expect(store.value2).toBe(40);
 
-    
     expect(mockListener).toHaveBeenCalledTimes(0);
   });
 
@@ -51,7 +50,6 @@ describe("unobserve", () => {
     store.array1[2] = { value1: "x", value2: "x" };
     store.array2[0].value1 = "array2-0-value1";
 
-    
     expect(mockListener).toHaveBeenCalledTimes(0);
   });
 
@@ -60,7 +58,7 @@ describe("unobserve", () => {
 
     const data = createData();
 
-    const [store,{ start, stop }] = observe(data, mockListener);
+    const [store, { start, stop }] = observe(data, mockListener);
 
     void store.value1;
     stop();

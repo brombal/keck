@@ -49,7 +49,7 @@ describe("unwrap", () => {
     expect(store.value1).toBe("new-value1");
     expect(unwrap(store)).toBe(data);
 
-    // Check that callback was called correctly
+    
     expect(mockListener).toHaveBeenCalledTimes(1);
   });
 
@@ -72,7 +72,7 @@ describe("unwrap", () => {
     expect(unwrap(store.object1.value1)).toBe("new-object1-value1");
     expect(unwrap(store.array1[0].value1)).toBe("new-array1-0-value1");
 
-    // Check that callback was called correctly
+    
     expect(mockListener1).toHaveBeenCalledTimes(3);
   });
 
@@ -92,7 +92,7 @@ describe("unwrap", () => {
     expect(store.object1.value1).toBe("new-object1-value1");
     expect(store.array1[0].value1).toBe("new-array1-0-value1");
 
-    // Check that callback was called correctly
+    
     expect(mockListener1).toHaveBeenCalledTimes(2);
   });
 
@@ -112,7 +112,7 @@ describe("unwrap", () => {
     expect(store.object1.value1).toBe("new-object1-value1");
     expect(store.array1[0].value1).toBe("new-array1-0-value1");
 
-    // Check that callback was called correctly
+    
     expect(mockListener1).toHaveBeenCalledTimes(1);
   });
 });

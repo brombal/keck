@@ -4,6 +4,7 @@ const createData = () => ({
   value1: "value1",
   value2: 0,
   value3: true,
+  object1: { value1: "object1-value1", value2: "object1-value2" },
   array1: [
     { value1: "array1-0-value1", value2: "array1-0-value2" },
     { value1: "array1-1-value1", value2: "array1-1-value2" },
@@ -14,7 +15,7 @@ const createData = () => ({
   ],
 });
 
-describe("Objects & arrays", () => {
+describe("Objects", () => {
   test("Writing deep properties triggers callback and modifies store & source", () => {
     const mockListener = jest.fn();
 
@@ -40,7 +41,7 @@ describe("Objects & arrays", () => {
     expect(store.array1[0].value1).toBe("new-array1-0-value1");
     expect(store.array1[0].value2).toBe("new-array1-0-value2");
 
-    // Check that callback was called correctly
+    
     expect(mockListener).toHaveBeenCalledTimes(3);
   });
 
@@ -73,7 +74,6 @@ describe("Objects & arrays", () => {
     store.array1 = data.array1;
     store.array1[0] = data.array1[0];
 
-    // Check that callback was called correctly
     expect(mockListener).toHaveBeenCalledTimes(0);
   });
 
@@ -85,5 +85,62 @@ describe("Objects & arrays", () => {
     const array = [1, 2, 3];
     const [store2] = observe(array, () => {});
     expect((store2 as any).toJSON()).toEqual(array);
+  });
+
+  test("`in` creates an observation on the object", () => {
+    const mockFn = jest.fn();
+    const data = createData();
+    const [store] = observe(data, mockFn);
+
+    void ("value2" in store.object1);
+    store.object1.value2 = "new-object1-value2";
+
+    expect(mockFn).toHaveBeenCalledTimes(1);
+  });
+
+  test("`Object.keys` creates an observation on the object", () => {
+    const mockFn = jest.fn();
+    const data = createData();
+    const [store] = observe(data, mockFn);
+
+    Object.keys(store.object1);
+    store.object1.value2 = "new-object1-value2";
+
+    expect(mockFn).toHaveBeenCalledTimes(1);
+  });
+
+  test("`Object.values` creates an observation on the object", () => {
+    const mockFn = jest.fn();
+    const data = createData();
+    const [store] = observe(data, mockFn);
+
+    Object.values(store.object1);
+    store.object1.value2 = "new-object1-value2";
+
+    expect(mockFn).toHaveBeenCalledTimes(1);
+  });
+
+  test("`Object.entries` creates an observation on the object", () => {
+    const mockFn = jest.fn();
+    const data = createData();
+    const [store] = observe(data, mockFn);
+
+    Object.entries(store.object1);
+    store.object1.value2 = "new-object1-value2";
+
+    expect(mockFn).toHaveBeenCalledTimes(1);
+  });
+
+  test("for loop creates an observation on the object", () => {
+    const mockFn = jest.fn();
+    const data = createData();
+    const [store] = observe(data, mockFn);
+
+    for (const key in store.object1) {
+    }
+
+    store.object1.value2 = "new-object1-value2";
+
+    expect(mockFn).toHaveBeenCalledTimes(1);
   });
 });

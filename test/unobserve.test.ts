@@ -33,7 +33,7 @@ describe("unobserve", () => {
     // Check that proxy object was modified
     expect(store.value2).toBe(40);
 
-    // Check that callback was called correctly
+    
     expect(mockListener).toHaveBeenCalledTimes(0);
   });
 
@@ -51,7 +51,7 @@ describe("unobserve", () => {
     store.array1[2] = { value1: "x", value2: "x" };
     store.array2[0].value1 = "array2-0-value1";
 
-    // Check that callback was called correctly
+    
     expect(mockListener).toHaveBeenCalledTimes(0);
   });
 

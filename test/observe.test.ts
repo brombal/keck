@@ -31,7 +31,6 @@ describe("createObserver", () => {
     expect(store.value1).toBe("new-value1");
     expect(data.value1).toBe("new-value1");
 
-    // Check that callback was called correctly
     expect(mockListener).toHaveBeenCalledTimes(1);
   });
 
@@ -52,7 +51,6 @@ describe("createObserver", () => {
     expect(store2.value1).toBe("new-value1");
     expect(data.value1).toBe("new-value1");
 
-    // Check that callback was called correctly
     expect(mockListener).toHaveBeenCalledTimes(1);
   });
 
@@ -74,7 +72,6 @@ describe("createObserver", () => {
     store.object1.value1 = "array1-0-value1";
     store.array1[0].value1 = "array2-0-value1";
 
-    // Check that callback was called correctly
     expect(mockListener).toHaveBeenCalledTimes(0);
   });
 

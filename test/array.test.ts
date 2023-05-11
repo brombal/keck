@@ -56,7 +56,6 @@ describe("Arrays", () => {
 
     store.array1.push({ value1: "Movie 3", value2: "test" });
 
-    // Check that callback was called correctly
     // 3 times because store.array1, store.array1.length and store.array1[2] are all modified
     expect(mockListener).toHaveBeenCalledTimes(3);
   });
@@ -75,7 +74,6 @@ describe("Arrays", () => {
 
     store.array1.push({ value1: "Movie 3", value2: "test" });
 
-    // Check that callback was called correctly
     expect(mockListener).toHaveBeenCalledTimes(1);
   });
 
@@ -109,7 +107,7 @@ describe("Arrays", () => {
     expect(store2.array1[1].value1).toBe("array1-2-value1");
     expect(store2.array1[2]).toBeUndefined();
 
-    // Check that callback was called correctly
+    
     expect(mockListener1).toHaveBeenCalledTimes(4);
     expect(mockListener2).toHaveBeenCalledTimes(1);
   });
@@ -150,7 +148,7 @@ describe("Arrays", () => {
     expect(store2.array1[1].value1).toBe("new-array1-1-value1");
     expect(store2.array1[2]).toBeUndefined();
 
-    // Check that callback was called correctly
+    
 
     expect(mockListener1).toHaveBeenCalledTimes(3);
     expect(mockListener2).toHaveBeenCalledTimes(2);

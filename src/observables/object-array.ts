@@ -7,10 +7,18 @@ export const objectAndArrayObservableFactory: ObservableFactory<
   makeObservable: (ctx) => {
     return new Proxy(
       // The target of the proxy is not relevant since we always get/set values directly on the context value object.
-      // We only use the context object to make debugging easier.
-      ctx as any,
+      // We only use the context to make debugging easier.
+      ctx,
       {
+        ownKeys() {
+          ctx.dataNode.parent &&
+            ctx.observer.contextForNode
+              .get(ctx.dataNode.parent)
+              ?.observeIdentifier(ctx.dataNode.identifier);
+          return Reflect.ownKeys(ctx.value);
+        },
         has(_, prop) {
+          ctx.observeIdentifier(prop);
           return Reflect.has(ctx.value, prop);
         },
         get(_, prop) {
@@ -38,10 +46,9 @@ export const objectAndArrayObservableFactory: ObservableFactory<
           ctx.modifyIdentifier(prop);
           return result;
         },
-        deleteProperty(_, p): boolean {
-          const result = Reflect.deleteProperty(ctx.value, p);
-          ctx.modifyIdentifier(p);
-          return result;
+        deleteProperty(_, prop): boolean {
+          if (Reflect.has(ctx.value, prop)) ctx.modifyIdentifier(prop);
+          return Reflect.deleteProperty(ctx.value, prop);
         },
       }
     );

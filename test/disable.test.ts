@@ -30,7 +30,7 @@ describe("Objects & arrays", () => {
     store.array1[2] = { value1: "x", value2: "x" };
     store.array2[0].value1 = "array2-0-value1";
 
-    // Check that callback was called correctly
+    
     expect(mockListener).toHaveBeenCalledTimes(0);
   });
 
@@ -53,7 +53,7 @@ describe("Objects & arrays", () => {
 
     store.value1 = "new-value1-2";
 
-    // Check that callback was called correctly
+    
     expect(mockListener).toHaveBeenCalledTimes(0);
   });
 

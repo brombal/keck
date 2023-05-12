@@ -21,6 +21,7 @@ interface Observer<T extends object> {
     callback: Callback | undefined;
     disposers: Set<() => void>;
     contextForNode: WeakMap<DataNode, ObservableContext<object>>;
+    actions: ObserverActions;
 }
 declare const rootIdentifier: unique symbol;
 type Identifier = unknown | typeof rootIdentifier;
@@ -46,13 +47,13 @@ export interface ObservableContext<TValue extends object> {
 type Observable = object;
 type Callback = (value: object, identifier: Identifier) => void;
 /**
- * The map of object prototypes to their observable factories. Implement an `ObservableFactory` and add it to this map to add support
- * for custom classes.
+ * The map of object prototypes to their observable factories. Implement an `ObservableFactory` and
+ * add it to this map to add support for custom classes.
  */
 export const observableFactories: Map<new (...args: any[]) => any, ObservableFactory<any, any>>;
 /**
- * This interface is used to create observable objects. To create an observable for a class, implement this interface
- * and add it to `observableFactories` using the class as the key.
+ * This interface is used to create observable objects. To create an observable for a class,
+ * implement this interface and add it to `observableFactories` using the class as the key.
  */
 interface ObservableFactory<TValue extends object, TIdentifier = unknown> {
     /**
@@ -69,39 +70,43 @@ interface ObservableFactory<TValue extends object, TIdentifier = unknown> {
      */
     createClone(value: TValue): object;
 }
-type ObserveResponse<T> = [
-    T,
-    {
-        /**
-         * Begins listening to property access. This is called automatically when the observer is created, but may be called
-         * again to re-enable the observer after it has been disabled.
-         */
-        start(observeIntermediates?: boolean): void;
-        /**
-         * Stops listening to property access.
-         */
-        stop(): void;
-        /**
-         * Disables the callback from being invoked on property writes.
-         */
-        disable(): void;
-        /**
-         * Enables the callback to be invoked on property writes.
-         */
-        enable(): void;
-        /**
-         * Removes all existing observations.
-         */
-        reset(): void;
-    }
-];
-export function observe<TValue extends object>(value: TValue, cb: Callback): ObserveResponse<TValue>;
-export function observe<TData extends object, TSelectorResult>(data: TData, selector: (data: TData) => TSelectorResult, action: (selectorResult: TSelectorResult, value: TData) => void): [TData, () => void];
+export interface ObserverActions {
+    /**
+     * Begins listening to property access. This is called automatically when the observer is created,
+     * but may be called again to re-enable the observer after it has been disabled.
+     */
+    start(observeIntermediates?: boolean): void;
+    /**
+     * Stops listening to property access.
+     */
+    stop(): void;
+    /**
+     * Disables the callback from being invoked on property writes.
+     */
+    disable(): void;
+    /**
+     * Enables the callback to be invoked on property writes.
+     */
+    enable(): void;
+    /**
+     * Removes all existing observations.
+     */
+    reset(): void;
+}
+type ObserveResponse<TData> = [TData, ObserverActions];
+export function observe<TData extends object>(value: TData, cb: Callback): ObserveResponse<TData>;
+export function observe<TData extends object, TSelectorResult>(data: TData, selector: (data: TData) => TSelectorResult, action: (selectorResult: TSelectorResult, value: TData) => void, compare?: (a: TSelectorResult, b: TSelectorResult) => boolean): ObserveResponse<TData>;
+/**
+ * "Unwraps" a value to give you the original object instead of the observable proxy or subclass. If `observable` is
+ * not actually an observable, it will simply be returned as-is.
+ */
 export function unwrap<T>(observable: T, observe?: boolean): T;
+/**
+ * Gets the ObserverActions for an observable. If `observable` is not actually an observable, it will return `undefined`.
+ */
+export function observerActions(observable: any): ObserverActions | undefined;
 export const objectAndArrayObservableFactory: ObservableFactory<Record<string | symbol, unknown>, string | symbol>;
-export function useObserver<T extends object>(data: T): [T, {
-    start: () => void;
-    stop: () => void;
-}];
+export function useObserver<TData extends object>(data: TData): TData;
+export function useObserveSelector<TData extends object, TSelectorResult>(data: TData, selector: (state: TData) => TSelectorResult, action?: (result: TSelectorResult) => void): [TSelectorResult, TData];
 
 //# sourceMappingURL=types.d.ts.map

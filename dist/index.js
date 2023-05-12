@@ -7,8 +7,10 @@ function $parcel$export(e, n, v, s) {
 $parcel$export(module.exports, "observe", () => $d2f50327f5a80b8f$export$d1203567a167490e);
 $parcel$export(module.exports, "unwrap", () => $d2f50327f5a80b8f$export$debb760848ca95a);
 $parcel$export(module.exports, "observableFactories", () => $d2f50327f5a80b8f$export$e0440d5a58076798);
+$parcel$export(module.exports, "observerActions", () => $d2f50327f5a80b8f$export$66b146d1d08322f9);
 $parcel$export(module.exports, "objectAndArrayObservableFactory", () => $7ac2d515680cf951$export$521eebe5cf3f8bee);
 $parcel$export(module.exports, "useObserver", () => $f4ac19f6490f8500$export$b9c7ecd090a87b14);
+$parcel$export(module.exports, "useObserveSelector", () => $f4ac19f6490f8500$export$10d01aa5776497a2);
 /**
  *
  *
@@ -109,7 +111,8 @@ function $d2f50327f5a80b8f$export$d1203567a167490e(...args) {
     else return $d2f50327f5a80b8f$export$6db4992b88b03a85(args[0], args[1], args[2]);
 }
 function $d2f50327f5a80b8f$export$9e6a5ff84f57576(data, cb) {
-    // Get an existing context, if possible. This happens when an observable from another tree is passed to observe().
+    // Get an existing context, if possible. This happens when an observable from another tree is
+    // passed to observe().
     const ctx = $d2f50327f5a80b8f$var$contextForObservable.get(data);
     const rootNode = ctx?.dataNode || $d2f50327f5a80b8f$var$getDataNode($d2f50327f5a80b8f$var$rootIdentifier, data);
     if (!rootNode) throw new Error(`Cannot observe value ${data}`);
@@ -118,12 +121,8 @@ function $d2f50327f5a80b8f$export$9e6a5ff84f57576(data, cb) {
         observeIntermediates: false,
         callback: cb,
         disposers: new Set(),
-        contextForNode: new WeakMap()
-    };
-    const store = $d2f50327f5a80b8f$var$getObservableContext(observer, rootNode).observable;
-    return [
-        store,
-        {
+        contextForNode: new WeakMap(),
+        actions: {
             start (observeIntermediates = false) {
                 observer.isObserving = true;
                 observer.observeIntermediates = observeIntermediates;
@@ -139,43 +138,34 @@ function $d2f50327f5a80b8f$export$9e6a5ff84f57576(data, cb) {
                 observer.callback = cb;
             },
             reset () {
+                observer.isObserving = false;
+                observer.observeIntermediates = false;
                 observer.disposers.forEach((disposer)=>disposer());
                 observer.disposers.clear();
             }
         }
+    };
+    const store = $d2f50327f5a80b8f$var$getObservableContext(observer, rootNode).observable;
+    return [
+        store,
+        observer.actions
     ];
 }
-function $d2f50327f5a80b8f$export$6db4992b88b03a85(data, selector, action) {
+function $d2f50327f5a80b8f$export$6db4992b88b03a85(data, selector, action, compare = Object.is) {
     let prevResult;
     const [state, actions] = $d2f50327f5a80b8f$export$d1203567a167490e(data, ()=>{
-        let isEqual = false;
         actions.start(true);
-        const newSelectorResult = selector(state);
+        const newResult = selector(state);
         actions.stop();
-        let newResult;
-        if (Array.isArray(newSelectorResult) && !$d2f50327f5a80b8f$var$contextForObservable.has(newSelectorResult)) {
-            newResult = newSelectorResult.map((v)=>v);
-            isEqual = prevResult.length === newResult.length && newResult.every((v, i)=>prevResult[i] === v);
-        } else {
-            newResult = newSelectorResult;
-            isEqual = newResult === prevResult;
-        }
-        if (!isEqual) action(newResult, data);
+        if (!compare(newResult, prevResult)) action(newResult, data);
         prevResult = newResult;
     });
     actions.start(true);
-    const selectorResult = selector(state);
+    prevResult = selector(state);
     actions.stop();
-    // If the selector returns a new, non-observable array, unwrap each element to observe it individually.
-    if (Array.isArray(selectorResult) && !$d2f50327f5a80b8f$var$contextForObservable.has(selectorResult)) prevResult = selectorResult.map((v)=>v);
-    else prevResult = selectorResult;
     return [
         state,
-        ()=>{
-            actions.stop();
-            actions.disable();
-            actions.reset();
-        }
+        actions
     ];
 }
 function $d2f50327f5a80b8f$export$debb760848ca95a(observable, observe = true) {
@@ -183,6 +173,9 @@ function $d2f50327f5a80b8f$export$debb760848ca95a(observable, observe = true) {
     if (!ctx) return observable;
     if (observe) $d2f50327f5a80b8f$var$getObservableContext(ctx.observer, ctx.dataNode.parent || ctx.dataNode)?.observeIdentifier(ctx.dataNode.identifier, ctx.value, true);
     return ctx.dataNode.value;
+}
+function $d2f50327f5a80b8f$export$66b146d1d08322f9(observable) {
+    return $d2f50327f5a80b8f$var$contextForObservable.get(observable)?.observer.actions;
 }
 
 
@@ -412,24 +405,38 @@ class $5074f1447801d804$export$db1c0901f08fc6fd extends Map {
 
 function $f4ac19f6490f8500$export$b9c7ecd090a87b14(data) {
     const [, forceRerender] = (0, $8zHUo$react.useState)({});
-    const [store, { reset: reset , start: start , stop: stop  }] = (0, $8zHUo$react.useRef)((0, $d2f50327f5a80b8f$export$d1203567a167490e)(data, ()=>forceRerender({}))).current;
+    const [store, actions] = (0, $8zHUo$react.useRef)((0, $d2f50327f5a80b8f$export$d1203567a167490e)(data, ()=>forceRerender({}))).current;
     // Begin observing on render
-    reset();
-    start();
+    actions.reset();
+    actions.start();
     // Stop observing as soon as component finishes rendering
     (0, $8zHUo$react.useEffect)(()=>{
-        stop();
+        actions.stop();
     });
     // Disable callback when component unmounts
-    (0, $8zHUo$react.useLayoutEffect)(()=>{
-        return ()=>reset();
+    (0, $8zHUo$react.useEffect)(()=>{
+        return actions.reset;
+    }, []);
+    return store;
+}
+function $f4ac19f6490f8500$export$10d01aa5776497a2(data, selector, action) {
+    const [, forceRerender] = (0, $8zHUo$react.useState)({});
+    const selectorResultRef = (0, $8zHUo$react.useRef)();
+    const [state, actions] = (0, $8zHUo$react.useRef)((0, $d2f50327f5a80b8f$export$d1203567a167490e)(data, (state)=>{
+        return selectorResultRef.current = selector(state);
+    }, (v)=>{
+        action?.(v);
+        forceRerender({});
+    })).current;
+    (0, $8zHUo$react.useEffect)(()=>{
+        return ()=>{
+            console.log("stopping");
+            actions.stop();
+        };
     }, []);
     return [
-        store,
-        {
-            start: start,
-            stop: stop
-        }
+        selectorResultRef.current,
+        state
     ];
 }
 

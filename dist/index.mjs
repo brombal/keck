@@ -1,4 +1,4 @@
-import {useState as $hgUW1$useState, useRef as $hgUW1$useRef, useEffect as $hgUW1$useEffect, useLayoutEffect as $hgUW1$useLayoutEffect} from "react";
+import {useState as $hgUW1$useState, useRef as $hgUW1$useRef, useEffect as $hgUW1$useEffect} from "react";
 
 /**
  *
@@ -100,7 +100,8 @@ function $d4d00b2c18281bdc$export$d1203567a167490e(...args) {
     else return $d4d00b2c18281bdc$export$6db4992b88b03a85(args[0], args[1], args[2]);
 }
 function $d4d00b2c18281bdc$export$9e6a5ff84f57576(data, cb) {
-    // Get an existing context, if possible. This happens when an observable from another tree is passed to observe().
+    // Get an existing context, if possible. This happens when an observable from another tree is
+    // passed to observe().
     const ctx = $d4d00b2c18281bdc$var$contextForObservable.get(data);
     const rootNode = ctx?.dataNode || $d4d00b2c18281bdc$var$getDataNode($d4d00b2c18281bdc$var$rootIdentifier, data);
     if (!rootNode) throw new Error(`Cannot observe value ${data}`);
@@ -109,12 +110,8 @@ function $d4d00b2c18281bdc$export$9e6a5ff84f57576(data, cb) {
         observeIntermediates: false,
         callback: cb,
         disposers: new Set(),
-        contextForNode: new WeakMap()
-    };
-    const store = $d4d00b2c18281bdc$var$getObservableContext(observer, rootNode).observable;
-    return [
-        store,
-        {
+        contextForNode: new WeakMap(),
+        actions: {
             start (observeIntermediates = false) {
                 observer.isObserving = true;
                 observer.observeIntermediates = observeIntermediates;
@@ -130,43 +127,34 @@ function $d4d00b2c18281bdc$export$9e6a5ff84f57576(data, cb) {
                 observer.callback = cb;
             },
             reset () {
+                observer.isObserving = false;
+                observer.observeIntermediates = false;
                 observer.disposers.forEach((disposer)=>disposer());
                 observer.disposers.clear();
             }
         }
+    };
+    const store = $d4d00b2c18281bdc$var$getObservableContext(observer, rootNode).observable;
+    return [
+        store,
+        observer.actions
     ];
 }
-function $d4d00b2c18281bdc$export$6db4992b88b03a85(data, selector, action) {
+function $d4d00b2c18281bdc$export$6db4992b88b03a85(data, selector, action, compare = Object.is) {
     let prevResult;
     const [state, actions] = $d4d00b2c18281bdc$export$d1203567a167490e(data, ()=>{
-        let isEqual = false;
         actions.start(true);
-        const newSelectorResult = selector(state);
+        const newResult = selector(state);
         actions.stop();
-        let newResult;
-        if (Array.isArray(newSelectorResult) && !$d4d00b2c18281bdc$var$contextForObservable.has(newSelectorResult)) {
-            newResult = newSelectorResult.map((v)=>v);
-            isEqual = prevResult.length === newResult.length && newResult.every((v, i)=>prevResult[i] === v);
-        } else {
-            newResult = newSelectorResult;
-            isEqual = newResult === prevResult;
-        }
-        if (!isEqual) action(newResult, data);
+        if (!compare(newResult, prevResult)) action(newResult, data);
         prevResult = newResult;
     });
     actions.start(true);
-    const selectorResult = selector(state);
+    prevResult = selector(state);
     actions.stop();
-    // If the selector returns a new, non-observable array, unwrap each element to observe it individually.
-    if (Array.isArray(selectorResult) && !$d4d00b2c18281bdc$var$contextForObservable.has(selectorResult)) prevResult = selectorResult.map((v)=>v);
-    else prevResult = selectorResult;
     return [
         state,
-        ()=>{
-            actions.stop();
-            actions.disable();
-            actions.reset();
-        }
+        actions
     ];
 }
 function $d4d00b2c18281bdc$export$debb760848ca95a(observable, observe = true) {
@@ -174,6 +162,9 @@ function $d4d00b2c18281bdc$export$debb760848ca95a(observable, observe = true) {
     if (!ctx) return observable;
     if (observe) $d4d00b2c18281bdc$var$getObservableContext(ctx.observer, ctx.dataNode.parent || ctx.dataNode)?.observeIdentifier(ctx.dataNode.identifier, ctx.value, true);
     return ctx.dataNode.value;
+}
+function $d4d00b2c18281bdc$export$66b146d1d08322f9(observable) {
+    return $d4d00b2c18281bdc$var$contextForObservable.get(observable)?.observer.actions;
 }
 
 
@@ -403,29 +394,43 @@ class $1133320785147c80$export$db1c0901f08fc6fd extends Map {
 
 function $5edb3eb33d1a0dbb$export$b9c7ecd090a87b14(data) {
     const [, forceRerender] = (0, $hgUW1$useState)({});
-    const [store, { reset: reset , start: start , stop: stop  }] = (0, $hgUW1$useRef)((0, $d4d00b2c18281bdc$export$d1203567a167490e)(data, ()=>forceRerender({}))).current;
+    const [store, actions] = (0, $hgUW1$useRef)((0, $d4d00b2c18281bdc$export$d1203567a167490e)(data, ()=>forceRerender({}))).current;
     // Begin observing on render
-    reset();
-    start();
+    actions.reset();
+    actions.start();
     // Stop observing as soon as component finishes rendering
     (0, $hgUW1$useEffect)(()=>{
-        stop();
+        actions.stop();
     });
     // Disable callback when component unmounts
-    (0, $hgUW1$useLayoutEffect)(()=>{
-        return ()=>reset();
+    (0, $hgUW1$useEffect)(()=>{
+        return actions.reset;
+    }, []);
+    return store;
+}
+function $5edb3eb33d1a0dbb$export$10d01aa5776497a2(data, selector, action) {
+    const [, forceRerender] = (0, $hgUW1$useState)({});
+    const selectorResultRef = (0, $hgUW1$useRef)();
+    const [state, actions] = (0, $hgUW1$useRef)((0, $d4d00b2c18281bdc$export$d1203567a167490e)(data, (state)=>{
+        return selectorResultRef.current = selector(state);
+    }, (v)=>{
+        action?.(v);
+        forceRerender({});
+    })).current;
+    (0, $hgUW1$useEffect)(()=>{
+        return ()=>{
+            console.log("stopping");
+            actions.stop();
+        };
     }, []);
     return [
-        store,
-        {
-            start: start,
-            stop: stop
-        }
+        selectorResultRef.current,
+        state
     ];
 }
 
 
 
 
-export {$d4d00b2c18281bdc$export$d1203567a167490e as observe, $d4d00b2c18281bdc$export$debb760848ca95a as unwrap, $d4d00b2c18281bdc$export$e0440d5a58076798 as observableFactories, $379af7c1c9c51789$export$521eebe5cf3f8bee as objectAndArrayObservableFactory, $5edb3eb33d1a0dbb$export$b9c7ecd090a87b14 as useObserver};
+export {$d4d00b2c18281bdc$export$d1203567a167490e as observe, $d4d00b2c18281bdc$export$debb760848ca95a as unwrap, $d4d00b2c18281bdc$export$e0440d5a58076798 as observableFactories, $d4d00b2c18281bdc$export$66b146d1d08322f9 as observerActions, $379af7c1c9c51789$export$521eebe5cf3f8bee as objectAndArrayObservableFactory, $5edb3eb33d1a0dbb$export$b9c7ecd090a87b14 as useObserver, $5edb3eb33d1a0dbb$export$10d01aa5776497a2 as useObserveSelector};
 //# sourceMappingURL=index.mjs.map

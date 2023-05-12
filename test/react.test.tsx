@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useObserver } from "#src";
+import { useObserver, useObserveSelector } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -22,7 +22,7 @@ test("Subscriptions are reset on each render", async () => {
   const data = createData();
 
   function NameAge() {
-    const [store] = useObserver(data);
+    const store = useObserver(data);
 
     mockListener();
 
@@ -70,4 +70,37 @@ test("Subscriptions are reset on each render", async () => {
   mockListener.mockClear();
   await userEvent.click(screen.getByText("Grow"));
   expect(mockListener).toHaveBeenCalledTimes(0);
+});
+
+test("useObserveSelector only re-renders when selector result changes", async () => {
+  const mockListener = jest.fn();
+  const data = createData();
+
+  function IsLessThan2() {
+    const [isEven, state] = useObserveSelector(data, (state) => {
+      return state.value2 < 2;
+    });
+
+    mockListener();
+
+    return (
+      <div>
+        {state.value2}
+        {isEven && "even!"}
+        <button onClick={() => state.value2++}>Increase</button>
+      </div>
+    );
+  }
+
+  render(<IsLessThan2 />);
+
+  mockListener.mockClear();
+
+  // Click grow button (value is now 1); expect render count to be 0
+  await userEvent.click(screen.getByText("Increase"));
+  expect(mockListener).toHaveBeenCalledTimes(0);
+
+  // Click grow button (value is now 2); expect render count to be 1
+  await userEvent.click(screen.getByText("Increase"));
+  expect(mockListener).toHaveBeenCalledTimes(1);
 });

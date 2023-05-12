@@ -87,9 +87,9 @@ describe("observe with selectors", () => {
 
     const data = createData();
 
-    const [state, reset] = observe(data, (state) => state.object1, mockFn);
+    const [state, actions] = observe(data, (state) => state.object1, mockFn);
 
-    reset();
+    actions.reset();
     state.object1.value1 = "new-object1-value1-2";
 
     expect(mockFn).toHaveBeenCalledTimes(0);

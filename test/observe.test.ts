@@ -1,4 +1,4 @@
-import { observe } from "#src";
+import { observe, observerActions } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -115,5 +115,19 @@ describe("createObserver", () => {
     expect(store.array1).not.toBe(originalarray1);
     expect(store.array1[0]).not.toBe(originalarray10);
     expect(store.array1[1]).toBe(originalarray11);
+  });
+
+  test("observerActions returns actions for observable", () => {
+    const data = createData();
+
+    const [store] = observe(data, () => {});
+
+    const actions = observerActions(store);
+
+    expect(actions).toHaveProperty("start");
+    expect(actions).toHaveProperty("stop");
+    expect(actions).toHaveProperty("reset");
+    expect(actions).toHaveProperty("enable");
+    expect(actions).toHaveProperty("disable");
   });
 });

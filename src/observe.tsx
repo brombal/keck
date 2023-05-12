@@ -29,6 +29,8 @@ interface Observer<T extends object> {
 
   // Used to look up existing ObservableContext for a given DataNode (necessary for maintaining ref equality of observables)
   contextForNode: WeakMap<DataNode, ObservableContext<object>>;
+
+  actions: ObserverActions;
 }
 
 const rootIdentifier = Symbol("root");
@@ -72,8 +74,8 @@ type Observable = object;
 type Callback = (value: object, identifier: Identifier) => void;
 
 /**
- * The map of object prototypes to their observable factories. Implement an `ObservableFactory` and add it to this map to add support
- * for custom classes.
+ * The map of object prototypes to their observable factories. Implement an `ObservableFactory` and
+ * add it to this map to add support for custom classes.
  */
 export const observableFactories = new Map<
   new (...args: any[]) => any,
@@ -81,8 +83,8 @@ export const observableFactories = new Map<
 >();
 
 /**
- * This interface is used to create observable objects. To create an observable for a class, implement this interface
- * and add it to `observableFactories` using the class as the key.
+ * This interface is used to create observable objects. To create an observable for a class,
+ * implement this interface and add it to `observableFactories` using the class as the key.
  */
 export interface ObservableFactory<TValue extends object, TIdentifier = unknown> {
   /**
@@ -217,46 +219,44 @@ function getObservableContext(
   return ctx;
 }
 
-type ObserveResponse<T> = [
-  T,
-  {
-    /**
-     * Begins listening to property access. This is called automatically when the observer is created, but may be called
-     * again to re-enable the observer after it has been disabled.
-     */
-    start(observeIntermediates?: boolean): void;
+export interface ObserverActions {
+  /**
+   * Begins listening to property access. This is called automatically when the observer is created,
+   * but may be called again to re-enable the observer after it has been disabled.
+   */
+  start(observeIntermediates?: boolean): void;
 
-    /**
-     * Stops listening to property access.
-     */
-    stop(): void;
+  /**
+   * Stops listening to property access.
+   */
+  stop(): void;
 
-    /**
-     * Disables the callback from being invoked on property writes.
-     */
-    disable(): void;
+  /**
+   * Disables the callback from being invoked on property writes.
+   */
+  disable(): void;
 
-    /**
-     * Enables the callback to be invoked on property writes.
-     */
-    enable(): void;
+  /**
+   * Enables the callback to be invoked on property writes.
+   */
+  enable(): void;
 
-    /**
-     * Removes all existing observations.
-     */
-    reset(): void;
-  }
-];
+  /**
+   * Removes all existing observations.
+   */
+  reset(): void;
+}
 
-export function observe<TValue extends object>(
-  value: TValue,
-  cb: Callback
-): ObserveResponse<TValue>;
+type ObserveResponse<TData> = [TData, ObserverActions];
+
+export function observe<TData extends object>(value: TData, cb: Callback): ObserveResponse<TData>;
+
 export function observe<TData extends object, TSelectorResult>(
   data: TData,
   selector: (data: TData) => TSelectorResult,
-  action: (selectorResult: TSelectorResult, value: TData) => void
-): [TData, () => void];
+  action: (selectorResult: TSelectorResult, value: TData) => void,
+  compare?: (a: TSelectorResult, b: TSelectorResult) => boolean
+): ObserveResponse<TData>;
 
 export function observe(...args: any) {
   if (args.length === 2) return createObserver(args[0], args[1]);
@@ -267,7 +267,8 @@ export function createObserver<TData extends object>(
   data: TData,
   cb: Callback
 ): ObserveResponse<TData> {
-  // Get an existing context, if possible. This happens when an observable from another tree is passed to observe().
+  // Get an existing context, if possible. This happens when an observable from another tree is
+  // passed to observe().
   const ctx = contextForObservable.get(data);
   const rootNode = ctx?.dataNode || getDataNode(rootIdentifier, data);
   if (!rootNode) throw new Error(`Cannot observe value ${data}`);
@@ -278,12 +279,7 @@ export function createObserver<TData extends object>(
     callback: cb,
     disposers: new Set(),
     contextForNode: new WeakMap(),
-  };
-
-  const store = getObservableContext(observer, rootNode).observable as TData;
-  return [
-    store,
-    {
+    actions: {
       start(observeIntermediates = false) {
         observer.isObserving = true;
         observer.observeIntermediates = observeIntermediates;
@@ -299,11 +295,16 @@ export function createObserver<TData extends object>(
         observer.callback = cb;
       },
       reset() {
+        observer.isObserving = false;
+        observer.observeIntermediates = false;
         observer.disposers.forEach((disposer) => disposer());
         observer.disposers.clear();
       },
     },
-  ];
+  };
+
+  const store = getObservableContext(observer, rootNode).observable as TData;
+  return [store, observer.actions];
 }
 
 /**
@@ -317,53 +318,31 @@ export function createObserver<TData extends object>(
 export function createObserverSelector<TData extends object, TSelectorResult>(
   data: TData,
   selector: (data: TData) => TSelectorResult,
-  action: (selectorResult: TSelectorResult, value: TData) => void
-): [TData, () => void] {
+  action: (selectorResult: TSelectorResult, value: TData) => void,
+  compare: (a: TSelectorResult, b: TSelectorResult) => boolean = Object.is
+): ObserveResponse<TData> {
   let prevResult: any;
 
   const [state, actions] = observe(data, () => {
-    let isEqual = false;
-
     actions.start(true);
-    const newSelectorResult = selector(state);
+    const newResult = selector(state);
     actions.stop();
 
-    let newResult: any;
-    if (Array.isArray(newSelectorResult) && !contextForObservable.has(newSelectorResult)) {
-      newResult = newSelectorResult.map((v) => (v));
-      isEqual =
-        prevResult.length === newResult.length &&
-        newResult.every((v: any, i: number) => prevResult[i] === v);
-    } else {
-      newResult = (newSelectorResult);
-      isEqual = newResult === prevResult;
-    }
-
-    if (!isEqual) action(newResult, data);
+    if (!compare(newResult, prevResult)) action(newResult, data);
     prevResult = newResult;
   });
 
   actions.start(true);
-  const selectorResult = selector(state);
+  prevResult = selector(state);
   actions.stop();
 
-  // If the selector returns a new, non-observable array, unwrap each element to observe it individually.
-  if (Array.isArray(selectorResult) && !contextForObservable.has(selectorResult)) {
-    prevResult = selectorResult.map((v) => (v));
-  } else {
-    prevResult = (selectorResult);
-  }
-
-  return [
-    state,
-    () => {
-      actions.stop();
-      actions.disable();
-      actions.reset();
-    },
-  ];
+  return [state, actions];
 }
 
+/**
+ * "Unwraps" a value to give you the original object instead of the observable proxy or subclass. If `observable` is
+ * not actually an observable, it will simply be returned as-is.
+ */
 export function unwrap<T>(observable: T, observe = true): T {
   const ctx = contextForObservable.get(observable as Observable);
   if (!ctx) return observable;
@@ -375,4 +354,11 @@ export function unwrap<T>(observable: T, observe = true): T {
     );
   }
   return ctx.dataNode.value as T;
+}
+
+/**
+ * Gets the ObserverActions for an observable. If `observable` is not actually an observable, it will return `undefined`.
+ */
+export function observerActions(observable: any): ObserverActions | undefined {
+  return contextForObservable.get(observable as Observable)?.observer.actions;
 }

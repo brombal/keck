@@ -210,8 +210,9 @@ const $379af7c1c9c51789$export$521eebe5cf3f8bee = {
                 return result;
             },
             deleteProperty (_, prop) {
-                if (Reflect.has(ctx.value, prop)) ctx.modifyIdentifier(prop);
-                return Reflect.deleteProperty(ctx.value, prop);
+                const res = Reflect.deleteProperty(ctx.value, prop);
+                if (res) ctx.modifyIdentifier(prop);
+                return res;
             }
         });
     },

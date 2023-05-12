@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1683905328672" clover="3.2.0">
-  <project timestamp="1683905328672" name="All files">
-    <metrics statements="220" coveredstatements="220" conditionals="56" coveredconditionals="56" methods="77" coveredmethods="77" elements="353" coveredelements="353" complexity="0" loc="220" ncloc="220" packages="2" files="6" classes="6"/>
+<coverage generated="1683910074706" clover="3.2.0">
+  <project timestamp="1683910074706" name="All files">
+    <metrics statements="221" coveredstatements="221" conditionals="56" coveredconditionals="56" methods="77" coveredmethods="77" elements="354" coveredelements="354" complexity="0" loc="221" ncloc="221" packages="2" files="6" classes="6"/>
     <package name="src">
       <metrics statements="110" coveredstatements="110" conditionals="43" coveredconditionals="43" methods="33" coveredmethods="33"/>
       <file name="index.ts" path="/Users/alex.brombal/dev/keck/src/index.ts">
@@ -35,7 +35,7 @@
         <line num="143" count="76" type="stmt"/>
         <line num="145" count="839" type="cond" truecount="1" falsecount="0"/>
         <line num="147" count="289" type="stmt"/>
-        <line num="152" count="1884" type="stmt"/>
+        <line num="152" count="1879" type="stmt"/>
         <line num="156" count="610" type="cond" truecount="1" falsecount="0"/>
         <line num="157" count="14" type="stmt"/>
         <line num="161" count="217" type="cond" truecount="1" falsecount="0"/>
@@ -125,7 +125,7 @@
       </file>
     </package>
     <package name="src.observables">
-      <metrics statements="110" coveredstatements="110" conditionals="13" coveredconditionals="13" methods="44" coveredmethods="44"/>
+      <metrics statements="111" coveredstatements="111" conditionals="13" coveredconditionals="13" methods="44" coveredmethods="44"/>
       <file name="map.ts" path="/Users/alex.brombal/dev/keck/src/observables/map.ts">
         <metrics statements="43" coveredstatements="43" conditionals="3" coveredconditionals="3" methods="17" coveredmethods="17"/>
         <line num="1" count="13" type="stmt"/>
@@ -173,7 +173,7 @@
         <line num="95" count="43" type="stmt"/>
       </file>
       <file name="object-array.ts" path="/Users/alex.brombal/dev/keck/src/observables/object-array.ts">
-        <metrics statements="33" coveredstatements="33" conditionals="7" coveredconditionals="7" methods="11" coveredmethods="11"/>
+        <metrics statements="34" coveredstatements="34" conditionals="7" coveredconditionals="7" methods="11" coveredmethods="11"/>
         <line num="1" count="13" type="stmt"/>
         <line num="3" count="13" type="stmt"/>
         <line num="8" count="230" type="stmt"/>
@@ -198,15 +198,16 @@
         <line num="48" count="65" type="stmt"/>
         <line num="49" count="65" type="stmt"/>
         <line num="50" count="65" type="stmt"/>
-        <line num="53" count="5" type="cond" truecount="1" falsecount="0"/>
-        <line num="54" count="5" type="stmt"/>
-        <line num="60" count="137" type="stmt"/>
-        <line num="63" count="77" type="cond" truecount="1" falsecount="0"/>
-        <line num="64" count="41" type="stmt"/>
+        <line num="53" count="5" type="stmt"/>
+        <line num="54" count="5" type="cond" truecount="1" falsecount="0"/>
+        <line num="55" count="5" type="stmt"/>
+        <line num="61" count="137" type="stmt"/>
+        <line num="64" count="77" type="cond" truecount="1" falsecount="0"/>
         <line num="65" count="41" type="stmt"/>
         <line num="66" count="41" type="stmt"/>
-        <line num="70" count="13" type="stmt"/>
+        <line num="67" count="41" type="stmt"/>
         <line num="71" count="13" type="stmt"/>
+        <line num="72" count="13" type="stmt"/>
       </file>
       <file name="set.ts" path="/Users/alex.brombal/dev/keck/src/observables/set.ts">
         <metrics statements="34" coveredstatements="34" conditionals="3" coveredconditionals="3" methods="16" coveredmethods="16"/>

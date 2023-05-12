@@ -50,8 +50,9 @@ export const objectAndArrayObservableFactory: ObservableFactory<
           return result;
         },
         deleteProperty(_, prop): boolean {
-          if (Reflect.has(ctx.value, prop)) ctx.modifyIdentifier(prop);
-          return Reflect.deleteProperty(ctx.value, prop);
+          const res = Reflect.deleteProperty(ctx.value, prop);
+          if (res) ctx.modifyIdentifier(prop);
+          return res;
         },
       }
     );

@@ -17,7 +17,7 @@ interface DataNode {
 }
 interface Observer<T extends object> {
     isObserving: boolean;
-    callback: Callback<any> | undefined;
+    callback: Callback | undefined;
     disposers: Set<() => void>;
     contextForNode: WeakMap<DataNode, ObservableContext<object>>;
 }
@@ -43,7 +43,7 @@ export interface ObservableContext<TValue extends object> {
     modifyIdentifier(childIdentifier: Identifier): void;
 }
 type Observable = object;
-type Callback<T> = (value: T, identifier: Identifier) => void;
+type Callback = (value: object, identifier: Identifier) => void;
 /**
  * The map of object prototypes to their observable factories. Implement an `ObservableFactory` and add it to this map to add support
  * for custom classes.
@@ -94,7 +94,7 @@ type ObserveResponse<T> = [
         reset(): void;
     }
 ];
-export function observe<TValue extends object>(value: TValue, cb: Callback<TValue>): ObserveResponse<TValue>;
+export function observe<TValue extends object>(value: TValue, cb: Callback): ObserveResponse<TValue>;
 export function observe<TData extends object, TSelectorResult>(data: TData, selector: (data: TData) => TSelectorResult, action: (selectorResult: TSelectorResult, value: TData) => void): [TData, () => void];
 export function unwrap<T>(observable: T, observe?: boolean): T;
 export const objectAndArrayObservableFactory: ObservableFactory<Record<string | symbol, unknown>, string | symbol>;

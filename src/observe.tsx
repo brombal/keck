@@ -23,7 +23,7 @@ interface DataNode {
 
 interface Observer<T extends object> {
   isObserving: boolean;
-  callback: Callback<any> | undefined;
+  callback: Callback | undefined;
   disposers: Set<() => void>;
 
   // Used to look up existing ObservableContext for a given DataNode (necessary for maintaining ref equality of observables)
@@ -68,7 +68,7 @@ export interface ObservableContext<TValue extends object> {
 
 type Observable = object;
 
-type Callback<T> = (value: T, identifier: Identifier) => void;
+type Callback = (value: object, identifier: Identifier) => void;
 
 /**
  * The map of object prototypes to their observable factories. Implement an `ObservableFactory` and add it to this map to add support
@@ -249,7 +249,7 @@ type ObserveResponse<T> = [
 
 export function observe<TValue extends object>(
   value: TValue,
-  cb: Callback<TValue>
+  cb: Callback
 ): ObserveResponse<TValue>;
 export function observe<TData extends object, TSelectorResult>(
   data: TData,
@@ -264,7 +264,7 @@ export function observe(...args: any) {
 
 export function createObserver<TData extends object>(
   data: TData,
-  cb: Callback<TData>
+  cb: Callback
 ): ObserveResponse<TData> {
   // Get an existing context, if possible. This happens when an observable from another tree is passed to observe().
   const ctx = contextForObservable.get(data);

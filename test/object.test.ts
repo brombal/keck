@@ -44,11 +44,11 @@ describe("Objects", () => {
     expect(mockListener).toHaveBeenCalledTimes(3);
   });
 
-  test("Deleting properties triggers callbacks", () => {
+  test("Deleting properties triggers callbacks with correct value", () => {
     const mockListener = jest.fn();
     const data = createData();
 
-    const [store] = observe(data, mockListener);
+    const [store] = observe(data, (value, prop) => mockListener({ ...value }, prop));
 
     unwrap(store.array1);
     void store.array1[0].value1;
@@ -57,6 +57,9 @@ describe("Objects", () => {
     delete (store as any).array1;
 
     expect(mockListener).toHaveBeenCalledTimes(3);
+    expect(mockListener.mock.calls[0][0]).not.toHaveProperty('value1');
+    expect(mockListener.mock.calls[1][0]).toHaveProperty('array1');
+    expect(mockListener.mock.calls[2][0]).not.toHaveProperty('array1');
   });
 
   test("Setting identical value doesn't trigger callback", () => {

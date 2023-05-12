@@ -6,9 +6,9 @@ export const objectAndArrayObservableFactory: ObservableFactory<
 > = {
   makeObservable: (ctx) => {
     return new Proxy(
-      // The target of the proxy is not relevant since we always get/set values directly on the context value object.
-      // We only use the context to make debugging easier.
-      ctx,
+      // The target of the proxy is not really relevant since we always get/set values directly on the context value object.
+      // It's important to pass the original value though, because it needs to be an array for certain internal checks (Array.isArray, for example)
+      ctx.value,
       {
         getPrototypeOf() {
           return Reflect.getPrototypeOf(ctx.value);

@@ -181,9 +181,9 @@ function $d2f50327f5a80b8f$export$debb760848ca95a(observable, observe = true) {
 
 const $7ac2d515680cf951$export$521eebe5cf3f8bee = {
     makeObservable: (ctx)=>{
-        return new Proxy(// The target of the proxy is not relevant since we always get/set values directly on the context value object.
-        // We only use the context to make debugging easier.
-        ctx, {
+        return new Proxy(// The target of the proxy is not really relevant since we always get/set values directly on the context value object.
+        // It's important to pass the original value though, because it needs to be an array for certain internal checks (Array.isArray, for example)
+        ctx.value, {
             getPrototypeOf () {
                 return Reflect.getPrototypeOf(ctx.value);
             },

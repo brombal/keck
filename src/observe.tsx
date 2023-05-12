@@ -23,6 +23,7 @@ interface DataNode {
 
 interface Observer<T extends object> {
   isObserving: boolean;
+  observeIntermediates: boolean;
   callback: Callback | undefined;
   disposers: Set<() => void>;
 
@@ -169,7 +170,7 @@ function getObservableContext(
         // If the property is something we know how to observe, return the observable value
         const childNode = getDataNode(identifier, childValue, dataNode);
         if (childNode) {
-          if (observeIntermediate) addObserver();
+          if (observer.observeIntermediates || observeIntermediate) addObserver();
           return getObservableContext(observer, childNode).observable;
         }
       }
@@ -223,7 +224,7 @@ type ObserveResponse<T> = [
      * Begins listening to property access. This is called automatically when the observer is created, but may be called
      * again to re-enable the observer after it has been disabled.
      */
-    start(): void;
+    start(observeIntermediates?: boolean): void;
 
     /**
      * Stops listening to property access.
@@ -273,6 +274,7 @@ export function createObserver<TData extends object>(
 
   const observer: Observer<TData> = {
     isObserving: true,
+    observeIntermediates: false,
     callback: cb,
     disposers: new Set(),
     contextForNode: new WeakMap(),
@@ -282,11 +284,13 @@ export function createObserver<TData extends object>(
   return [
     store,
     {
-      start() {
+      start(observeIntermediates = false) {
         observer.isObserving = true;
+        observer.observeIntermediates = observeIntermediates;
       },
       stop() {
         observer.isObserving = false;
+        observer.observeIntermediates = false;
       },
       disable() {
         observer.callback = undefined;
@@ -315,32 +319,39 @@ export function createObserverSelector<TData extends object, TSelectorResult>(
   selector: (data: TData) => TSelectorResult,
   action: (selectorResult: TSelectorResult, value: TData) => void
 ): [TData, () => void] {
+  let prevResult: any;
+
   const [state, actions] = observe(data, () => {
-    const newSelectorResult = selector(state);
     let isEqual = false;
+
+    actions.start(true);
+    const newSelectorResult = selector(state);
+    actions.stop();
 
     let newResult: any;
     if (Array.isArray(newSelectorResult) && !contextForObservable.has(newSelectorResult)) {
-      newResult = newSelectorResult.map((v) => unwrap(v, false));
+      newResult = newSelectorResult.map((v) => (v));
       isEqual =
         prevResult.length === newResult.length &&
         newResult.every((v: any, i: number) => prevResult[i] === v);
     } else {
-      newResult = unwrap(newSelectorResult, false);
+      newResult = (newSelectorResult);
       isEqual = newResult === prevResult;
     }
 
     if (!isEqual) action(newResult, data);
     prevResult = newResult;
   });
+
+  actions.start(true);
   const selectorResult = selector(state);
-  let prevResult: any;
+  actions.stop();
 
   // If the selector returns a new, non-observable array, unwrap each element to observe it individually.
   if (Array.isArray(selectorResult) && !contextForObservable.has(selectorResult)) {
-    prevResult = selectorResult.map((v) => unwrap(v));
+    prevResult = selectorResult.map((v) => (v));
   } else {
-    prevResult = unwrap(selectorResult);
+    prevResult = (selectorResult);
   }
 
   return [

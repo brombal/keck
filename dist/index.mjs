@@ -62,7 +62,7 @@ function $d4d00b2c18281bdc$var$getObservableContext(observer, dataNode) {
                 // If the property is something we know how to observe, return the observable value
                 const childNode = $d4d00b2c18281bdc$var$getDataNode(identifier, childValue, dataNode);
                 if (childNode) {
-                    if (observeIntermediate) addObserver();
+                    if (observer.observeIntermediates || observeIntermediate) addObserver();
                     return $d4d00b2c18281bdc$var$getObservableContext(observer, childNode).observable;
                 }
             }
@@ -106,6 +106,7 @@ function $d4d00b2c18281bdc$export$9e6a5ff84f57576(data, cb) {
     if (!rootNode) throw new Error(`Cannot observe value ${data}`);
     const observer = {
         isObserving: true,
+        observeIntermediates: false,
         callback: cb,
         disposers: new Set(),
         contextForNode: new WeakMap()
@@ -114,11 +115,13 @@ function $d4d00b2c18281bdc$export$9e6a5ff84f57576(data, cb) {
     return [
         store,
         {
-            start () {
+            start (observeIntermediates = false) {
                 observer.isObserving = true;
+                observer.observeIntermediates = observeIntermediates;
             },
             stop () {
                 observer.isObserving = false;
+                observer.observeIntermediates = false;
             },
             disable () {
                 observer.callback = undefined;
@@ -134,25 +137,29 @@ function $d4d00b2c18281bdc$export$9e6a5ff84f57576(data, cb) {
     ];
 }
 function $d4d00b2c18281bdc$export$6db4992b88b03a85(data, selector, action) {
+    let prevResult;
     const [state, actions] = $d4d00b2c18281bdc$export$d1203567a167490e(data, ()=>{
-        const newSelectorResult = selector(state);
         let isEqual = false;
+        actions.start(true);
+        const newSelectorResult = selector(state);
+        actions.stop();
         let newResult;
         if (Array.isArray(newSelectorResult) && !$d4d00b2c18281bdc$var$contextForObservable.has(newSelectorResult)) {
-            newResult = newSelectorResult.map((v)=>$d4d00b2c18281bdc$export$debb760848ca95a(v, false));
+            newResult = newSelectorResult.map((v)=>v);
             isEqual = prevResult.length === newResult.length && newResult.every((v, i)=>prevResult[i] === v);
         } else {
-            newResult = $d4d00b2c18281bdc$export$debb760848ca95a(newSelectorResult, false);
+            newResult = newSelectorResult;
             isEqual = newResult === prevResult;
         }
         if (!isEqual) action(newResult, data);
         prevResult = newResult;
     });
+    actions.start(true);
     const selectorResult = selector(state);
-    let prevResult;
+    actions.stop();
     // If the selector returns a new, non-observable array, unwrap each element to observe it individually.
-    if (Array.isArray(selectorResult) && !$d4d00b2c18281bdc$var$contextForObservable.has(selectorResult)) prevResult = selectorResult.map((v)=>$d4d00b2c18281bdc$export$debb760848ca95a(v));
-    else prevResult = $d4d00b2c18281bdc$export$debb760848ca95a(selectorResult);
+    if (Array.isArray(selectorResult) && !$d4d00b2c18281bdc$var$contextForObservable.has(selectorResult)) prevResult = selectorResult.map((v)=>v);
+    else prevResult = selectorResult;
     return [
         state,
         ()=>{

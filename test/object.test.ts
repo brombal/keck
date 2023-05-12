@@ -150,4 +150,20 @@ describe("Objects", () => {
 
     expect(mockFn).toHaveBeenCalledTimes(1);
   });
+
+  test("Selector only rerenders when derived value changes", () => {
+    const mockFn = jest.fn();
+    const data = createData();
+    const [store] = observe(data, mockFn);
+
+    const keys = [];
+    for (const key in store.object1) {
+      keys.push(key);
+    }
+    expect(keys).toEqual(["value1", "value2"]);
+
+    store.object1.value2 = "new-object1-value2";
+
+    expect(mockFn).toHaveBeenCalledTimes(1);
+  });
 });

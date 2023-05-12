@@ -34,6 +34,24 @@ describe("observe with selectors", () => {
     expect(mockFn).toHaveBeenCalledTimes(0);
   });
 
+  test("Calls callback when selector result changes (derived value; but only intermediates accessed)", () => {
+    const mockFn = jest.fn();
+
+    const data = createData();
+
+    const [state, reset] = observe(data, (state) => !!state.object1, mockFn);
+
+    state.object1 = null!;
+
+    expect(mockFn).toHaveBeenCalledTimes(1);
+    expect(mockFn).toHaveBeenCalledWith(false, data);
+    mockFn.mockClear();
+
+    state.array1[0].value1 = "new-array1-0-value1";
+
+    expect(mockFn).toHaveBeenCalledTimes(0);
+  });
+
   test("Calls callback when selector result changes (shallow compare)", () => {
     const mockFn = jest.fn();
 

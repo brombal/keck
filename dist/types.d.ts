@@ -17,6 +17,7 @@ interface DataNode {
 }
 interface Observer<T extends object> {
     isObserving: boolean;
+    observeIntermediates: boolean;
     callback: Callback | undefined;
     disposers: Set<() => void>;
     contextForNode: WeakMap<DataNode, ObservableContext<object>>;
@@ -75,7 +76,7 @@ type ObserveResponse<T> = [
          * Begins listening to property access. This is called automatically when the observer is created, but may be called
          * again to re-enable the observer after it has been disabled.
          */
-        start(): void;
+        start(observeIntermediates?: boolean): void;
         /**
          * Stops listening to property access.
          */

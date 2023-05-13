@@ -12,7 +12,17 @@ interface DataNode {
     factory: ObservableFactory<object>;
     parent: DataNode | undefined;
     children: Map<Identifier, DataNode>;
-    observersForChild: Map<Identifier, Set<Observer<object>>>;
+    /**
+     * Used to iterate over observers to trigger callbacks.
+     * Keys are child identifiers being observed.
+     * Each value is a Map; keys are the observers and the value is a Set of Selectors.
+     * An empty set indicates that the child is being observed without a selector function and the
+     * observer's callback should be called for any change.
+     * A populated Set indicates that the child is being observed with selectors and the observer's
+     * callback should only be called if at least one of the selectors returns a value different from
+     * its previous invocation.
+     */
+    observersForChild: Map<Identifier, Map<Observer<object>, Set<Selector>>>;
     allContexts: WeakSet<ObservableContext<object>>;
 }
 interface Observer<T extends object> {
@@ -95,7 +105,14 @@ export interface ObserverActions {
 }
 type ObserveResponse<TData> = [TData, ObserverActions];
 export function observe<TData extends object>(value: TData, cb: Callback): ObserveResponse<TData>;
-export function observe<TData extends object, TSelectorResult>(data: TData, selector: (data: TData) => TSelectorResult, action: (selectorResult: TSelectorResult, value: TData) => void, compare?: (a: TSelectorResult, b: TSelectorResult) => boolean): ObserveResponse<TData>;
+export function observe<TData extends object, TSelectorResult>(data: TData, selector: (data: TData) => TSelectorResult, action: (selectorResult: TSelectorResult, value: TData, identifier: Identifier) => void, compare?: (a: TSelectorResult, b: TSelectorResult) => boolean): ObserveResponse<TData>;
+type EqualityComparer<T> = (a: T, b: T) => boolean;
+interface Selector {
+    lastValue?: any;
+    selectorFn: () => any;
+    isEqual?: EqualityComparer<any>;
+}
+export function select<TSelectorResult>(selectorFn: () => TSelectorResult, isEqual?: EqualityComparer<TSelectorResult>): TSelectorResult;
 /**
  * "Unwraps" a value to give you the original object instead of the observable proxy or subclass. If `observable` is
  * not actually an observable, it will simply be returned as-is.

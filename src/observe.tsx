@@ -14,8 +14,17 @@ interface DataNode {
   parent: DataNode | undefined;
   children: Map<Identifier, DataNode>;
 
-  // Used to iterate over observers to trigger callbacks
-  observersForChild: Map<Identifier, Set<Observer<object>>>;
+  /**
+   * Used to iterate over observers to trigger callbacks.
+   * Keys are child identifiers being observed.
+   * Each value is a Map; keys are the observers and the value is a Set of Selectors.
+   * An empty set indicates that the child is being observed without a selector function and the
+   * observer's callback should be called for any change.
+   * A populated Set indicates that the child is being observed with selectors and the observer's
+   * callback should only be called if at least one of the selectors returns a value different from
+   * its previous invocation.
+   */
+  observersForChild: Map<Identifier, Map<Observer<object>, Set<Selector>>>;
 
   // Used to determine whether an ObservableContext is still valid
   allContexts: WeakSet<ObservableContext<object>>;
@@ -162,9 +171,27 @@ function getObservableContext(
 
       function addObserver() {
         if (!observer.isObserving) return;
+
         let observers = dataNode.observersForChild.get(identifier);
-        if (!observers) dataNode.observersForChild.set(identifier, (observers = new Set()));
-        observers.add(observer);
+        if (!observers) dataNode.observersForChild.set(identifier, (observers = new Map()));
+
+        let selectors = observers.get(observer);
+        // A non-selector observation is represented by an empty set
+        const hasNonSelectorObservation = selectors && selectors.size === 0;
+        if (!selectors) observers.set(observer, (selectors = new Set()));
+
+        /**
+         * Since non-selector observations override selector observations (i.e. they would always
+         * cause the callback to be invoked), we don't need to track any additional selectors.
+         * If attempting to add a selector observation, there must not be any existing non-selector
+         * observations.
+         */
+        if (activeSelector) {
+          if (!hasNonSelectorObservation) selectors.add(activeSelector);
+        } else {
+          selectors.clear();
+        }
+
         observer.disposers.add(() => observers!.delete(observer));
       }
 
@@ -172,7 +199,7 @@ function getObservableContext(
         // If the property is something we know how to observe, return the observable value
         const childNode = getDataNode(identifier, childValue, dataNode);
         if (childNode) {
-          if (observer.observeIntermediates || observeIntermediate) addObserver();
+          if (activeSelector || observer.observeIntermediates || observeIntermediate) addObserver();
           return getObservableContext(observer, childNode).observable;
         }
       }
@@ -194,8 +221,22 @@ function getObservableContext(
         dataNode.children.get(childIdentifier)!.allContexts = new Set();
 
       // Trigger all Observer callbacks for the child Identifier
-      dataNode.observersForChild.get(childIdentifier)?.forEach((observer) => {
-        observer.callback?.(dataNode.value, childIdentifier);
+      dataNode.observersForChild.get(childIdentifier)?.forEach((selectors, observer) => {
+        let isAnyDifferent: boolean | undefined = undefined;
+        if (selectors.size) {
+          isAnyDifferent = false;
+          selectors.forEach((selector) => {
+            activeSelector = selector;
+            const newValue = selector.selectorFn();
+            isAnyDifferent =
+              isAnyDifferent || !(selector.isEqual || Object.is)(newValue, selector.lastValue);
+            selector.lastValue = newValue;
+            activeSelector = undefined;
+          });
+        }
+        // @ts-ignore
+        if (isAnyDifferent === true || isAnyDifferent === undefined)
+          observer.callback?.(dataNode.value, childIdentifier);
       });
 
       // Let the parent Observable update itself with the cloned child
@@ -254,7 +295,7 @@ export function observe<TData extends object>(value: TData, cb: Callback): Obser
 export function observe<TData extends object, TSelectorResult>(
   data: TData,
   selector: (data: TData) => TSelectorResult,
-  action: (selectorResult: TSelectorResult, value: TData) => void,
+  action: (selectorResult: TSelectorResult, value: TData, identifier: Identifier) => void,
   compare?: (a: TSelectorResult, b: TSelectorResult) => boolean
 ): ObserveResponse<TData>;
 
@@ -318,25 +359,38 @@ export function createObserver<TData extends object>(
 export function createObserverSelector<TData extends object, TSelectorResult>(
   data: TData,
   selector: (data: TData) => TSelectorResult,
-  action: (selectorResult: TSelectorResult, value: TData) => void,
-  compare: (a: TSelectorResult, b: TSelectorResult) => boolean = Object.is
+  action: (selectorResult: TSelectorResult, value: object, identifier: Identifier) => void,
+  compare: EqualityComparer<TSelectorResult> = Object.is
 ): ObserveResponse<TData> {
-  let prevResult: any;
+  const [state, actions] = observe(data, (value, childIdentifier) =>
+    action(selector(state), value, childIdentifier)
+  );
 
-  const [state, actions] = observe(data, () => {
-    actions.start(true);
-    const newResult = selector(state);
-    actions.stop();
-
-    if (!compare(newResult, prevResult)) action(newResult, data);
-    prevResult = newResult;
-  });
-
-  actions.start(true);
-  prevResult = selector(state);
+  select(() => selector(state), compare);
   actions.stop();
 
   return [state, actions];
+}
+
+type EqualityComparer<T> = (a: T, b: T) => boolean;
+
+interface Selector {
+  lastValue?: any;
+  selectorFn: () => any;
+  isEqual?: EqualityComparer<any>;
+}
+
+let activeSelector: Selector | undefined;
+
+export function select<TSelectorResult>(
+  selectorFn: () => TSelectorResult,
+  isEqual?: EqualityComparer<TSelectorResult>
+): TSelectorResult {
+  if (activeSelector) throw new Error("Cannot nest select() calls");
+  activeSelector = { selectorFn, isEqual };
+  let lastValue = (activeSelector.lastValue = selectorFn());
+  activeSelector = undefined;
+  return lastValue;
 }
 
 /**

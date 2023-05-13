@@ -44,10 +44,7 @@ export function useObserveSelector<TData extends object, TSelectorResult>(
   ).current;
 
   useEffect(() => {
-    return () => {
-      console.log("stopping");
-      actions.stop();
-    };
+    return () => actions.stop();
   }, []);
 
   return [selectorResultRef.current as TSelectorResult, state];

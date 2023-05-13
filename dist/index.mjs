@@ -54,15 +54,26 @@ function $d4d00b2c18281bdc$var$getObservableContext(observer, dataNode) {
             function addObserver() {
                 if (!observer.isObserving) return;
                 let observers = dataNode.observersForChild.get(identifier);
-                if (!observers) dataNode.observersForChild.set(identifier, observers = new Set());
-                observers.add(observer);
+                if (!observers) dataNode.observersForChild.set(identifier, observers = new Map());
+                let selectors = observers.get(observer);
+                // A non-selector observation is represented by an empty set
+                const hasNonSelectorObservation = selectors && selectors.size === 0;
+                if (!selectors) observers.set(observer, selectors = new Set());
+                /**
+         * Since non-selector observations override selector observations (i.e. they would always
+         * cause the callback to be invoked), we don't need to track any additional selectors.
+         * If attempting to add a selector observation, there must not be any existing non-selector
+         * observations.
+         */ if ($d4d00b2c18281bdc$var$activeSelector) {
+                    if (!hasNonSelectorObservation) selectors.add($d4d00b2c18281bdc$var$activeSelector);
+                } else selectors.clear();
                 observer.disposers.add(()=>observers.delete(observer));
             }
             if (childValue) {
                 // If the property is something we know how to observe, return the observable value
                 const childNode = $d4d00b2c18281bdc$var$getDataNode(identifier, childValue, dataNode);
                 if (childNode) {
-                    if (observer.observeIntermediates || observeIntermediate) addObserver();
+                    if ($d4d00b2c18281bdc$var$activeSelector || observer.observeIntermediates || observeIntermediate) addObserver();
                     return $d4d00b2c18281bdc$var$getObservableContext(observer, childNode).observable;
                 }
             }
@@ -80,8 +91,20 @@ function $d4d00b2c18281bdc$var$getObservableContext(observer, dataNode) {
             // Invalidate Observables for all ObservableContexts of the child Identifier
             if (dataNode.children.get(childIdentifier)) dataNode.children.get(childIdentifier).allContexts = new Set();
             // Trigger all Observer callbacks for the child Identifier
-            dataNode.observersForChild.get(childIdentifier)?.forEach((observer)=>{
-                observer.callback?.(dataNode.value, childIdentifier);
+            dataNode.observersForChild.get(childIdentifier)?.forEach((selectors, observer)=>{
+                let isAnyDifferent = undefined;
+                if (selectors.size) {
+                    isAnyDifferent = false;
+                    selectors.forEach((selector)=>{
+                        $d4d00b2c18281bdc$var$activeSelector = selector;
+                        const newValue = selector.selectorFn();
+                        isAnyDifferent = isAnyDifferent || !(selector.isEqual || Object.is)(newValue, selector.lastValue);
+                        selector.lastValue = newValue;
+                        $d4d00b2c18281bdc$var$activeSelector = undefined;
+                    });
+                }
+                // @ts-ignore
+                if (isAnyDifferent === true || isAnyDifferent === undefined) observer.callback?.(dataNode.value, childIdentifier);
             });
             // Let the parent Observable update itself with the cloned child
             dataNode.parent?.factory.handleChange(dataNode.parent.value, dataNode.identifier, dataNode.value);
@@ -141,21 +164,24 @@ function $d4d00b2c18281bdc$export$9e6a5ff84f57576(data, cb) {
     ];
 }
 function $d4d00b2c18281bdc$export$6db4992b88b03a85(data, selector, action, compare = Object.is) {
-    let prevResult;
-    const [state, actions] = $d4d00b2c18281bdc$export$d1203567a167490e(data, ()=>{
-        actions.start(true);
-        const newResult = selector(state);
-        actions.stop();
-        if (!compare(newResult, prevResult)) action(newResult, data);
-        prevResult = newResult;
-    });
-    actions.start(true);
-    prevResult = selector(state);
+    const [state, actions] = $d4d00b2c18281bdc$export$d1203567a167490e(data, (value, childIdentifier)=>action(selector(state), value, childIdentifier));
+    $d4d00b2c18281bdc$export$2e6c959c16ff56b8(()=>selector(state), compare);
     actions.stop();
     return [
         state,
         actions
     ];
+}
+let $d4d00b2c18281bdc$var$activeSelector;
+function $d4d00b2c18281bdc$export$2e6c959c16ff56b8(selectorFn, isEqual) {
+    if ($d4d00b2c18281bdc$var$activeSelector) throw new Error("Cannot nest select() calls");
+    $d4d00b2c18281bdc$var$activeSelector = {
+        selectorFn: selectorFn,
+        isEqual: isEqual
+    };
+    let lastValue = $d4d00b2c18281bdc$var$activeSelector.lastValue = selectorFn();
+    $d4d00b2c18281bdc$var$activeSelector = undefined;
+    return lastValue;
 }
 function $d4d00b2c18281bdc$export$debb760848ca95a(observable, observe = true) {
     const ctx = $d4d00b2c18281bdc$var$contextForObservable.get(observable);
@@ -418,10 +444,7 @@ function $5edb3eb33d1a0dbb$export$10d01aa5776497a2(data, selector, action) {
         forceRerender({});
     })).current;
     (0, $hgUW1$useEffect)(()=>{
-        return ()=>{
-            console.log("stopping");
-            actions.stop();
-        };
+        return ()=>actions.stop();
     }, []);
     return [
         selectorResultRef.current,
@@ -432,5 +455,5 @@ function $5edb3eb33d1a0dbb$export$10d01aa5776497a2(data, selector, action) {
 
 
 
-export {$d4d00b2c18281bdc$export$d1203567a167490e as observe, $d4d00b2c18281bdc$export$debb760848ca95a as unwrap, $d4d00b2c18281bdc$export$e0440d5a58076798 as observableFactories, $d4d00b2c18281bdc$export$66b146d1d08322f9 as observerActions, $379af7c1c9c51789$export$521eebe5cf3f8bee as objectAndArrayObservableFactory, $5edb3eb33d1a0dbb$export$b9c7ecd090a87b14 as useObserver, $5edb3eb33d1a0dbb$export$10d01aa5776497a2 as useObserveSelector};
+export {$d4d00b2c18281bdc$export$d1203567a167490e as observe, $d4d00b2c18281bdc$export$debb760848ca95a as unwrap, $d4d00b2c18281bdc$export$e0440d5a58076798 as observableFactories, $d4d00b2c18281bdc$export$66b146d1d08322f9 as observerActions, $d4d00b2c18281bdc$export$2e6c959c16ff56b8 as select, $379af7c1c9c51789$export$521eebe5cf3f8bee as objectAndArrayObservableFactory, $5edb3eb33d1a0dbb$export$b9c7ecd090a87b14 as useObserver, $5edb3eb33d1a0dbb$export$10d01aa5776497a2 as useObserveSelector};
 //# sourceMappingURL=index.mjs.map

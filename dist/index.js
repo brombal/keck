@@ -8,6 +8,7 @@ $parcel$export(module.exports, "observe", () => $d2f50327f5a80b8f$export$d120356
 $parcel$export(module.exports, "unwrap", () => $d2f50327f5a80b8f$export$debb760848ca95a);
 $parcel$export(module.exports, "observableFactories", () => $d2f50327f5a80b8f$export$e0440d5a58076798);
 $parcel$export(module.exports, "observerActions", () => $d2f50327f5a80b8f$export$66b146d1d08322f9);
+$parcel$export(module.exports, "select", () => $d2f50327f5a80b8f$export$2e6c959c16ff56b8);
 $parcel$export(module.exports, "objectAndArrayObservableFactory", () => $7ac2d515680cf951$export$521eebe5cf3f8bee);
 $parcel$export(module.exports, "useObserver", () => $f4ac19f6490f8500$export$b9c7ecd090a87b14);
 $parcel$export(module.exports, "useObserveSelector", () => $f4ac19f6490f8500$export$10d01aa5776497a2);
@@ -65,15 +66,26 @@ function $d2f50327f5a80b8f$var$getObservableContext(observer, dataNode) {
             function addObserver() {
                 if (!observer.isObserving) return;
                 let observers = dataNode.observersForChild.get(identifier);
-                if (!observers) dataNode.observersForChild.set(identifier, observers = new Set());
-                observers.add(observer);
+                if (!observers) dataNode.observersForChild.set(identifier, observers = new Map());
+                let selectors = observers.get(observer);
+                // A non-selector observation is represented by an empty set
+                const hasNonSelectorObservation = selectors && selectors.size === 0;
+                if (!selectors) observers.set(observer, selectors = new Set());
+                /**
+         * Since non-selector observations override selector observations (i.e. they would always
+         * cause the callback to be invoked), we don't need to track any additional selectors.
+         * If attempting to add a selector observation, there must not be any existing non-selector
+         * observations.
+         */ if ($d2f50327f5a80b8f$var$activeSelector) {
+                    if (!hasNonSelectorObservation) selectors.add($d2f50327f5a80b8f$var$activeSelector);
+                } else selectors.clear();
                 observer.disposers.add(()=>observers.delete(observer));
             }
             if (childValue) {
                 // If the property is something we know how to observe, return the observable value
                 const childNode = $d2f50327f5a80b8f$var$getDataNode(identifier, childValue, dataNode);
                 if (childNode) {
-                    if (observer.observeIntermediates || observeIntermediate) addObserver();
+                    if ($d2f50327f5a80b8f$var$activeSelector || observer.observeIntermediates || observeIntermediate) addObserver();
                     return $d2f50327f5a80b8f$var$getObservableContext(observer, childNode).observable;
                 }
             }
@@ -91,8 +103,20 @@ function $d2f50327f5a80b8f$var$getObservableContext(observer, dataNode) {
             // Invalidate Observables for all ObservableContexts of the child Identifier
             if (dataNode.children.get(childIdentifier)) dataNode.children.get(childIdentifier).allContexts = new Set();
             // Trigger all Observer callbacks for the child Identifier
-            dataNode.observersForChild.get(childIdentifier)?.forEach((observer)=>{
-                observer.callback?.(dataNode.value, childIdentifier);
+            dataNode.observersForChild.get(childIdentifier)?.forEach((selectors, observer)=>{
+                let isAnyDifferent = undefined;
+                if (selectors.size) {
+                    isAnyDifferent = false;
+                    selectors.forEach((selector)=>{
+                        $d2f50327f5a80b8f$var$activeSelector = selector;
+                        const newValue = selector.selectorFn();
+                        isAnyDifferent = isAnyDifferent || !(selector.isEqual || Object.is)(newValue, selector.lastValue);
+                        selector.lastValue = newValue;
+                        $d2f50327f5a80b8f$var$activeSelector = undefined;
+                    });
+                }
+                // @ts-ignore
+                if (isAnyDifferent === true || isAnyDifferent === undefined) observer.callback?.(dataNode.value, childIdentifier);
             });
             // Let the parent Observable update itself with the cloned child
             dataNode.parent?.factory.handleChange(dataNode.parent.value, dataNode.identifier, dataNode.value);
@@ -152,21 +176,24 @@ function $d2f50327f5a80b8f$export$9e6a5ff84f57576(data, cb) {
     ];
 }
 function $d2f50327f5a80b8f$export$6db4992b88b03a85(data, selector, action, compare = Object.is) {
-    let prevResult;
-    const [state, actions] = $d2f50327f5a80b8f$export$d1203567a167490e(data, ()=>{
-        actions.start(true);
-        const newResult = selector(state);
-        actions.stop();
-        if (!compare(newResult, prevResult)) action(newResult, data);
-        prevResult = newResult;
-    });
-    actions.start(true);
-    prevResult = selector(state);
+    const [state, actions] = $d2f50327f5a80b8f$export$d1203567a167490e(data, (value, childIdentifier)=>action(selector(state), value, childIdentifier));
+    $d2f50327f5a80b8f$export$2e6c959c16ff56b8(()=>selector(state), compare);
     actions.stop();
     return [
         state,
         actions
     ];
+}
+let $d2f50327f5a80b8f$var$activeSelector;
+function $d2f50327f5a80b8f$export$2e6c959c16ff56b8(selectorFn, isEqual) {
+    if ($d2f50327f5a80b8f$var$activeSelector) throw new Error("Cannot nest select() calls");
+    $d2f50327f5a80b8f$var$activeSelector = {
+        selectorFn: selectorFn,
+        isEqual: isEqual
+    };
+    let lastValue = $d2f50327f5a80b8f$var$activeSelector.lastValue = selectorFn();
+    $d2f50327f5a80b8f$var$activeSelector = undefined;
+    return lastValue;
 }
 function $d2f50327f5a80b8f$export$debb760848ca95a(observable, observe = true) {
     const ctx = $d2f50327f5a80b8f$var$contextForObservable.get(observable);
@@ -429,10 +456,7 @@ function $f4ac19f6490f8500$export$10d01aa5776497a2(data, selector, action) {
         forceRerender({});
     })).current;
     (0, $8zHUo$react.useEffect)(()=>{
-        return ()=>{
-            console.log("stopping");
-            actions.stop();
-        };
+        return ()=>actions.stop();
     }, []);
     return [
         selectorResultRef.current,

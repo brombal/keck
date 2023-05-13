@@ -9,6 +9,7 @@ export {
   unwrap,
   observableFactories,
   observerActions,
+  select,
 } from "./observe";
 
 export { objectAndArrayObservableFactory } from "./observables/object-array";

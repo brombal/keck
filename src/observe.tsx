@@ -145,10 +145,9 @@ function createObservation(identifier: Identifier, dataNode: DataNode, observer:
   if (!selectors) observations.set(observer, (selectors = new Set()));
 
   /**
-   * Since non-selector observations override selector observations (i.e. they would always
-   * cause the callback to be invoked), we don't need to track any additional selectors.
-   * If attempting to add a selector observation, there must not be any existing non-selector
-   * observations.
+   * Since non-selector observations override selector observations (i.e. they always
+   * cause the callback to be invoked), we don't need to track any selectors if there is already
+   * a non-selector observation.
    */
   if (activeSelector) {
     if (!hasNonSelectorObservation) selectors.add(activeSelector);
@@ -310,7 +309,7 @@ export function select<TSelectorResult>(
   selectorFn: () => TSelectorResult,
   isEqual?: EqualityComparer<TSelectorResult>
 ): TSelectorResult {
-  if (activeSelector) throw new Error("Cannot nest select() calls");
+  if (activeSelector) return selectorFn();
   activeSelector = { selectorFn, isEqual };
   const value = (activeSelector.lastValue = selectorFn());
   activeSelector = undefined;

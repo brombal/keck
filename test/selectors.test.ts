@@ -175,17 +175,48 @@ describe("observe with selectors", () => {
     expect(mockFn).toHaveBeenCalledTimes(0);
   });
 
-  test("Errors on nested select()", () => {
+  test("Nested selectors", () => {
     const mockFn = jest.fn();
 
     const data = createData();
 
-    const state = observe(data, mockFn);
+    let result: boolean;
+    function callback() {
+      mockFn(result);
+    }
 
-    expect(() => {
-      select(() => {
-        select(() => state.object1.value3 % 2 === 0);
-      });
-    }).toThrowError("Cannot nest select() calls");
+    const state = observe(data, callback);
+    select(() => {
+      void 0;
+      const isEven = select(() => state.value2 % 2 === 0);
+      const isTriple = select(() => state.object1.value3 % 3 === 0);
+      return (result = isEven && isTriple);
+    });
+    configure(state, { observe: false });
+
+    // even & triple
+    state.value2 = 2; // even; triple
+    expect(mockFn).toHaveBeenCalledTimes(0);
+    mockFn.mockClear();
+
+    state.object1.value3 = 6; // still even and triple
+    expect(mockFn).toHaveBeenCalledTimes(0);
+    mockFn.mockClear();
+
+    state.value2 = 3; // not even
+    expect(mockFn).toHaveBeenCalledTimes(1);
+    expect(mockFn).toHaveBeenCalledWith(false);
+    mockFn.mockClear();
+
+    state.object1.value3 = 8; // not even; not triple
+    expect(mockFn).toHaveBeenCalledTimes(0);
+    mockFn.mockClear();
+
+    state.value2 = 4; // even; not triple
+    expect(mockFn).toHaveBeenCalledTimes(0);
+
+    state.object1.value3 = 9; // even; triple
+    expect(mockFn).toHaveBeenCalledTimes(1);
+    expect(mockFn).toHaveBeenCalledWith(true);
   });
 });

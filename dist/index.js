@@ -50,10 +50,9 @@ function $d2f50327f5a80b8f$var$createObservation(identifier, dataNode, observer)
     const hasNonSelectorObservation = selectors && selectors.size === 0;
     if (!selectors) observations.set(observer, selectors = new Set());
     /**
-   * Since non-selector observations override selector observations (i.e. they would always
-   * cause the callback to be invoked), we don't need to track any additional selectors.
-   * If attempting to add a selector observation, there must not be any existing non-selector
-   * observations.
+   * Since non-selector observations override selector observations (i.e. they always
+   * cause the callback to be invoked), we don't need to track any selectors if there is already
+   * a non-selector observation.
    */ if ($d2f50327f5a80b8f$var$activeSelector) {
         if (!hasNonSelectorObservation) selectors.add($d2f50327f5a80b8f$var$activeSelector);
     } else selectors.clear();
@@ -154,7 +153,7 @@ function $d2f50327f5a80b8f$export$1de6dde37a725a9b(data, selectorFn, action, com
 }
 let $d2f50327f5a80b8f$var$activeSelector;
 function $d2f50327f5a80b8f$export$2e6c959c16ff56b8(selectorFn, isEqual) {
-    if ($d2f50327f5a80b8f$var$activeSelector) throw new Error("Cannot nest select() calls");
+    if ($d2f50327f5a80b8f$var$activeSelector) return selectorFn();
     $d2f50327f5a80b8f$var$activeSelector = {
         selectorFn: selectorFn,
         isEqual: isEqual

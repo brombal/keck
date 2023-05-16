@@ -1,23 +1,33 @@
-import React, { useState, useRef, useLayoutEffect, useEffect, useInsertionEffect } from "react";
-import { observe, ObserverActions } from "./";
+import React, {
+  useState,
+  useRef,
+  useLayoutEffect,
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+} from "react";
+import { configure, observe, reset } from "./";
 
 export function useObserver<TData extends object>(data: TData): TData {
   const [, forceRerender] = useState({});
-  const [store, actions] = useRef(observe(data, () => forceRerender({}))).current;
+  const store = useMemo(() => observe(data, () => forceRerender({})), []);
 
   // Begin observing on render
-  actions.reset();
-  actions.start();
+  reset(store);
+  configure(store, { clone: true });
 
   // Stop observing as soon as component finishes rendering
   useEffect(() => {
-    actions.stop();
+    configure(store, { observe: false });
   });
 
   // Disable callback when component unmounts
   useEffect(() => {
-    return actions.reset;
-  }, []);
+    return () => {
+      reset(store);
+      configure(store, { enabled: false });
+    };
+  }, [store]);
 
   return store;
 }
@@ -30,7 +40,7 @@ export function useObserveSelector<TData extends object, TSelectorResult>(
   const [, forceRerender] = useState({});
 
   const selectorResultRef = useRef<TSelectorResult>();
-  const [state, actions] = useRef(
+  const state = useRef(
     observe(
       data,
       (state) => {
@@ -44,7 +54,7 @@ export function useObserveSelector<TData extends object, TSelectorResult>(
   ).current;
 
   useEffect(() => {
-    return () => actions.stop();
+    return () => reset(state);
   }, []);
 
   return [selectorResultRef.current as TSelectorResult, state];

@@ -1,4 +1,4 @@
-import { observe, unwrap } from "#src";
+import { configure, observe, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -15,17 +15,14 @@ const createData = () => ({
 });
 
 describe("Objects & arrays", () => {
-  test("Modifying children does not trigger callback for intermediates when disabled", () => {
+  test("Callbacks are not triggered when observer is disabled", () => {
     const mockListener = jest.fn();
 
     const data = createData();
 
-    const [store, { disable }] = observe(data, mockListener);
+    const store = observe(data, mockListener);
 
-    unwrap(store.array1);
-    unwrap(store.array2[0]);
-
-    disable();
+    configure(store, { enabled: false });
 
     store.array1[2] = { value1: "x", value2: "x" };
     store.array2[0].value1 = "array2-0-value1";
@@ -33,22 +30,20 @@ describe("Objects & arrays", () => {
     expect(mockListener).toHaveBeenCalledTimes(0);
   });
 
-  test("Callbacks are not triggered after observer is disabled", () => {
+  test("Callbacks are not triggered when observer is disabled (select mode)", () => {
     const mockListener = jest.fn();
 
     const data = createData();
 
-    const [store, { stop, disable }] = observe(data, mockListener);
+    const store = observe(data, mockListener);
 
     void store.value1;
-
-    stop();
 
     store.value1 = "new-value1-1";
     expect(mockListener).toHaveBeenCalledTimes(1);
     mockListener.mockClear();
 
-    disable();
+    configure(store, { enabled: false });
 
     store.value1 = "new-value1-2";
 
@@ -60,19 +55,20 @@ describe("Objects & arrays", () => {
 
     const data = createData();
 
-    const [store, { start, disable, enable }] = observe(data, mockListener);
-
+    const store = observe(data, mockListener);
     void store.value1;
+    configure(store, { observe: false });
+
     store.value1 = "new-value1-1";
     expect(mockListener).toHaveBeenCalledTimes(1);
 
-    disable();
+    configure(store, { enabled: false });
 
     mockListener.mockClear();
     store.value1 = "new-value1-2";
     expect(mockListener).toHaveBeenCalledTimes(0);
 
-    enable();
+    configure(store, { enabled: true });
 
     mockListener.mockClear();
     store.value1 = "new-value1-3";

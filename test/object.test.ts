@@ -1,4 +1,4 @@
-import { observe, unwrap } from "#src";
+import { configure, observe, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -21,11 +21,13 @@ describe("Objects", () => {
 
     const data = createData();
 
-    const [store] = observe(data, mockListener);
+    const store = observe(data, mockListener);
+
 
     void store.value1;
     void store.array1[0].value1;
     void store.array1[0].value2;
+    configure(store, { observe: false });
 
     store.value1 = "new-value1";
     store.array1[0].value1 = "new-array1-0-value1";
@@ -48,18 +50,22 @@ describe("Objects", () => {
     const mockListener = jest.fn();
     const data = createData();
 
-    const [store] = observe(data, (value, prop) => mockListener({ ...value }, prop));
+    const store = observe(data, (value, prop) => mockListener({ ...value }, prop));
+
 
     unwrap(store.array1);
     void store.array1[0].value1;
+    configure(store, { observe: false });
 
     delete (store.array1[0] as any).value1;
+    expect(mockListener).toHaveBeenCalledTimes(2);
+    expect(mockListener.mock.calls[0][0]).not.toHaveProperty("value1");
+    mockListener.mockClear();
+
     delete (store as any).array1;
 
-    expect(mockListener).toHaveBeenCalledTimes(3);
-    expect(mockListener.mock.calls[0][0]).not.toHaveProperty('value1');
-    expect(mockListener.mock.calls[1][0]).toHaveProperty('array1');
-    expect(mockListener.mock.calls[2][0]).not.toHaveProperty('array1');
+    expect(mockListener).toHaveBeenCalledTimes(1);
+    expect(mockListener.mock.calls[0][0]).not.toHaveProperty("array1");
   });
 
   test("Setting identical value doesn't trigger callback", () => {
@@ -67,7 +73,7 @@ describe("Objects", () => {
 
     const data = createData();
 
-    const [store] = observe(data, mockListener);
+    const store = observe(data, mockListener);
 
     unwrap(store.value1);
     unwrap(store.array1);
@@ -81,18 +87,18 @@ describe("Objects", () => {
 
   test("Calling toJSON on observables works on objects and arrays", () => {
     const object = { object: "object" };
-    const [store] = observe(object, () => {});
+    const store = observe(object, () => {});
     expect((store as any).toJSON()).toEqual(object);
 
     const array = [1, 2, 3];
-    const [store2] = observe(array, () => {});
+    const store2 = observe(array, () => {});
     expect((store2 as any).toJSON()).toEqual(array);
   });
 
   test("`in` creates an observation on the object", () => {
     const mockFn = jest.fn();
     const data = createData();
-    const [store] = observe(data, mockFn);
+    const store = observe(data, mockFn);
 
     expect("value2" in store.object1).toBe(true);
 
@@ -105,7 +111,7 @@ describe("Objects", () => {
   test("`Object.keys` creates an observation on the object", () => {
     const mockFn = jest.fn();
     const data = createData();
-    const [store] = observe(data, mockFn);
+    const store = observe(data, mockFn);
 
     Object.keys(store.object1);
     store.object1.value2 = "new-object1-value2";
@@ -116,7 +122,7 @@ describe("Objects", () => {
   test("`Object.values` creates an observation on the object", () => {
     const mockFn = jest.fn();
     const data = createData();
-    const [store] = observe(data, mockFn);
+    const store = observe(data, mockFn);
 
     Object.values(store.object1);
     store.object1.value2 = "new-object1-value2";
@@ -127,7 +133,7 @@ describe("Objects", () => {
   test("`Object.entries` creates an observation on the object", () => {
     const mockFn = jest.fn();
     const data = createData();
-    const [store] = observe(data, mockFn);
+    const store = observe(data, mockFn);
 
     Object.entries(store.object1);
     store.object1.value2 = "new-object1-value2";
@@ -138,7 +144,7 @@ describe("Objects", () => {
   test("for loop creates an observation on the object", () => {
     const mockFn = jest.fn();
     const data = createData();
-    const [store] = observe(data, mockFn);
+    const store = observe(data, mockFn);
 
     const keys = [];
     for (const key in store.object1) {
@@ -154,7 +160,7 @@ describe("Objects", () => {
   test("Selector only rerenders when derived value changes", () => {
     const mockFn = jest.fn();
     const data = createData();
-    const [store] = observe(data, mockFn);
+    const store = observe(data, mockFn);
 
     const keys = [];
     for (const key in store.object1) {

@@ -4,12 +4,12 @@ import "./observables/map";
 
 export {
   type ObservableContext,
-  type ObserverActions,
   observe,
   unwrap,
   observableFactories,
-  observerActions,
+  configure,
   select,
+  reset,
 } from "./observe";
 
 export { objectAndArrayObservableFactory } from "./observables/object-array";

@@ -1,9 +1,4 @@
 /**
- *
- *
- *
- */
-/**
  * Represents a node in an observable tree. Nodes are shared by all Observers of the same object.
  */
 interface DataNode {
@@ -16,33 +11,32 @@ interface DataNode {
      * Used to iterate over observers to trigger callbacks.
      * Keys are child identifiers being observed.
      * Each value is a Map; keys are the observers and the value is a Set of Selectors.
-     * An empty set indicates that the child is being observed without a selector function and the
+     * An empty set indicates that the child is being observed without a selector function, and the
      * observer's callback should be called for any change.
      * A populated Set indicates that the child is being observed with selectors and the observer's
      * callback should only be called if at least one of the selectors returns a value different from
      * its previous invocation.
      */
     observersForChild: Map<Identifier, Map<Observer<object>, Set<Selector>>>;
-    allContexts: WeakSet<ObservableContext<object>>;
+    validContexts: WeakSet<ObservableContext<object>>;
 }
 interface Observer<T extends object> {
-    isObserving: boolean;
-    observeIntermediates: boolean;
+    config: KeckConfiguration;
     callback: Callback | undefined;
     disposers: Set<() => void>;
     contextForNode: WeakMap<DataNode, ObservableContext<object>>;
-    actions: ObserverActions;
 }
 declare const rootIdentifier: unique symbol;
 type Identifier = unknown | typeof rootIdentifier;
 export interface ObservableContext<TValue extends object> {
+    root: boolean;
     dataNode: DataNode;
     observer: Observer<TValue>;
     observable: Observable;
     readonly value: TValue;
     /**
      * Observe a child identifier. Call this to indicate that a user has accessed a property of the observed value. It
-     * will only be observed if the observer is currently enabled.
+     * will only create an observation if the observer is currently configured to observe.
      *
      * `childValue` is mapped to its observable version and returned. It is only necessary to pass it if its type is
      * unknown and could be an observable value; if you know it's a primitive or otherwise un-observable value, you may
@@ -52,7 +46,7 @@ export interface ObservableContext<TValue extends object> {
      * identifier, regardless of whether it is an intermediate value. Primitives will always be observed, regardless of this value.
      */
     observeIdentifier<T = unknown>(identifier: Identifier, childValue?: T, observeIntermediate?: boolean): T;
-    modifyIdentifier(childIdentifier: Identifier): void;
+    modifyIdentifier(childIdentifier: Identifier, source?: [DataNode, Identifier]): void;
 }
 type Observable = object;
 type Callback = (value: object, identifier: Identifier) => void;
@@ -80,32 +74,8 @@ interface ObservableFactory<TValue extends object, TIdentifier = unknown> {
      */
     createClone(value: TValue): object;
 }
-export interface ObserverActions {
-    /**
-     * Begins listening to property access. This is called automatically when the observer is created,
-     * but may be called again to re-enable the observer after it has been disabled.
-     */
-    start(observeIntermediates?: boolean): void;
-    /**
-     * Stops listening to property access.
-     */
-    stop(): void;
-    /**
-     * Disables the callback from being invoked on property writes.
-     */
-    disable(): void;
-    /**
-     * Enables the callback to be invoked on property writes.
-     */
-    enable(): void;
-    /**
-     * Removes all existing observations.
-     */
-    reset(): void;
-}
-type ObserveResponse<TData> = [TData, ObserverActions];
-export function observe<TData extends object>(value: TData, cb: Callback): ObserveResponse<TData>;
-export function observe<TData extends object, TSelectorResult>(data: TData, selector: (data: TData) => TSelectorResult, action: (selectorResult: TSelectorResult, value: TData, identifier: Identifier) => void, compare?: (a: TSelectorResult, b: TSelectorResult) => boolean): ObserveResponse<TData>;
+export function observe<TData extends object>(value: TData, cb: Callback): TData;
+export function observe<TData extends object, TSelectorResult>(data: TData, selectorFn: (data: TData) => TSelectorResult, action: (selectedValue: TSelectorResult, value: TData, identifier: Identifier) => void, compare?: EqualityComparer<TSelectorResult>): TData;
 type EqualityComparer<T> = (a: T, b: T) => boolean;
 interface Selector {
     lastValue?: any;
@@ -113,15 +83,19 @@ interface Selector {
     isEqual?: EqualityComparer<any>;
 }
 export function select<TSelectorResult>(selectorFn: () => TSelectorResult, isEqual?: EqualityComparer<TSelectorResult>): TSelectorResult;
+interface KeckConfiguration {
+    observe: boolean;
+    clone: boolean;
+    intermediates: boolean;
+    enabled: boolean;
+}
+export function configure(observable: object, options: Partial<KeckConfiguration>): void;
+export function reset(observable: object): void;
 /**
  * "Unwraps" a value to give you the original object instead of the observable proxy or subclass. If `observable` is
  * not actually an observable, it will simply be returned as-is.
  */
 export function unwrap<T>(observable: T, observe?: boolean): T;
-/**
- * Gets the ObserverActions for an observable. If `observable` is not actually an observable, it will return `undefined`.
- */
-export function observerActions(observable: any): ObserverActions | undefined;
 export const objectAndArrayObservableFactory: ObservableFactory<Record<string | symbol, unknown>, string | symbol>;
 export function useObserver<TData extends object>(data: TData): TData;
 export function useObserveSelector<TData extends object, TSelectorResult>(data: TData, selector: (state: TData) => TSelectorResult, action?: (result: TSelectorResult) => void): [TSelectorResult, TData];

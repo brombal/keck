@@ -30,7 +30,7 @@ export const objectAndArrayObservableFactory: ObservableFactory<
           return ctx.observeIdentifier(prop, value);
         },
         set(_, prop, value) {
-          const rawValue = unwrap(value);
+          const rawValue = unwrap(value, false);
           const oldValue = Reflect.get(ctx.value, prop, ctx.value);
           if (oldValue === rawValue) return true;
 

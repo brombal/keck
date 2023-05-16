@@ -1,4 +1,4 @@
-import { observe, unwrap } from "#src";
+import { observe, reset, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -27,10 +27,39 @@ describe("Garbage collection", () => {
     const mockFn = jest.fn();
 
     (() => {
-      const [store, { reset }] = observe(createData(), mockFn);
+      const store = observe(createData(), mockFn);
 
       void store.value1;
       store.value1 = "new-value1";
+
+      expect(mockFn).toHaveBeenCalledTimes(1);
+      mockFn.mockClear();
+      r.register(store, "value1");
+    })();
+
+    global.gc!();
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(mockCleanupFn).toHaveBeenCalledTimes(1);
+  });
+
+  test("Works after resetting", async () => {
+    expect(global.gc).toBeDefined();
+
+    const mockCleanupFn = jest.fn();
+
+    const r = new FinalizationRegistry(mockCleanupFn);
+
+    const data = createData();
+    const mockFn = jest.fn();
+
+    (() => {
+      const store = observe(data, mockFn);
+
+      void store.value1;
+      store.value1 = "new-value1";
+      reset(store);
 
       expect(mockFn).toHaveBeenCalledTimes(1);
       mockFn.mockClear();

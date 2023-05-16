@@ -1,4 +1,4 @@
-import { observe, unwrap } from "#src";
+import { configure, observe, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -22,11 +22,11 @@ describe("Arrays", () => {
 
     const data = createData();
 
-    const [store, { stop }] = observe(data, mockListener);
-
-    unwrap(store.array1);
-    unwrap(store.array2);
-    stop();
+    const store = observe(data, mockListener);
+    configure(store, { intermediates: true });
+    void store.array1;
+    void store.array2;
+    configure(store, { observe: false });
 
     store.array1.push({ value1: "array1-2-value1", value2: "array1-2-value2" });
     expect(mockListener).toHaveBeenCalledTimes(2);
@@ -45,19 +45,36 @@ describe("Arrays", () => {
     ]);
   });
 
+  test("Push to array triggers callback", () => {
+    const mockListener = jest.fn();
+
+    const data = createData();
+
+    const store = observe(data, mockListener);
+    configure(store, { intermediates: true });
+    void store.array1;
+    configure(store, { observe: false });
+
+    store.array1.push({ value1: "Movie 3", value2: "test" });
+
+    // 2 calls because store.array1.length and store.array1[3] are modified
+    expect(mockListener).toHaveBeenCalledTimes(2);
+  });
+
   test("Push to array triggers callback when unwrapped", () => {
     const mockListener = jest.fn();
 
     const data = createData();
 
-    const [store] = observe(data, mockListener);
+    const store = observe(data, mockListener);
 
     unwrap(store.array1);
+    configure(store, { observe: false });
 
     store.array1.push({ value1: "Movie 3", value2: "test" });
 
-    // 3 times because store.array1, store.array1.length and store.array1[2] are all modified
-    expect(mockListener).toHaveBeenCalledTimes(3);
+    // 2 calls because store.array1.length and store.array1[3] are modified
+    expect(mockListener).toHaveBeenCalledTimes(2);
   });
 
   // This test is necessary because pushing to an array automatically changes the length property; by the time
@@ -68,9 +85,10 @@ describe("Arrays", () => {
 
     const data = createData();
 
-    const [store] = observe(data, mockListener);
+    const store = observe(data, mockListener);
 
     void store.array1.length;
+    configure(store, { observe: false });
 
     store.array1.push({ value1: "Movie 3", value2: "test" });
 
@@ -83,20 +101,21 @@ describe("Arrays", () => {
 
     const data = createData();
 
-    const [store1, { stop: unobserve1 }] = observe(data, mockListener1);
-    const [store2, { stop: unobserve2 }] = observe(data, mockListener2);
+    const store1 = observe(data, mockListener1);
+    const store2 = observe(data, mockListener2);
 
     // Observe store1
+    configure(store1, { observe: true });
     unwrap(store1.array1);
     unwrap(store1.array1[1]);
     void store1.array1[1].value1;
+    configure(store1, { observe: false });
 
     // Observe store2 (differently from store1, to ensure callbacks are being triggered correctly)
+    configure(store2, { observe: true });
     unwrap(store2.array1[1]);
     void store2.array1[1].value1;
-
-    unobserve1();
-    unobserve2();
+    configure(store2, { observe: false });
 
     store1.array1.splice(1, 1);
 
@@ -117,20 +136,19 @@ describe("Arrays", () => {
 
     const data = createData();
 
-    const [store1, { stop: unobserve1 }] = observe(data, mockListener1);
-    const [store2, { stop: unobserve2 }] = observe(data, mockListener2);
+    const store1 = observe(data, mockListener1);
+    const store2 = observe(data, mockListener2);
 
     // Observe store1
+    configure(store1, { observe: true });
     unwrap(store1.array1);
     unwrap(store1.array1[1]);
     void store1.array1[1].value1;
 
     // Observe store2 (differently from store1, to ensure callbacks are being triggered correctly)
+    configure(store2, { observe: true });
     unwrap(store2.array1[1]);
     void store2.array1[1].value1;
-
-    unobserve1();
-    unobserve2();
 
     store1.array1.splice(1, 1);
 

@@ -1,4 +1,4 @@
-import { observe, unwrap } from "#src";
+import { configure, observe, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -18,7 +18,7 @@ const createData = () => ({
 describe("unwrap", () => {
   test("References/values are equal when value is unwrapped", () => {
     const data = createData();
-    const [store] = observe(data, () => {});
+    const store = observe(data, () => {});
 
     expect(unwrap(store)).toBe(data);
     expect(unwrap(store.object1)).toBe(data.object1);
@@ -40,9 +40,9 @@ describe("unwrap", () => {
 
     const data = createData();
 
-    const [store, { stop: unobserve1 }] = observe(data, mockListener);
+    const store = observe(data, mockListener);
     unwrap(store);
-    unobserve1();
+    configure(store, { observe: false });
 
     store.value1 = "new-value1";
 
@@ -57,11 +57,11 @@ describe("unwrap", () => {
 
     const data = createData();
 
-    const [store, { stop }] = observe(data, mockListener1);
+    const store = observe(data, mockListener1);
     unwrap(store.value1);
     unwrap(store.object1.value1);
     unwrap(store.array1[0].value1);
-    stop();
+    configure(store, { observe: false });
 
     store.value1 = "new-value1";
     store.object1.value1 = "new-object1-value1";
@@ -79,10 +79,10 @@ describe("unwrap", () => {
 
     const data = createData();
 
-    const [store, { stop }] = observe(data, mockListener1);
+    const store = observe(data, mockListener1);
     unwrap(store.object1);
     unwrap(store.array1);
-    stop();
+    configure(store, { observe: false });
 
     store.object1.value1 = "new-object1-value1";
     store.array1[0].value1 = "new-array1-0-value1";
@@ -98,10 +98,10 @@ describe("unwrap", () => {
 
     const data = createData();
 
-    const [store, { stop }] = observe(data, mockListener1);
+    const store = observe(data, mockListener1);
     unwrap(store.object1);
     unwrap(store.array1, false);
-    stop();
+    configure(store, { observe: false });
 
     store.object1.value1 = "new-object1-value1";
     store.array1[0].value1 = "new-array1-0-value1";

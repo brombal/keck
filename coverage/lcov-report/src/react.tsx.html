@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>24/24</span>
+                <span class='fraction'>27/27</span>
             </div>
         
             
@@ -39,14 +39,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>9/9</span>
+                <span class='fraction'>11/11</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>22/22</span>
+                <span class='fraction'>24/24</span>
             </div>
         
             
@@ -114,31 +114,51 @@
 <a name='L49'></a><a href='#L49'>49</a>
 <a name='L50'></a><a href='#L50'>50</a>
 <a name='L51'></a><a href='#L51'>51</a>
-<a name='L52'></a><a href='#L52'>52</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">13x</span>
-<span class="cline-any cline-yes">13x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">13x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">4x</span>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -165,26 +185,36 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React, { useState, useRef, useLayoutEffect, useEffect, useInsertionEffect } from "react";
-import { observe, ObserverActions } from "./";
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React, {
+  useState,
+  useRef,
+  useLayoutEffect,
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+} from "react";
+import { configure, observe, reset } from "./";
 &nbsp;
 export function useObserver&lt;TData extends object&gt;(data: TData): TData {
   const [, forceRerender] = useState({});
-  const [store, actions] = useRef(observe(data, () =&gt; forceRerender({}))).current;
+  const store = useMemo(() =&gt; observe(data, () =&gt; forceRerender({})), []);
 &nbsp;
   // Begin observing on render
-  actions.reset();
-  actions.start();
+  reset(store);
+  configure(store, { clone: true });
 &nbsp;
   // Stop observing as soon as component finishes rendering
   useEffect(() =&gt; {
-    actions.stop();
+    configure(store, { observe: false });
   });
 &nbsp;
   // Disable callback when component unmounts
   useEffect(() =&gt; {
-    return actions.reset;
-  }, []);
+    return () =&gt; {
+      reset(store);
+      configure(store, { enabled: false });
+    };
+  }, [store]);
 &nbsp;
   return store;
 }
@@ -197,7 +227,7 @@ export function useObserveSelector&lt;TData extends object, TSelectorResult&gt;(
   const [, forceRerender] = useState({});
 &nbsp;
   const selectorResultRef = useRef&lt;TSelectorResult&gt;();
-  const [state, actions] = useRef(
+  const state = useRef(
     observe(
       data,
       (state) =&gt; {
@@ -211,7 +241,7 @@ export function useObserveSelector&lt;TData extends object, TSelectorResult&gt;(
   ).current;
 &nbsp;
   useEffect(() =&gt; {
-    return () =&gt; actions.stop();
+    return () =&gt; reset(state);
   }, []);
 &nbsp;
   return [selectorResultRef.current as TSelectorResult, state];
@@ -223,7 +253,7 @@ export function useObserveSelector&lt;TData extends object, TSelectorResult&gt;(
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2023-05-13T19:00:26.410Z
+                at 2023-05-16T19:30:18.460Z
             </div>
         <script src="../prettify.js"></script>
         <script>

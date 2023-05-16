@@ -1,4 +1,4 @@
-import { observe, unwrap } from "#src";
+import { configure, observe, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -20,8 +20,8 @@ describe("unobserve", () => {
 
     const data = createData();
 
-    const [store, { stop }] = observe(data, mockListener);
-    stop();
+    const store = observe(data, mockListener);
+    configure(store, { observe: false });
 
     void store.value2;
 
@@ -41,8 +41,8 @@ describe("unobserve", () => {
 
     const data = createData();
 
-    const [store, { stop }] = observe(data, mockListener);
-    stop();
+    const store = observe(data, mockListener);
+    configure(store, { observe: false });
 
     unwrap(store.array1);
     unwrap(store.array2[0]);
@@ -53,15 +53,16 @@ describe("unobserve", () => {
     expect(mockListener).toHaveBeenCalledTimes(0);
   });
 
-  test("Properties are observed again when observe() is called again", () => {
+  test("Properties are observed again when observe is re-enabled", () => {
     const mockListener = jest.fn();
 
     const data = createData();
 
-    const [store, { start, stop }] = observe(data, mockListener);
+    const store = observe(data, mockListener);
 
     void store.value1;
-    stop();
+    configure(store, { observe: false });
+    
     store.value1 = "new-value1";
 
     expect(mockListener).toHaveBeenCalledTimes(1);
@@ -72,9 +73,9 @@ describe("unobserve", () => {
     store.value2 = 123;
     expect(mockListener).toHaveBeenCalledTimes(0);
 
-    start();
+    configure(store, { observe: true });
     void store.value2;
-    stop();
+    configure(store, { observe: false });
     store.value2 = 456;
     expect(mockListener).toHaveBeenCalledTimes(1);
     mockListener.mockClear();

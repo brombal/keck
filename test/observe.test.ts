@@ -1,4 +1,4 @@
-import { observe, observerActions } from "#src";
+import { configure, observe, reset } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -21,10 +21,9 @@ describe("createObserver", () => {
 
     const data = createData();
 
-    const [store, { stop }] = observe(data, mockListener);
-
+    const store = observe(data, mockListener);
     void store.value1;
-    stop();
+    configure(store, { observe: false });
 
     store.value1 = "new-value1";
 
@@ -34,17 +33,81 @@ describe("createObserver", () => {
     expect(mockListener).toHaveBeenCalledTimes(1);
   });
 
+  test("Deep properties trigger callback", () => {
+    const mockListener1 = jest.fn();
+
+    const data = createData();
+
+    const store = observe(data, mockListener1);
+    void store.object1.value1;
+    configure(store, { observe: false });
+
+    store.object1.value1 = "new-object1-value1";
+
+    expect(mockListener1).toHaveBeenCalledTimes(1);
+  });
+
+  test("References are equal after modification", () => {
+    const mockListener1 = jest.fn();
+
+    const data = createData();
+
+    const store = observe(data, mockListener1);
+
+    const before = store.object1;
+    store.object1.value1 = "new-object1-value1";
+
+    expect(before).toBe(store.object1);
+  });
+
+  test("Multiple observers trigger each other", () => {
+    const mockListener = jest.fn();
+
+    const data = createData();
+
+    const store = observe(data, mockListener);
+    void store.value1;
+
+    store.value1 = "new-value1";
+
+    expect(store.value1).toBe("new-value1");
+    expect(data.value1).toBe("new-value1");
+
+    expect(mockListener).toHaveBeenCalledTimes(1);
+  });
+
+  test("Select mode basic test works", () => {
+    const mockListener = jest.fn();
+
+    const data = createData();
+
+    const store = observe(data, mockListener);
+
+    void store.value1;
+    configure(store, { observe: false });
+
+    store.value1 = "new-value1";
+    store.value2 = 1;
+
+    expect(store.value1).toBe("new-value1");
+    expect(store.value2).toBe(1);
+    expect(data.value1).toBe("new-value1");
+    expect(data.value2).toBe(1);
+
+    expect(mockListener).toHaveBeenCalledTimes(1);
+  });
+
   test("Creating an observable from another observable works", () => {
     const mockListener = jest.fn();
 
     const data = createData();
 
-    const [store1, { stop }] = observe(data, mockListener);
+    const store1 = observe(data, mockListener);
 
-    const [store2, { stop: unobserve2 }] = observe(store1, mockListener);
+    const store2 = observe(store1, mockListener);
 
     void store2.value1;
-    stop();
+    configure(store2, { observe: false });
 
     store2.value1 = "new-value1";
 
@@ -63,11 +126,11 @@ describe("createObserver", () => {
 
     const data = createData();
 
-    const [store, { stop }] = observe(data, mockListener);
+    const store = observe(data, mockListener);
 
     void store.object1;
     void store.array1[0];
-    stop();
+    configure(store, { observe: false });
 
     store.object1.value1 = "array1-0-value1";
     store.array1[0].value1 = "array2-0-value1";
@@ -75,59 +138,23 @@ describe("createObserver", () => {
     expect(mockListener).toHaveBeenCalledTimes(0);
   });
 
-  test("References to intermediate properties of source change if modified", () => {
+  test("Configuring non-root should fail", () => {
+    const mockListener = jest.fn();
+
     const data = createData();
 
-    // Grab references to original arrays to test references
-    const originalarray2 = data.array2;
-    const originalarray1 = data.array1;
-    const originalarray10 = data.array1[0];
-    const originalarray11 = data.array1[1];
+    const store = observe(data, mockListener);
 
-    const [store, { stop }] = observe(data, () => {});
-
-    store.array1[0].value1 = "new-array1-0-value1";
-    stop();
-
-    // Check that object references that were modified are different; but those that weren't modified are identical
-    expect(data.array2).toBe(originalarray2);
-    expect(data.array1).not.toBe(originalarray1);
-    expect(data.array1[0]).not.toBe(originalarray10);
-    expect(data.array1[1]).toBe(originalarray11);
+    expect(() => configure(store.object1, { observe: false })).toThrow();
   });
 
-  test("References to intermediate properties of store change if modified", () => {
+  test("Resetting non-root should fail", () => {
+    const mockListener = jest.fn();
+
     const data = createData();
 
-    const [store, { stop }] = observe(data, () => {});
+    const store = observe(data, mockListener);
 
-    // Grab references to original arrays to test references
-    const originalarray2 = store.array2;
-    const originalarray1 = store.array1;
-    const originalarray10 = store.array1[0];
-    const originalarray11 = store.array1[1];
-    stop();
-
-    store.array1[0].value1 = "new-array1-0-value1"; // Triggers callback
-
-    // Check that object references that were modified are different; but those that weren't modified are identical
-    expect(store.array2).toBe(originalarray2);
-    expect(store.array1).not.toBe(originalarray1);
-    expect(store.array1[0]).not.toBe(originalarray10);
-    expect(store.array1[1]).toBe(originalarray11);
-  });
-
-  test("observerActions returns actions for observable", () => {
-    const data = createData();
-
-    const [store] = observe(data, () => {});
-
-    const actions = observerActions(store);
-
-    expect(actions).toHaveProperty("start");
-    expect(actions).toHaveProperty("stop");
-    expect(actions).toHaveProperty("reset");
-    expect(actions).toHaveProperty("enable");
-    expect(actions).toHaveProperty("disable");
+    expect(() => reset(store.object1)).toThrow();
   });
 });

@@ -1,4 +1,4 @@
-import { configure, observe, unwrap } from "#src";
+import { configure, observe, select, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -167,5 +167,29 @@ describe("Arrays", () => {
 
     expect(mockListener1).toHaveBeenCalledTimes(3);
     expect(mockListener2).toHaveBeenCalledTimes(2);
+  });
+
+  test("Directly assigning an object/array value invalidates all child DataNodes", () => {
+    /**
+     * This test is because re-assigning an object/array value must clear that DataNode's children,
+     * otherwise existing DataNodes may get reused that have the wrong type.
+     */
+
+    const data = {
+      array: [
+        {
+          value1: "value1",
+          value2: "value2",
+        },
+      ],
+    };
+
+    const store = observe(data, () => {});
+
+    select(() => {
+      return store.array.flatMap((v) => Object.values(v));
+    });
+
+    store.array = [["value3"]] as any;
   });
 });

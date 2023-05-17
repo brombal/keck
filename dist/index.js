@@ -94,6 +94,8 @@ function $d2f50327f5a80b8f$var$getObservableContext(observer, dataNode) {
             // The presence of `source` indicates that this is a recursive call, so we should not
             // invalidate unless we are cloning
             if ((observer.config.clone || !source) && dataNode.children.get(childIdentifier)) dataNode.children.get(childIdentifier).validContexts = new Set();
+            // If this is a direct property modification, clear out all the DataNodes for its children
+            if (!source) dataNode.children.get(childIdentifier)?.children.clear();
             // Trigger all Observer callbacks for the child Identifier
             dataNode.observersForChild.get(childIdentifier)?.forEach((selectors, observer)=>{
                 let isAnyDifferent = undefined;

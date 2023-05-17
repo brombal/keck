@@ -206,8 +206,12 @@ function getObservableContext(
       // Invalidate Observables for all ObservableContexts of the child Identifier
       // The presence of `source` indicates that this is a recursive call, so we should not
       // invalidate unless we are cloning
-      if ((observer.config.clone || !source) && dataNode.children.get(childIdentifier))
+      if ((observer.config.clone || !source) && dataNode.children.get(childIdentifier)){
         dataNode.children.get(childIdentifier)!.validContexts = new Set();
+      }
+
+      // If this is a direct property modification, clear out all the DataNodes for its children
+      if (!source) dataNode.children.get(childIdentifier)?.children.clear();
 
       // Trigger all Observer callbacks for the child Identifier
       dataNode.observersForChild.get(childIdentifier)?.forEach((selectors, observer) => {

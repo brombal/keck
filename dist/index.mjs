@@ -9,13 +9,13 @@ import {useState as $hgUW1$useState, useMemo as $hgUW1$useMemo, useEffect as $hg
 const $d4d00b2c18281bdc$export$e0440d5a58076798 = new Map();
 const $d4d00b2c18281bdc$var$allDataNodes = new WeakMap();
 function $d4d00b2c18281bdc$var$getDataNode(identifier, value, parent) {
+    const factory = $d4d00b2c18281bdc$export$e0440d5a58076798.get(value.constructor);
+    if (!factory) return undefined;
     let dataNode = parent ? parent.children.get(identifier) : $d4d00b2c18281bdc$var$allDataNodes.get(value);
     if (dataNode) {
         dataNode.value = value;
         return dataNode;
     }
-    const factory = $d4d00b2c18281bdc$export$e0440d5a58076798.get(value.constructor);
-    if (!factory) return undefined;
     dataNode = {
         identifier: identifier,
         value: value,

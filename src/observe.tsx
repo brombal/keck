@@ -112,14 +112,14 @@ function getDataNode(
   value: object,
   parent?: DataNode
 ): DataNode | undefined {
+  const factory = observableFactories.get(value.constructor as any);
+  if (!factory) return undefined;
+
   let dataNode = parent ? parent.children.get(identifier) : allDataNodes.get(value);
   if (dataNode) {
     dataNode.value = value;
     return dataNode;
   }
-
-  const factory = observableFactories.get(value.constructor as any);
-  if (!factory) return undefined;
 
   dataNode = {
     identifier,

@@ -22,13 +22,13 @@ $parcel$export(module.exports, "useObserveSelector", () => $f4ac19f6490f8500$exp
 const $d2f50327f5a80b8f$export$e0440d5a58076798 = new Map();
 const $d2f50327f5a80b8f$var$allDataNodes = new WeakMap();
 function $d2f50327f5a80b8f$var$getDataNode(identifier, value, parent) {
+    const factory = $d2f50327f5a80b8f$export$e0440d5a58076798.get(value.constructor);
+    if (!factory) return undefined;
     let dataNode = parent ? parent.children.get(identifier) : $d2f50327f5a80b8f$var$allDataNodes.get(value);
     if (dataNode) {
         dataNode.value = value;
         return dataNode;
     }
-    const factory = $d2f50327f5a80b8f$export$e0440d5a58076798.get(value.constructor);
-    if (!factory) return undefined;
     dataNode = {
         identifier: identifier,
         value: value,

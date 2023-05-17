@@ -157,4 +157,19 @@ describe("createObserver", () => {
 
     expect(() => reset(store.object1)).toThrow();
   });
+
+  test("Assigning primitive to previous observable value should work", () => {
+    const mockListener = jest.fn();
+
+    const data = createData();
+
+    const store = observe(data, mockListener);
+
+    void store.object1;
+
+    store.object1 = "primitive" as any;
+
+    expect(store.object1).toBe("primitive");
+    expect(data.object1).toBe("primitive");
+  });
 });

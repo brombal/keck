@@ -1,3 +1,9 @@
+declare const _ref: unique symbol;
+interface Ref {
+    [_ref]: true;
+    value: object;
+}
+export function ref<T extends object>(value: T): Ref | T;
 /**
  * Represents a node in an observable tree. Nodes are shared by all Observers of the same object.
  */

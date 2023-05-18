@@ -12,6 +12,8 @@ export {
   reset,
 } from "./observe";
 
+export { ref } from './ref';
+
 export { objectAndArrayObservableFactory } from "./observables/object-array";
 
 export { useObserver, useObserveSelector } from "./react";

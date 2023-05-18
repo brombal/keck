@@ -1,3 +1,5 @@
+import { isRef } from "./ref";
+
 /**
  * Represents a node in an observable tree. Nodes are shared by all Observers of the same object.
  */
@@ -184,7 +186,7 @@ function getObservableContext(
       if (typeof childValue === "function") return childValue.bind(this.observable);
 
       // If the property is something we know how to observe, return the observable value
-      const childNode = childValue && getDataNode(identifier, childValue, dataNode);
+      const childNode = childValue && !isRef(childValue) && getDataNode(identifier, childValue, dataNode);
       if (childNode) {
         if (
           observer.config.observe &&

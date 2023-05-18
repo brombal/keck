@@ -15,17 +15,15 @@ $parcel$export(module.exports, "objectAndArrayObservableFactory", () => $7ac2d51
 $parcel$export(module.exports, "useObserver", () => $f4ac19f6490f8500$export$b9c7ecd090a87b14);
 $parcel$export(module.exports, "useObserveSelector", () => $f4ac19f6490f8500$export$10d01aa5776497a2);
 
-const $046eaf7a22d711d5$export$bfe1b587ae1fb843 = Symbol("ref");
+const $046eaf7a22d711d5$var$_ref = Symbol("ref");
 function $046eaf7a22d711d5$export$eff4d24c3ff7876e(value) {
     const factory = (0, $f758cd31714206a3$export$e0440d5a58076798).get(value.constructor);
     if (!factory) return value;
-    return {
-        [$046eaf7a22d711d5$export$bfe1b587ae1fb843]: true,
-        value: value
-    };
+    value[$046eaf7a22d711d5$var$_ref] = true;
+    return value;
 }
 function $046eaf7a22d711d5$export$4f9f5282de18fc69(value) {
-    return value?.[$046eaf7a22d711d5$export$bfe1b587ae1fb843];
+    return !!value?.[$046eaf7a22d711d5$var$_ref];
 }
 
 

@@ -1,17 +1,15 @@
 import {useState as $hgUW1$useState, useMemo as $hgUW1$useMemo, useEffect as $hgUW1$useEffect, useRef as $hgUW1$useRef} from "react";
 
 
-const $dbb2838debbc262e$export$bfe1b587ae1fb843 = Symbol("ref");
+const $dbb2838debbc262e$var$_ref = Symbol("ref");
 function $dbb2838debbc262e$export$eff4d24c3ff7876e(value) {
     const factory = (0, $8411bee69343e358$export$e0440d5a58076798).get(value.constructor);
     if (!factory) return value;
-    return {
-        [$dbb2838debbc262e$export$bfe1b587ae1fb843]: true,
-        value: value
-    };
+    value[$dbb2838debbc262e$var$_ref] = true;
+    return value;
 }
 function $dbb2838debbc262e$export$4f9f5282de18fc69(value) {
-    return value?.[$dbb2838debbc262e$export$bfe1b587ae1fb843];
+    return !!value?.[$dbb2838debbc262e$var$_ref];
 }
 
 

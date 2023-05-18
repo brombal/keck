@@ -1,21 +1,14 @@
 import { observableFactories } from "./observe";
 
-export const _ref = Symbol('ref');
+const _ref = Symbol('ref');
 
-export interface Ref {
-  [_ref]: true;
-  value: object;
-}
-
-export function ref<T extends object>(value: T): Ref | T {
+export function ref<T extends object>(value: T): T {
   const factory = observableFactories.get(value.constructor as any);
   if (!factory) return value;
-  return {
-    [_ref]: true,
-    value,
-  };
+  (value as any)[_ref] = true;
+  return value;
 }
 
-export function isRef(value: any): value is Ref {
-  return value?.[_ref];
+export function isRef<T>(value: T): boolean {
+  return !!(value as any)?.[_ref];
 }

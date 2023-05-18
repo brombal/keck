@@ -1,4 +1,5 @@
 import { observe, ref, unwrap } from "#src";
+import { isRef } from "../src/ref";
 
 describe("wrap", () => {
   test("Modifying ref doesn't trigger callback", () => {
@@ -47,6 +48,38 @@ describe("wrap", () => {
 
     state.object2 = 4;
     expect(mockFn).toHaveBeenCalledTimes(1);
+
+    expect(state.object2).toBe(data.object2);
+  });
+
+  test("Creating ref from non-observable value has no effect", () => {
+    const mockFn = jest.fn();
+    const data = {
+      value: 1,
+      object1: {
+        value: 2,
+      },
+      object2: {} as any,
+    };
+    const state = observe(data, mockFn);
+    unwrap(state.object2);
+
+    class Test {
+      value = 3;
+    }
+
+    state.object2 = ref(new Test() as any);
+
+    expect(mockFn).toHaveBeenCalledTimes(1);
+    mockFn.mockClear();
+
+    void state.object2.value;
+
+    state.object2.value = 4;
+    expect(mockFn).toHaveBeenCalledTimes(0);
+
+    expect(isRef(data.object2)).toBe(false);
+    expect(isRef(state.object2)).toBe(false);
 
     expect(state.object2).toBe(data.object2);
   });

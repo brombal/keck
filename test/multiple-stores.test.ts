@@ -105,12 +105,12 @@ describe("Multiple stores", () => {
     const data = createData();
 
     const store1 = observe(data, mockListener1);
-    const store2 = observe(store1.object1, mockListener2);
+    const store2 = observe(store1, mockListener2);
 
     void store1.object1.value1;
 
     store1.object1.value1 = "new-object1-value1-1";
-    store2.value1 = "new-object1-value1-2";
+    store2.object1.value1 = "new-object1-value1-2";
 
     expect(mockListener1).toHaveBeenCalledTimes(2);
   });

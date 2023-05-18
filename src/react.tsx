@@ -10,26 +10,29 @@ import { configure, observe, reset } from "./";
 
 export function useObserver<TData extends object>(data: TData): TData {
   const [, forceRerender] = useState({});
-  const store = useMemo(() => observe(data, () => forceRerender({})), []);
+  const ref = useRef<TData>();
+  if (!ref.current)
+    ref.current = observe(data, () => forceRerender({}));
+  const state = ref.current;
 
   // Begin observing on render
-  reset(store);
-  configure(store, { clone: true });
+  reset(state);
+  configure(state, { clone: true });
 
   // Stop observing as soon as component finishes rendering
   useEffect(() => {
-    configure(store, { observe: false });
+    configure(state, { observe: false });
   });
 
   // Disable callback when component unmounts
   useEffect(() => {
     return () => {
-      reset(store);
-      configure(store, { enabled: false });
+      reset(state);
+      configure(state, { enabled: false });
     };
-  }, [store]);
+  }, [state]);
 
-  return store;
+  return state;
 }
 
 export function useObserveSelector<TData extends object, TSelectorResult>(

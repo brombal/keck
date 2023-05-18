@@ -1,4 +1,4 @@
-import {useState as $hgUW1$useState, useMemo as $hgUW1$useMemo, useEffect as $hgUW1$useEffect, useRef as $hgUW1$useRef} from "react";
+import {useState as $hgUW1$useState, useRef as $hgUW1$useRef, useEffect as $hgUW1$useEffect} from "react";
 
 
 const $dbb2838debbc262e$var$_ref = Symbol("ref");
@@ -416,30 +416,32 @@ class $1133320785147c80$export$db1c0901f08fc6fd extends Map {
 
 function $5edb3eb33d1a0dbb$export$b9c7ecd090a87b14(data) {
     const [, forceRerender] = (0, $hgUW1$useState)({});
-    const store = (0, $hgUW1$useMemo)(()=>(0, $8411bee69343e358$export$d1203567a167490e)(data, ()=>forceRerender({})), []);
+    const ref = (0, $hgUW1$useRef)();
+    if (!ref.current) ref.current = (0, $8411bee69343e358$export$d1203567a167490e)(data, ()=>forceRerender({}));
+    const state = ref.current;
     // Begin observing on render
-    (0, $8411bee69343e358$export$aad8462122ac592b)(store);
-    (0, $8411bee69343e358$export$8d21e34596265fa2)(store, {
+    (0, $8411bee69343e358$export$aad8462122ac592b)(state);
+    (0, $8411bee69343e358$export$8d21e34596265fa2)(state, {
         clone: true
     });
     // Stop observing as soon as component finishes rendering
     (0, $hgUW1$useEffect)(()=>{
-        (0, $8411bee69343e358$export$8d21e34596265fa2)(store, {
+        (0, $8411bee69343e358$export$8d21e34596265fa2)(state, {
             observe: false
         });
     });
     // Disable callback when component unmounts
     (0, $hgUW1$useEffect)(()=>{
         return ()=>{
-            (0, $8411bee69343e358$export$aad8462122ac592b)(store);
-            (0, $8411bee69343e358$export$8d21e34596265fa2)(store, {
+            (0, $8411bee69343e358$export$aad8462122ac592b)(state);
+            (0, $8411bee69343e358$export$8d21e34596265fa2)(state, {
                 enabled: false
             });
         };
     }, [
-        store
+        state
     ]);
-    return store;
+    return state;
 }
 function $5edb3eb33d1a0dbb$export$10d01aa5776497a2(data, selector, action) {
     const [, forceRerender] = (0, $hgUW1$useState)({});

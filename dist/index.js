@@ -17,7 +17,7 @@ $parcel$export(module.exports, "useObserveSelector", () => $f4ac19f6490f8500$exp
 
 const $046eaf7a22d711d5$var$_ref = Symbol("ref");
 function $046eaf7a22d711d5$export$eff4d24c3ff7876e(value) {
-    const factory = (0, $f758cd31714206a3$export$e0440d5a58076798).get(value.constructor);
+    const factory = value && (0, $f758cd31714206a3$export$e0440d5a58076798).get(value.constructor);
     if (!factory) return value;
     value[$046eaf7a22d711d5$var$_ref] = true;
     return value;

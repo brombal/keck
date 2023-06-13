@@ -1,4 +1,4 @@
-export function ref<T extends object>(value: T): T;
+export function ref<T>(value: T): T;
 /**
  * Represents a node in an observable tree. Nodes are shared by all Observers of the same object.
  */

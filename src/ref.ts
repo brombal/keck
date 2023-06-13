@@ -2,8 +2,8 @@ import { observableFactories } from "./observe";
 
 const _ref = Symbol('ref');
 
-export function ref<T extends object>(value: T): T {
-  const factory = observableFactories.get(value.constructor as any);
+export function ref<T>(value: T): T {
+  const factory = value && observableFactories.get(value.constructor as any);
   if (!factory) return value;
   (value as any)[_ref] = true;
   return value;

@@ -83,4 +83,27 @@ describe("wrap", () => {
 
     expect(state.object2).toBe(data.object2);
   });
+
+  test("Creating ref from null or undefined value has no effect", () => {
+    const mockFn = jest.fn();
+    const data = {
+      value: 1,
+      object1: {
+        value: 2,
+      },
+      object2: {} as any,
+    };
+    const state = observe(data, mockFn);
+    unwrap(state.object2);
+
+    state.object2 = ref(null);
+
+    expect(mockFn).toHaveBeenCalledTimes(1);
+    mockFn.mockClear();
+
+    state.object2 = 4;
+    expect(mockFn).toHaveBeenCalledTimes(1);
+
+    expect(state.object2).toBe(data.object2);
+  });
 });

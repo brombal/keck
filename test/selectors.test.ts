@@ -1,4 +1,4 @@
-import { observe, select, reset, configure } from "#src";
+import { observe, select, reset, configure, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",

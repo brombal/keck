@@ -3,7 +3,7 @@ import {useState as $hgUW1$useState, useRef as $hgUW1$useRef, useEffect as $hgUW
 
 const $dbb2838debbc262e$var$_ref = Symbol("ref");
 function $dbb2838debbc262e$export$eff4d24c3ff7876e(value) {
-    const factory = (0, $8411bee69343e358$export$e0440d5a58076798).get(value.constructor);
+    const factory = value && (0, $8411bee69343e358$export$e0440d5a58076798).get(value.constructor);
     if (!factory) return value;
     value[$dbb2838debbc262e$var$_ref] = true;
     return value;

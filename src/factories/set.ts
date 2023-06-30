@@ -1,4 +1,4 @@
-import { ObservableContext, observableFactories, ObservableFactory } from "../observe";
+import { ObservableContext, observableFactories, ObservableFactory } from "../createObserver";
 
 const _size = Symbol("size");
 

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { select, useObserver, useObserveSelector } from "#src";
+import { derive, useObserver, useObserveSelector } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -115,7 +115,7 @@ describe("React", () => {
 
       mockListener();
 
-      const isEven = select(() => {
+      const isEven = derive(() => {
         return state.value2 < 2;
       });
 

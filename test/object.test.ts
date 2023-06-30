@@ -1,4 +1,4 @@
-import { configure, observe, unwrap } from "#src";
+import { configure, createObserver, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -21,13 +21,13 @@ describe("Objects", () => {
 
     const data = createData();
 
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
 
     void store.value1;
     void store.array1[0].value1;
     void store.array1[0].value2;
-    configure(store, { observe: false });
+    configure(store, { select: false });
 
     store.value1 = "new-value1";
     store.array1[0].value1 = "new-array1-0-value1";
@@ -50,12 +50,12 @@ describe("Objects", () => {
     const mockListener = jest.fn();
     const data = createData();
 
-    const store = observe(data, (value, prop) => mockListener({ ...value }, prop));
+    const store = createObserver(data, (value, prop) => mockListener({ ...value }, prop));
 
 
     unwrap(store.array1);
     void store.array1[0].value1;
-    configure(store, { observe: false });
+    configure(store, { select: false });
 
     delete (store.array1[0] as any).value1;
     expect(mockListener).toHaveBeenCalledTimes(2);
@@ -73,7 +73,7 @@ describe("Objects", () => {
 
     const data = createData();
 
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
     unwrap(store.value1);
     unwrap(store.array1);
@@ -87,18 +87,18 @@ describe("Objects", () => {
 
   test("Calling toJSON on observables works on objects and arrays", () => {
     const object = { object: "object" };
-    const store = observe(object, () => {});
+    const store = createObserver(object, () => {});
     expect((store as any).toJSON()).toEqual(object);
 
     const array = [1, 2, 3];
-    const store2 = observe(array, () => {});
+    const store2 = createObserver(array, () => {});
     expect((store2 as any).toJSON()).toEqual(array);
   });
 
   test("`in` creates an observation on the object", () => {
     const mockFn = jest.fn();
     const data = createData();
-    const store = observe(data, mockFn);
+    const store = createObserver(data, mockFn);
 
     expect("value2" in store.object1).toBe(true);
 
@@ -111,7 +111,7 @@ describe("Objects", () => {
   test("`Object.keys` creates an observation on the object", () => {
     const mockFn = jest.fn();
     const data = createData();
-    const store = observe(data, mockFn);
+    const store = createObserver(data, mockFn);
 
     Object.keys(store.object1);
     store.object1.value2 = "new-object1-value2";
@@ -122,7 +122,7 @@ describe("Objects", () => {
   test("`Object.values` creates an observation on the object", () => {
     const mockFn = jest.fn();
     const data = createData();
-    const store = observe(data, mockFn);
+    const store = createObserver(data, mockFn);
 
     Object.values(store.object1);
     store.object1.value2 = "new-object1-value2";
@@ -133,7 +133,7 @@ describe("Objects", () => {
   test("`Object.entries` creates an observation on the object", () => {
     const mockFn = jest.fn();
     const data = createData();
-    const store = observe(data, mockFn);
+    const store = createObserver(data, mockFn);
 
     Object.entries(store.object1);
     store.object1.value2 = "new-object1-value2";
@@ -144,7 +144,7 @@ describe("Objects", () => {
   test("for loop creates an observation on the object", () => {
     const mockFn = jest.fn();
     const data = createData();
-    const store = observe(data, mockFn);
+    const store = createObserver(data, mockFn);
 
     const keys = [];
     for (const key in store.object1) {
@@ -160,7 +160,7 @@ describe("Objects", () => {
   test("Selector only rerenders when derived value changes", () => {
     const mockFn = jest.fn();
     const data = createData();
-    const store = observe(data, mockFn);
+    const store = createObserver(data, mockFn);
 
     const keys = [];
     for (const key in store.object1) {

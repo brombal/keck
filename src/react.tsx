@@ -6,13 +6,13 @@ import React, {
   useInsertionEffect,
   useMemo,
 } from "react";
-import { configure, observe, reset } from "./";
+import { configure, createObserver, reset } from "./";
 
 export function useObserver<TData extends object>(data: TData): TData {
   const [, forceRerender] = useState({});
   const ref = useRef<TData>();
   if (!ref.current)
-    ref.current = observe(data, () => forceRerender({}));
+    ref.current = createObserver(data, () => forceRerender({}));
   const state = ref.current;
 
   // Begin observing on render
@@ -21,7 +21,7 @@ export function useObserver<TData extends object>(data: TData): TData {
 
   // Stop observing as soon as component finishes rendering
   useEffect(() => {
-    configure(state, { observe: false });
+    configure(state, { select: false });
   });
 
   // Disable callback when component unmounts
@@ -44,7 +44,7 @@ export function useObserveSelector<TData extends object, TSelectorResult>(
 
   const selectorResultRef = useRef<TSelectorResult>();
   const state = useRef(
-    observe(
+    createObserver(
       data,
       (state) => {
         return (selectorResultRef.current = selector(state));

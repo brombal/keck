@@ -1,4 +1,4 @@
-import { configure, observe, unwrap } from "#src";
+import { configure, createObserver, unwrap } from "#src";
 
 function noop() {}
 
@@ -24,7 +24,7 @@ const createData = () => {
 describe("Sets", () => {
   test("Set is modified", () => {
     const { data } = createData();
-    const store = observe(data, noop);
+    const store = createObserver(data, noop);
 
     // Modify set & check values
     store.alphaSet.add("d");
@@ -38,7 +38,7 @@ describe("Sets", () => {
   test("Callback is triggered when modifying set after observing size", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
     void store.alphaSet.size;
 
@@ -66,7 +66,7 @@ describe("Sets", () => {
   test("Callback is triggered when modifying set after unwrapping set", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
     unwrap(store.alphaSet);
 
@@ -86,10 +86,10 @@ describe("Sets", () => {
   test("Callback is triggered when modifying set after calling has()", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
     store.alphaSet.has("a");
-    configure(store, { observe: false });
+    configure(store, { select: false });
 
     // Modify set & check callback counts
     store.alphaSet.add("d");
@@ -99,7 +99,7 @@ describe("Sets", () => {
   test("Callback is not triggered when adding existing values or deleting non-existent values", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
     unwrap(store.alphaSet);
 
@@ -112,7 +112,7 @@ describe("Sets", () => {
 
   test("Callback is not triggered when clearing empty set", () => {
     const mockListener = jest.fn();
-    const store = observe({ emptySet: new Set() }, mockListener);
+    const store = createObserver({ emptySet: new Set() }, mockListener);
 
     unwrap(store.emptySet);
 
@@ -124,7 +124,7 @@ describe("Sets", () => {
   test("Callback is triggered only when modifying set size after calling forEach()", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
     store.alphaSet.forEach((value) => {});
 
@@ -152,7 +152,7 @@ describe("Sets", () => {
   test("Callback is triggered only when modifying set size after calling keys()", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
     void [...store.alphaSet.keys()]; // keys() only returns an iterable so we need to spread it to trigger the callback
 
@@ -180,7 +180,7 @@ describe("Sets", () => {
   test("Callback is triggered only when modifying set size after calling values()", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
     void [...store.alphaSet.values()];
 
@@ -208,7 +208,7 @@ describe("Sets", () => {
   test("Callback is triggered only when modifying set size after calling entries()", () => {
     const mockListener = jest.fn();
     const { data } = createData();
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
     void [...store.alphaSet.entries()];
 
@@ -236,7 +236,7 @@ describe("Sets", () => {
   test("Callback is triggered when modifying set inner value", () => {
     const mockListener = jest.fn();
     const { data, objectSetValues } = createData();
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
     // Collect the observables; this is just a mechanism to test setting values on the inner observables
     const values: any[] = [];
@@ -254,7 +254,7 @@ describe("Sets", () => {
   test("Callback is triggered when modifying set inner value after unwrapping", () => {
     const mockListener = jest.fn();
     const { data, objectSetValues } = createData();
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
     const values: any[] = [];
     unwrap(store.objectSet);
@@ -273,7 +273,7 @@ describe("Sets", () => {
   test("Object references are changed when modifying set inner value", () => {
     const mockListener = jest.fn();
     const { data, objectSetValues } = createData();
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
     configure(store, { clone: true });
 
     const originalObjectSet = store.objectSet;

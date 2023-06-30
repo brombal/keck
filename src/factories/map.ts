@@ -1,4 +1,4 @@
-import { ObservableContext, observableFactories, ObservableFactory } from "../observe";
+import { ObservableContext, observableFactories, ObservableFactory } from "../createObserver";
 
 const _size = Symbol("size");
 
@@ -48,7 +48,7 @@ export class ObservableMap<K, V> extends Map<K, V> {
     const size = this.map.size;
     this.map.set(key, value);
     if (size !== this.map.size) {
-      this.ctx.modifyIdentifier(key);
+      this.ctx.modifyIdentifier(key, value);
       this.ctx.modifyIdentifier(_size);
     }
     return this;

@@ -1,4 +1,4 @@
-import { configure, observe, unwrap } from "#src";
+import { configure, createObserver, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -20,7 +20,7 @@ describe("Objects & arrays", () => {
 
     const data = createData();
 
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
     configure(store, { enabled: false });
 
@@ -35,7 +35,7 @@ describe("Objects & arrays", () => {
 
     const data = createData();
 
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
     void store.value1;
 
@@ -55,9 +55,9 @@ describe("Objects & arrays", () => {
 
     const data = createData();
 
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
     void store.value1;
-    configure(store, { observe: false });
+    configure(store, { select: false });
 
     store.value1 = "new-value1-1";
     expect(mockListener).toHaveBeenCalledTimes(1);

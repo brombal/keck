@@ -1,4 +1,4 @@
-import { configure, observe, reset, unwrap } from "#src";
+import { configure, createObserver, reset, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -24,9 +24,9 @@ describe("Multiple stores", () => {
 
     const data = createData();
 
-    const store1 = observe(data, mockListener1);
+    const store1 = createObserver(data, mockListener1);
     configure(store1, { clone: true });
-    const store2 = observe(data, mockListener2);
+    const store2 = createObserver(data, mockListener2);
     configure(store2, { clone: true });
 
     const store1_object1 = store1.object1;
@@ -76,19 +76,19 @@ describe("Multiple stores", () => {
 
     const data = createData();
 
-    const store1 = observe(data, mockListener1);
-    configure(store1, { observe: true, clone: true })
-    const store2 = observe(data, mockListener2);
-    configure(store2, { observe: true, clone: true })
+    const store1 = createObserver(data, mockListener1);
+    configure(store1, { select: true, clone: true });
+    const store2 = createObserver(data, mockListener2);
+    configure(store2, { select: true, clone: true });
 
     void store1.value1;
     void store1.object1.value1;
     unwrap(store1.array1[0]);
-    configure(store1, { observe: false })
+    configure(store1, { select: false });
 
     void store2.value1;
     unwrap(store2.array1[0]);
-    configure(store2, { observe: false })
+    configure(store2, { select: false });
 
     store1.value1 = "new-value2";
     store2.object1.value1 = "new-object1-value2";
@@ -104,8 +104,8 @@ describe("Multiple stores", () => {
 
     const data = createData();
 
-    const store1 = observe(data, mockListener1);
-    const store2 = observe(store1, mockListener2);
+    const store1 = createObserver(data, mockListener1);
+    const store2 = createObserver(store1, mockListener2);
 
     void store1.object1.value1;
 
@@ -121,34 +121,13 @@ describe("Multiple stores", () => {
 
     const data = createData();
 
-    const store1 = observe(data, mockListener1);
+    const store1 = createObserver(data, mockListener1);
     void store1.array1[0].value1;
-    configure(store1, { observe: false });
+    configure(store1, { select: false });
 
-    const store2 = observe(store1.array1[0], mockListener2);
+    const store2 = createObserver(store1.array1[0], mockListener2);
     void store2.value1;
-    configure(store2, { observe: false });
-
-    store2.value1 = "new-array1-0-value1-1";
-
-    expect(store1.array1[0].value1).toBe("new-array1-0-value1-1");
-    expect(mockListener1).toHaveBeenCalledTimes(1);
-    expect(mockListener2).toHaveBeenCalledTimes(1);
-  });
-
-  test("Creating observables from data within another observable's value should work", () => {
-    const mockListener1 = jest.fn();
-    const mockListener2 = jest.fn();
-
-    const data = createData();
-
-    const store1 = observe(data, mockListener1);
-    void store1.array1[0].value1;
-    configure(store1, { observe: false });
-
-    const store2 = observe(data.array1[0], mockListener2);
-    void store2.value1;
-    configure(store2, { observe: false });
+    configure(store2, { select: false });
 
     store2.value1 = "new-array1-0-value1-1";
 

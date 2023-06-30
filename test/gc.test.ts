@@ -1,4 +1,4 @@
-import { observe, reset, unwrap } from "#src";
+import { createObserver, reset, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -27,7 +27,7 @@ describe("Garbage collection", () => {
     const mockFn = jest.fn();
 
     (() => {
-      const store = observe(createData(), mockFn);
+      const store = createObserver(createData(), mockFn);
 
       void store.value1;
       store.value1 = "new-value1";
@@ -55,7 +55,7 @@ describe("Garbage collection", () => {
     const mockFn = jest.fn();
 
     (() => {
-      const store = observe(data, mockFn);
+      const store = createObserver(data, mockFn);
 
       void store.value1;
       store.value1 = "new-value1";

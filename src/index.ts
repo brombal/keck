@@ -1,19 +1,19 @@
-import "./observables/object-array";
-import "./observables/set";
-import "./observables/map";
+import "./factories/object";
+import "./factories/set";
+import "./factories/map";
 
 export {
   type ObservableContext,
-  observe,
+  createObserver,
   unwrap,
   observableFactories,
   configure,
-  select,
+  derive,
   reset,
-} from "./observe";
+} from "./createObserver";
 
 export { ref } from './ref';
 
-export { objectAndArrayObservableFactory } from "./observables/object-array";
+export { objectFactory } from "./factories/object";
 
 export { useObserver, useObserveSelector } from "./react";

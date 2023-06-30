@@ -1,4 +1,4 @@
-import { observe, select, reset, configure, unwrap } from "#src";
+import { createObserver, derive, reset, configure, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -21,9 +21,9 @@ describe("observe with selectors", () => {
 
     const data = createData();
 
-    const state = observe(data, mockFn);
+    const state = createObserver(data, mockFn);
 
-    select(() => state.object1.value3 % 2 === 0);
+    derive(() => state.object1.value3 % 2 === 0);
 
     state.object1.value3 = 2;
 
@@ -50,10 +50,10 @@ describe("observe with selectors", () => {
 
     const data = createData();
 
-    const state = observe(data, mockFn);
-    configure(state, { observe: true, clone: true });
+    const state = createObserver(data, mockFn);
+    configure(state, { select: true, clone: true });
 
-    select(() => state.object1.value3 % 2 === 0);
+    derive(() => state.object1.value3 % 2 === 0);
 
     // Creates an unconditional observation on value3
     void state.object1.value3;
@@ -89,7 +89,7 @@ describe("observe with selectors", () => {
 
     const data = createData();
 
-    const state = observe(data, (state) => state.object1, mockFn);
+    const state = createObserver(data, (state) => state.object1, mockFn);
     configure(state, { clone: true });
 
     state.object1.value1 = "new-object1-value1";
@@ -112,7 +112,7 @@ describe("observe with selectors", () => {
 
     const data = createData();
 
-    const state = observe(data, (state) => !!state.object1, mockFn);
+    const state = createObserver(data, (state) => !!state.object1, mockFn);
 
     state.object1 = null!;
 
@@ -130,7 +130,7 @@ describe("observe with selectors", () => {
 
     const data = createData();
 
-    const state = observe(
+    const state = createObserver(
       data,
       (state) => [state.object1, state.array1],
       mockFn,
@@ -167,7 +167,7 @@ describe("observe with selectors", () => {
 
     const data = createData();
 
-    const state = observe(data, (state) => state.object1, mockFn);
+    const state = createObserver(data, (state) => state.object1, mockFn);
 
     reset(state);
     state.object1.value1 = "new-object1-value1-2";
@@ -185,14 +185,14 @@ describe("observe with selectors", () => {
       mockFn(result);
     }
 
-    const state = observe(data, callback);
-    select(() => {
+    const state = createObserver(data, callback);
+    derive(() => {
       void 0;
-      const isEven = select(() => state.value2 % 2 === 0);
-      const isTriple = select(() => state.object1.value3 % 3 === 0);
+      const isEven = derive(() => state.value2 % 2 === 0);
+      const isTriple = derive(() => state.object1.value3 % 3 === 0);
       return (result = isEven && isTriple);
     });
-    configure(state, { observe: false });
+    configure(state, { select: false });
 
     // even & triple
     state.value2 = 2; // even; triple

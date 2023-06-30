@@ -1,4 +1,4 @@
-import { configure, observe, unwrap } from "#src";
+import { configure, createObserver, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -20,8 +20,8 @@ describe("unobserve", () => {
 
     const data = createData();
 
-    const store = observe(data, mockListener);
-    configure(store, { observe: false });
+    const store = createObserver(data, mockListener);
+    configure(store, { select: false });
 
     void store.value2;
 
@@ -41,8 +41,8 @@ describe("unobserve", () => {
 
     const data = createData();
 
-    const store = observe(data, mockListener);
-    configure(store, { observe: false });
+    const store = createObserver(data, mockListener);
+    configure(store, { select: false });
 
     unwrap(store.array1);
     unwrap(store.array2[0]);
@@ -58,11 +58,11 @@ describe("unobserve", () => {
 
     const data = createData();
 
-    const store = observe(data, mockListener);
+    const store = createObserver(data, mockListener);
 
     void store.value1;
-    configure(store, { observe: false });
-    
+    configure(store, { select: false });
+
     store.value1 = "new-value1";
 
     expect(mockListener).toHaveBeenCalledTimes(1);
@@ -73,9 +73,9 @@ describe("unobserve", () => {
     store.value2 = 123;
     expect(mockListener).toHaveBeenCalledTimes(0);
 
-    configure(store, { observe: true });
+    configure(store, { select: true });
     void store.value2;
-    configure(store, { observe: false });
+    configure(store, { select: false });
     store.value2 = 456;
     expect(mockListener).toHaveBeenCalledTimes(1);
     mockListener.mockClear();

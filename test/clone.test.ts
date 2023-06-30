@@ -1,4 +1,4 @@
-import { configure, observe } from "#src";
+import { configure, createObserver } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -19,7 +19,7 @@ describe("Clone", () => {
   test("References to intermediate properties change if cloning", () => {
     const data = createData();
 
-    const store = observe(data, () => {});
+    const store = createObserver(data, () => {});
     configure(store, { clone: true });
 
     // Grab references to original arrays to test references
@@ -44,7 +44,7 @@ describe("Clone", () => {
   test("References to intermediate properties do not change if not cloning", () => {
     const data = createData();
 
-    const store = observe(data, () => {});
+    const store = createObserver(data, () => {});
 
     // Grab references to original arrays to test references
     const object1 = store.object1;

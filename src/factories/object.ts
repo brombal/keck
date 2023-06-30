@@ -1,6 +1,6 @@
-import { ObservableFactory, observableFactories, unwrap } from "../observe";
+import { ObservableFactory, observableFactories, unwrap } from "../createObserver";
 
-export const objectAndArrayObservableFactory: ObservableFactory<
+export const objectFactory: ObservableFactory<
   Record<string | symbol, unknown>,
   string | symbol
 > = {
@@ -40,13 +40,13 @@ export const objectAndArrayObservableFactory: ObservableFactory<
             const setResult = Reflect.set(ctx.value, prop, rawValue, ctx.value);
 
             if (arrayLength !== ctx.value.length) ctx.modifyIdentifier("length");
-            if (prop !== "length") ctx.modifyIdentifier(prop);
+            if (prop !== "length") ctx.modifyIdentifier(prop, rawValue);
 
             return setResult;
           }
 
           const result = Reflect.set(ctx.value, prop, rawValue, ctx.value);
-          ctx.modifyIdentifier(prop);
+          ctx.modifyIdentifier(prop, rawValue);
           return result;
         },
         deleteProperty(_, prop): boolean {
@@ -68,5 +68,5 @@ export const objectAndArrayObservableFactory: ObservableFactory<
   },
 };
 
-observableFactories.set(Object, objectAndArrayObservableFactory);
-observableFactories.set(Array, objectAndArrayObservableFactory);
+observableFactories.set(Object, objectFactory);
+observableFactories.set(Array, objectFactory);

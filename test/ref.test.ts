@@ -1,4 +1,4 @@
-import { createObserver, ref, unwrap } from "#src";
+import { createObserver, observe, ref, unwrap } from "#src";
 import { isRef } from "../src/ref";
 
 describe("wrap", () => {
@@ -12,7 +12,7 @@ describe("wrap", () => {
       object2: {} as any,
     };
     const state = createObserver(data, mockFn);
-    unwrap(state.object2);
+    observe(state.object2);
 
     state.object2 = ref({
       value: 3,
@@ -39,7 +39,7 @@ describe("wrap", () => {
       object2: {} as any,
     };
     const state = createObserver(data, mockFn);
-    unwrap(state.object2);
+    observe(state.object2);
 
     state.object2 = ref(3 as any);
 
@@ -62,7 +62,7 @@ describe("wrap", () => {
       object2: {} as any,
     };
     const state = createObserver(data, mockFn);
-    unwrap(state.object2);
+    observe(state.object2);
 
     class Test {
       value = 3;
@@ -94,7 +94,7 @@ describe("wrap", () => {
       object2: {} as any,
     };
     const state = createObserver(data, mockFn);
-    unwrap(state.object2);
+    observe(state.object2);
 
     state.object2 = ref(null);
 

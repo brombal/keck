@@ -1,4 +1,4 @@
-import { configure, createObserver, reset, unwrap } from "#src";
+import { configure, createObserver, observe, reset, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -83,11 +83,11 @@ describe("Multiple stores", () => {
 
     void store1.value1;
     void store1.object1.value1;
-    unwrap(store1.array1[0]);
+    observe(store1.array1[0]);
     configure(store1, { select: false });
 
     void store2.value1;
-    unwrap(store2.array1[0]);
+    observe(store2.array1[0]);
     configure(store2, { select: false });
 
     store1.value1 = "new-value2";

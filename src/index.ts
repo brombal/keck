@@ -6,13 +6,15 @@ export {
   type ObservableContext,
   createObserver,
   unwrap,
-  observableFactories,
   configure,
   derive,
   reset,
+  observe,
 } from "./createObserver";
 
-export { ref } from './ref';
+export { observableFactories } from "./observableFactories";
+
+export { ref } from "./ref";
 
 export { objectFactory } from "./factories/object";
 

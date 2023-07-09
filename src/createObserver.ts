@@ -1,4 +1,5 @@
 import { isRef } from "./ref";
+import { observableFactories } from "./observableFactories";
 
 // let debugCounter = 0;
 
@@ -23,7 +24,7 @@ const contextForObservable = new WeakMap<Observable, ObservableContext>();
  * Internally, we don't know the type, but it must always be an object. To the user, the type is always the same
  * as the object that it represents.
  */
-type Observable = object;
+export type Observable = object;
 
 type Callback = (value: object, identifier: Identifier) => void;
 
@@ -298,37 +299,6 @@ export class ObservableContext<T extends object = object> {
   }
 }
 
-/**
- * The map of object prototypes to their observable factories. Implement an `ObservableFactory` and
- * add it to this map to add support for custom classes.
- */
-export const observableFactories = new Map<
-  new (...args: any[]) => any,
-  ObservableFactory<any, any>
->();
-
-/**
- * This interface is used to create observable objects. To create an observable for a class,
- * implement this interface and add it to `observableFactories` using the class as the key.
- */
-export interface ObservableFactory<TValue extends object, TIdentifier = unknown> {
-  /**
-   * Return an Observable object that stands in place of the original value.
-   */
-  makeObservable: (context: ObservableContext<TValue>) => Observable;
-
-  /**
-   * Update the `value` object with the change specified by `identifier` and `newValue`.
-   * An example of a change for a plain object would be `value[identifier] = newValue`.
-   */
-  handleChange(value: TValue, identifier: TIdentifier, newValue: unknown): void;
-
-  /**
-   * Return a shallow clone of `value`.
-   */
-  createClone(value: TValue): object;
-}
-
 export function createObserver<TData extends object>(value: TData, cb: Callback): TData;
 
 export function createObserver<TData extends object, TDerivedResult>(
@@ -347,7 +317,7 @@ function createSimpleObserver<TData extends object>(data: TData, cb: Callback): 
   // Get an existing context and SharedNode, if possible. This happens when an observable from another tree is
   // passed to observe(). Otherwise, it will create a new root SharedNode.
   const ctx = contextForObservable.get(data);
-  const observer = new Observer(unwrap(data, false), cb, ctx?.sharedNode);
+  const observer = new Observer(unwrap(data), cb, ctx?.sharedNode);
   return observer.rootContext.observable as TData;
 }
 
@@ -432,19 +402,34 @@ export function reset(observable: object) {
   ctx.observer.reset();
 }
 
-/**
- * "Unwraps" a value to give you the original object instead of the observable proxy. If `observable` is
- * not actually an observable, it will simply be returned as-is.
- */
-export function unwrap<T>(observable: T, observe = true): T {
+function getObservableContext(observable: unknown) {
   const ctx = contextForObservable.get(observable as Observable);
-  if (!ctx) return observable;
+  if (!ctx) return null;
 
   if (ctx.sharedNode && !ctx.sharedNode.validContexts.has(ctx))
     throw new Error(`You are using a stale reference to an observable value.`);
 
+  return ctx;
+}
+
+/**
+ * "Unwraps" a value to give you the original object instead of the observable proxy. If `observable` is
+ * not actually an observable, it will simply be returned as-is.
+ */
+export function unwrap<T>(observable: T): T {
+  const ctx = getObservableContext(observable);
+  return ctx ? (ctx.sharedNode.value as T) : observable;
+}
+
+/**
+ * Creates an observation on an intermediate property.
+ */
+export function observe<T>(observable: T): T {
+  const ctx = getObservableContext(observable);
+  if (!ctx) return observable;
+
   // Unwrapping can only create an observation in select mode
-  if (observe && ctx.observer.config.select) {
+  if (ctx.observer.config.select) {
     (ctx.parent || ctx).observeIdentifier(ctx.sharedNode.identifier, ctx.value, true);
   }
   return ctx.sharedNode.value as T;

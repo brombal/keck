@@ -1,4 +1,4 @@
-import { configure, createObserver, unwrap } from "#src";
+import { configure, createObserver, unwrap, observe } from "#src";
 
 function noop() {}
 
@@ -63,12 +63,12 @@ describe("Sets", () => {
     expect(mockListener).toHaveBeenCalledTimes(1);
   });
 
-  test("Callback is triggered when modifying set after unwrapping set", () => {
+  test("Callback is triggered when modifying set after observing set", () => {
     const mockListener = jest.fn();
     const { data } = createData();
     const store = createObserver(data, mockListener);
 
-    unwrap(store.alphaSet);
+    observe(store.alphaSet);
 
     // Modify set & check callback counts
     store.alphaSet.add("d");
@@ -101,7 +101,7 @@ describe("Sets", () => {
     const { data } = createData();
     const store = createObserver(data, mockListener);
 
-    unwrap(store.alphaSet);
+    observe(store.alphaSet);
 
     // Modify set & check callback counts
     store.alphaSet.add("a");
@@ -114,7 +114,7 @@ describe("Sets", () => {
     const mockListener = jest.fn();
     const store = createObserver({ emptySet: new Set() }, mockListener);
 
-    unwrap(store.emptySet);
+    observe(store.emptySet);
 
     // Modify set & check callback counts
     store.emptySet.clear();
@@ -257,7 +257,7 @@ describe("Sets", () => {
     const store = createObserver(data, mockListener);
 
     const values: any[] = [];
-    unwrap(store.objectSet);
+    observe(store.objectSet);
 
     store.objectSet.forEach((value) => {
       values.push(value);

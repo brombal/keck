@@ -1,4 +1,4 @@
-import { configure, createObserver, unwrap } from "#src";
+import { configure, createObserver, observe, unwrap } from "#src";
 import { config } from "process";
 
 function noop() {}
@@ -82,7 +82,7 @@ describe("Maps", () => {
     const store = createObserver(data, mockListener);
     configure(store, { select: true, clone: true });
 
-    unwrap(store.alphaMap);
+    observe(store.alphaMap);
 
     store.alphaMap.set("d", "d");
     expect(mockListener).toHaveBeenCalledTimes(2); // Modified size & added value
@@ -157,7 +157,7 @@ describe("Maps", () => {
     const { data } = createData();
     const store = createObserver(data, mockListener);
 
-    unwrap(store.alphaMap);
+    observe(store.alphaMap);
 
     store.alphaMap.set("a", "a");
     expect(mockListener).toHaveBeenCalledTimes(0);
@@ -169,7 +169,7 @@ describe("Maps", () => {
     const mockListener = jest.fn();
     const store = createObserver({ emptySet: new Set() }, mockListener);
 
-    unwrap(store.emptySet);
+    observe(store.emptySet);
 
     store.emptySet.clear();
     expect(mockListener).toHaveBeenCalledTimes(0);
@@ -312,7 +312,7 @@ describe("Maps", () => {
 
 
     const values: { y: number }[] = [];
-    unwrap(store.objectMap);
+    observe(store.objectMap);
 
     store.objectMap.forEach((value) => {
       values.push(value);

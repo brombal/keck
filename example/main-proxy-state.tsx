@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import ReactDOM from "react-dom/client";
-import { useObserver, unwrap } from "#src";
+import { useObserver, unwrap, observe } from "#src";
 
 const obj = {
   name: "Alex",
@@ -23,7 +23,7 @@ function NameAge() {
 
   const [showAge, setShowAge] = useState(false);
 
-  unwrap(store.movies);
+  observe(store.movies);
 
   console.log(store.movies);
 

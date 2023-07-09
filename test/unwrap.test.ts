@@ -1,4 +1,4 @@
-import { configure, createObserver, unwrap } from "#src";
+import { configure, createObserver, observe, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -35,7 +35,7 @@ describe("unwrap", () => {
     expect(unwrap(store.array1[0])).toBe(data.array1[0]);
   });
 
-  test("Unwrapping root object observes values", () => {
+  test("Unwrapping root object does not observe values", () => {
     const mockListener = jest.fn();
 
     const data = createData();
@@ -49,7 +49,7 @@ describe("unwrap", () => {
     expect(store.value1).toBe("new-value1");
     expect(unwrap(store)).toBe(data);
 
-    expect(mockListener).toHaveBeenCalledTimes(1);
+    expect(mockListener).toHaveBeenCalledTimes(0);
   });
 
   test("Unwrapped primitive values are equal", () => {
@@ -58,9 +58,9 @@ describe("unwrap", () => {
     const data = createData();
 
     const store = createObserver(data, mockListener1);
-    unwrap(store.value1);
-    unwrap(store.object1.value1);
-    unwrap(store.array1[0].value1);
+    observe(store.value1);
+    observe(store.object1.value1);
+    observe(store.array1[0].value1);
     configure(store, { select: false });
 
     store.value1 = "new-value1";
@@ -74,7 +74,7 @@ describe("unwrap", () => {
     expect(mockListener1).toHaveBeenCalledTimes(3);
   });
 
-  test("Unwrapping intermediate values enables observation", () => {
+  test("Unwrapping intermediate values does not create an observation", () => {
     const mockListener1 = jest.fn();
 
     const data = createData();
@@ -90,25 +90,6 @@ describe("unwrap", () => {
     expect(store.object1.value1).toBe("new-object1-value1");
     expect(store.array1[0].value1).toBe("new-array1-0-value1");
 
-    expect(mockListener1).toHaveBeenCalledTimes(2);
-  });
-
-  test("Unwrapping value without observing does not enable observation", () => {
-    const mockListener1 = jest.fn();
-
-    const data = createData();
-
-    const store = createObserver(data, mockListener1);
-    unwrap(store.object1);
-    unwrap(store.array1, false);
-    configure(store, { select: false });
-
-    store.object1.value1 = "new-object1-value1";
-    store.array1[0].value1 = "new-array1-0-value1";
-
-    expect(store.object1.value1).toBe("new-object1-value1");
-    expect(store.array1[0].value1).toBe("new-array1-0-value1");
-
-    expect(mockListener1).toHaveBeenCalledTimes(1);
+    expect(mockListener1).toHaveBeenCalledTimes(0);
   });
 });

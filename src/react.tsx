@@ -1,18 +1,10 @@
-import React, {
-  useState,
-  useRef,
-  useLayoutEffect,
-  useEffect,
-  useInsertionEffect,
-  useMemo,
-} from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { configure, createObserver, reset } from "./";
 
 export function useObserver<TData extends object>(data: TData): TData {
   const [, forceRerender] = useState({});
   const ref = useRef<TData>();
-  if (!ref.current)
-    ref.current = createObserver(data, () => forceRerender({}));
+  if (!ref.current) ref.current = createObserver(data, () => forceRerender({}));
   const state = ref.current;
 
   // Begin observing on render

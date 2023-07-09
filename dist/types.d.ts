@@ -1,3 +1,27 @@
+/**
+ * This interface is used to create observable objects. To create an observable for a class,
+ * implement this interface and add it to `observableFactories` using the class as the key.
+ */
+interface ObservableFactory<TValue extends object, TIdentifier = unknown> {
+    /**
+     * Return an Observable object that stands in place of the original value.
+     */
+    makeObservable: (context: ObservableContext<TValue>) => Observable;
+    /**
+     * Update the `value` object with the change specified by `identifier` and `newValue`.
+     * An example of a change for a plain object would be `value[identifier] = newValue`.
+     */
+    handleChange(value: TValue, identifier: TIdentifier, newValue: unknown): void;
+    /**
+     * Return a shallow clone of `value`.
+     */
+    createClone(value: TValue): object;
+}
+/**
+ * The map of object prototypes to their observable factories. Implement an `ObservableFactory` and
+ * add it to this map to add support for custom classes.
+ */
+export const observableFactories: Map<new (...args: any[]) => any, ObservableFactory<any, any>>;
 export function ref<T>(value: T): T;
 declare const rootIdentifier: unique symbol;
 type Identifier = unknown | typeof rootIdentifier;
@@ -37,7 +61,7 @@ declare class SharedNode {
      */
     validContexts: WeakSet<ObservableContext<object>>;
     constructor(parent: SharedNode | undefined, identifier: Identifier, value: object);
-    factory(): ObservableFactory<any, any>;
+    factory(): import("/src/observableFactories").ObservableFactory<any, any>;
 }
 /**
  * An Observer represents a callback that is called when a change occurs to the selected properties of its value.
@@ -81,30 +105,6 @@ export class ObservableContext<T extends object = object> {
     modifyIdentifier(childIdentifier: Identifier, value?: unknown, source?: [SharedNode, Identifier]): void;
     get parent(): ObservableContext<object> | undefined;
 }
-/**
- * The map of object prototypes to their observable factories. Implement an `ObservableFactory` and
- * add it to this map to add support for custom classes.
- */
-export const observableFactories: Map<new (...args: any[]) => any, ObservableFactory<any, any>>;
-/**
- * This interface is used to create observable objects. To create an observable for a class,
- * implement this interface and add it to `observableFactories` using the class as the key.
- */
-interface ObservableFactory<TValue extends object, TIdentifier = unknown> {
-    /**
-     * Return an Observable object that stands in place of the original value.
-     */
-    makeObservable: (context: ObservableContext<TValue>) => Observable;
-    /**
-     * Update the `value` object with the change specified by `identifier` and `newValue`.
-     * An example of a change for a plain object would be `value[identifier] = newValue`.
-     */
-    handleChange(value: TValue, identifier: TIdentifier, newValue: unknown): void;
-    /**
-     * Return a shallow clone of `value`.
-     */
-    createClone(value: TValue): object;
-}
 export function createObserver<TData extends object>(value: TData, cb: Callback): TData;
 export function createObserver<TData extends object, TDerivedResult>(data: TData, deriveFn: (data: TData) => TDerivedResult, action: (derivedValue: TDerivedResult, value: TData, identifier: Identifier) => void, compare?: EqualityComparer<TDerivedResult>): TData;
 type EqualityComparer<T> = (a: T, b: T) => boolean;
@@ -141,7 +141,11 @@ export function reset(observable: object): void;
  * "Unwraps" a value to give you the original object instead of the observable proxy. If `observable` is
  * not actually an observable, it will simply be returned as-is.
  */
-export function unwrap<T>(observable: T, observe?: boolean): T;
+export function unwrap<T>(observable: T): T;
+/**
+ * Creates an observation on an intermediate property.
+ */
+export function observe<T>(observable: T): T;
 export const objectFactory: ObservableFactory<Record<string | symbol, unknown>, string | symbol>;
 export function useObserver<TData extends object>(data: TData): TData;
 export function useObserveSelector<TData extends object, TSelectorResult>(data: TData, selector: (state: TData) => TSelectorResult, action?: (result: TSelectorResult) => void): [TSelectorResult, TData];

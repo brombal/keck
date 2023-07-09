@@ -1,9 +1,11 @@
 import {useState as $hgUW1$useState, useRef as $hgUW1$useRef, useEffect as $hgUW1$useEffect} from "react";
 
+const $543ae244dc837c2b$export$e0440d5a58076798 = new Map();
+
 
 const $dbb2838debbc262e$var$_ref = Symbol("ref");
 function $dbb2838debbc262e$export$eff4d24c3ff7876e(value) {
-    const factory = value && (0, $5d255de9c43b17c7$export$e0440d5a58076798).get(value.constructor);
+    const factory = value && (0, $543ae244dc837c2b$export$e0440d5a58076798).get(value.constructor);
     if (!factory) return value;
     value[$dbb2838debbc262e$var$_ref] = true;
     return value;
@@ -11,6 +13,7 @@ function $dbb2838debbc262e$export$eff4d24c3ff7876e(value) {
 function $dbb2838debbc262e$export$4f9f5282de18fc69(value) {
     return !!value?.[$dbb2838debbc262e$var$_ref];
 }
+
 
 
 // let debugCounter = 0;
@@ -34,12 +37,12 @@ const $5d255de9c43b17c7$var$rootIdentifier = Symbol("root");
         this.children = new Map();
         this.observersForChild = new Map();
         this.validContexts = new WeakSet();
-        if (!$5d255de9c43b17c7$export$e0440d5a58076798.has(value.constructor)) throw new Error(`Value "${value}" is not observable`);
+        if (!(0, $543ae244dc837c2b$export$e0440d5a58076798).has(value.constructor)) throw new Error(`Value "${value}" is not observable`);
         if (!parent) $5d255de9c43b17c7$var$rootDataNodes.set(value, this);
         else parent.children.set(identifier, this);
     }
     factory() {
-        return $5d255de9c43b17c7$export$e0440d5a58076798.get(this.value.constructor);
+        return (0, $543ae244dc837c2b$export$e0440d5a58076798).get(this.value.constructor);
     }
 }
 /**
@@ -96,7 +99,7 @@ class $5d255de9c43b17c7$export$ce224f6edbadb0e7 {
         if (typeof childValue === "function") return childValue.bind(this.observable);
         const observer = this.observer;
         // If the value is something we know how to observe, return the observable for it
-        if (childValue && !(0, $dbb2838debbc262e$export$4f9f5282de18fc69)(childValue) && $5d255de9c43b17c7$export$e0440d5a58076798.has(childValue.constructor)) {
+        if (childValue && !(0, $dbb2838debbc262e$export$4f9f5282de18fc69)(childValue) && (0, $543ae244dc837c2b$export$e0440d5a58076798).has(childValue.constructor)) {
             let childCtx = identifier === $5d255de9c43b17c7$var$rootIdentifier ? this : this.observer.contexts.get(this.sharedNode.children.get(identifier)); // this.children.get(identifier);
             // Check that the childCtx is present in validContexts
             if (childCtx && !childCtx.sharedNode.validContexts.has(childCtx)) childCtx = undefined;
@@ -163,7 +166,6 @@ class $5d255de9c43b17c7$export$ce224f6edbadb0e7 {
         return this.observer.contexts.get(this.sharedNode.parent);
     }
 }
-const $5d255de9c43b17c7$export$e0440d5a58076798 = new Map();
 function $5d255de9c43b17c7$export$9e6a5ff84f57576(...args) {
     if (args.length === 2) return $5d255de9c43b17c7$var$createSimpleObserver(args[0], args[1]);
     else return $5d255de9c43b17c7$var$createdDerivedObserver(args[0], args[1], args[2]);
@@ -172,7 +174,7 @@ function $5d255de9c43b17c7$var$createSimpleObserver(data, cb) {
     // Get an existing context and SharedNode, if possible. This happens when an observable from another tree is
     // passed to observe(). Otherwise, it will create a new root SharedNode.
     const ctx = $5d255de9c43b17c7$var$contextForObservable.get(data);
-    const observer = new $5d255de9c43b17c7$var$Observer($5d255de9c43b17c7$export$debb760848ca95a(data, false), cb, ctx?.sharedNode);
+    const observer = new $5d255de9c43b17c7$var$Observer($5d255de9c43b17c7$export$debb760848ca95a(data), cb, ctx?.sharedNode);
     return observer.rootContext.observable;
 }
 function $5d255de9c43b17c7$var$createdDerivedObserver(data, deriveFn, action, compare = Object.is) {
@@ -210,14 +212,24 @@ function $5d255de9c43b17c7$export$aad8462122ac592b(observable) {
     if (!ctx || ctx?.observer.rootContext !== ctx) throw new Error(`Cannot reset non-observable ${observable}`);
     ctx.observer.reset();
 }
-function $5d255de9c43b17c7$export$debb760848ca95a(observable, observe = true) {
+function $5d255de9c43b17c7$var$getObservableContext(observable) {
     const ctx = $5d255de9c43b17c7$var$contextForObservable.get(observable);
-    if (!ctx) return observable;
+    if (!ctx) return null;
     if (ctx.sharedNode && !ctx.sharedNode.validContexts.has(ctx)) throw new Error(`You are using a stale reference to an observable value.`);
+    return ctx;
+}
+function $5d255de9c43b17c7$export$debb760848ca95a(observable) {
+    const ctx = $5d255de9c43b17c7$var$getObservableContext(observable);
+    return ctx ? ctx.sharedNode.value : observable;
+}
+function $5d255de9c43b17c7$export$d1203567a167490e(observable) {
+    const ctx = $5d255de9c43b17c7$var$getObservableContext(observable);
+    if (!ctx) return observable;
     // Unwrapping can only create an observation in select mode
-    if (observe && ctx.observer.config.select) (ctx.parent || ctx).observeIdentifier(ctx.sharedNode.identifier, ctx.value, true);
+    if (ctx.observer.config.select) (ctx.parent || ctx).observeIdentifier(ctx.sharedNode.identifier, ctx.value, true);
     return ctx.sharedNode.value;
 }
+
 
 
 const $2260df54c7dbf4a4$export$a27ef5714f345346 = {
@@ -245,7 +257,7 @@ const $2260df54c7dbf4a4$export$a27ef5714f345346 = {
                 return ctx.observeIdentifier(prop, value);
             },
             set (_, prop, value) {
-                const rawValue = (0, $5d255de9c43b17c7$export$debb760848ca95a)(value, false);
+                const rawValue = (0, $5d255de9c43b17c7$export$debb760848ca95a)(value);
                 const oldValue = Reflect.get(ctx.value, prop, ctx.value);
                 if (oldValue === rawValue) return true;
                 if (Array.isArray(ctx.value)) {
@@ -280,8 +292,8 @@ const $2260df54c7dbf4a4$export$a27ef5714f345346 = {
         return clone;
     }
 };
-(0, $5d255de9c43b17c7$export$e0440d5a58076798).set(Object, $2260df54c7dbf4a4$export$a27ef5714f345346);
-(0, $5d255de9c43b17c7$export$e0440d5a58076798).set(Array, $2260df54c7dbf4a4$export$a27ef5714f345346);
+(0, $543ae244dc837c2b$export$e0440d5a58076798).set(Object, $2260df54c7dbf4a4$export$a27ef5714f345346);
+(0, $543ae244dc837c2b$export$e0440d5a58076798).set(Array, $2260df54c7dbf4a4$export$a27ef5714f345346);
 
 
 
@@ -341,7 +353,7 @@ class $9ff72836f333a7e0$var$ObservableSet extends Set {
         return this[Symbol.iterator]();
     }
 }
-(0, $5d255de9c43b17c7$export$e0440d5a58076798).set(Set, {
+(0, $543ae244dc837c2b$export$e0440d5a58076798).set(Set, {
     makeObservable: (ctx)=>{
         return new $9ff72836f333a7e0$var$ObservableSet(ctx);
     },
@@ -426,7 +438,7 @@ class $aa3a64e5028e9d8b$export$db1c0901f08fc6fd extends Map {
         for (const [key, value] of this[Symbol.iterator]())yield value;
     }
 }
-(0, $5d255de9c43b17c7$export$e0440d5a58076798).set(Map, {
+(0, $543ae244dc837c2b$export$e0440d5a58076798).set(Map, {
     makeObservable: (ctx)=>{
         return new $aa3a64e5028e9d8b$export$db1c0901f08fc6fd(ctx);
     },
@@ -438,6 +450,7 @@ class $aa3a64e5028e9d8b$export$db1c0901f08fc6fd extends Map {
         return new Map(value);
     }
 });
+
 
 
 
@@ -495,5 +508,5 @@ function $5edb3eb33d1a0dbb$export$10d01aa5776497a2(data, selector, action) {
 
 
 
-export {$5d255de9c43b17c7$export$9e6a5ff84f57576 as createObserver, $5d255de9c43b17c7$export$debb760848ca95a as unwrap, $5d255de9c43b17c7$export$e0440d5a58076798 as observableFactories, $5d255de9c43b17c7$export$8d21e34596265fa2 as configure, $5d255de9c43b17c7$export$78ed5b3305815fc7 as derive, $5d255de9c43b17c7$export$aad8462122ac592b as reset, $dbb2838debbc262e$export$eff4d24c3ff7876e as ref, $2260df54c7dbf4a4$export$a27ef5714f345346 as objectFactory, $5edb3eb33d1a0dbb$export$b9c7ecd090a87b14 as useObserver, $5edb3eb33d1a0dbb$export$10d01aa5776497a2 as useObserveSelector};
+export {$5d255de9c43b17c7$export$9e6a5ff84f57576 as createObserver, $5d255de9c43b17c7$export$debb760848ca95a as unwrap, $5d255de9c43b17c7$export$8d21e34596265fa2 as configure, $5d255de9c43b17c7$export$78ed5b3305815fc7 as derive, $5d255de9c43b17c7$export$aad8462122ac592b as reset, $5d255de9c43b17c7$export$d1203567a167490e as observe, $543ae244dc837c2b$export$e0440d5a58076798 as observableFactories, $dbb2838debbc262e$export$eff4d24c3ff7876e as ref, $2260df54c7dbf4a4$export$a27ef5714f345346 as objectFactory, $5edb3eb33d1a0dbb$export$b9c7ecd090a87b14 as useObserver, $5edb3eb33d1a0dbb$export$10d01aa5776497a2 as useObserveSelector};
 //# sourceMappingURL=index.mjs.map

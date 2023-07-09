@@ -1,4 +1,4 @@
-import { configure, createObserver, unwrap } from "#src";
+import { configure, createObserver, observe, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -44,8 +44,8 @@ describe("unobserve", () => {
     const store = createObserver(data, mockListener);
     configure(store, { select: false });
 
-    unwrap(store.array1);
-    unwrap(store.array2[0]);
+    observe(store.array1);
+    observe(store.array2[0]);
 
     store.array1[2] = { value1: "x", value2: "x" };
     store.array2[0].value1 = "array2-0-value1";

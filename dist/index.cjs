@@ -6,18 +6,21 @@ function $parcel$export(e, n, v, s) {
 
 $parcel$export(module.exports, "createObserver", () => $033a765105d89ac9$export$9e6a5ff84f57576);
 $parcel$export(module.exports, "unwrap", () => $033a765105d89ac9$export$debb760848ca95a);
-$parcel$export(module.exports, "observableFactories", () => $033a765105d89ac9$export$e0440d5a58076798);
 $parcel$export(module.exports, "configure", () => $033a765105d89ac9$export$8d21e34596265fa2);
 $parcel$export(module.exports, "derive", () => $033a765105d89ac9$export$78ed5b3305815fc7);
 $parcel$export(module.exports, "reset", () => $033a765105d89ac9$export$aad8462122ac592b);
+$parcel$export(module.exports, "observe", () => $033a765105d89ac9$export$d1203567a167490e);
+$parcel$export(module.exports, "observableFactories", () => $761d6ed052c8f17f$export$e0440d5a58076798);
 $parcel$export(module.exports, "ref", () => $046eaf7a22d711d5$export$eff4d24c3ff7876e);
 $parcel$export(module.exports, "objectFactory", () => $0e8c1d39dad7c1a2$export$a27ef5714f345346);
 $parcel$export(module.exports, "useObserver", () => $f4ac19f6490f8500$export$b9c7ecd090a87b14);
 $parcel$export(module.exports, "useObserveSelector", () => $f4ac19f6490f8500$export$10d01aa5776497a2);
+const $761d6ed052c8f17f$export$e0440d5a58076798 = new Map();
+
 
 const $046eaf7a22d711d5$var$_ref = Symbol("ref");
 function $046eaf7a22d711d5$export$eff4d24c3ff7876e(value) {
-    const factory = value && (0, $033a765105d89ac9$export$e0440d5a58076798).get(value.constructor);
+    const factory = value && (0, $761d6ed052c8f17f$export$e0440d5a58076798).get(value.constructor);
     if (!factory) return value;
     value[$046eaf7a22d711d5$var$_ref] = true;
     return value;
@@ -25,6 +28,7 @@ function $046eaf7a22d711d5$export$eff4d24c3ff7876e(value) {
 function $046eaf7a22d711d5$export$4f9f5282de18fc69(value) {
     return !!value?.[$046eaf7a22d711d5$var$_ref];
 }
+
 
 
 // let debugCounter = 0;
@@ -48,12 +52,12 @@ const $033a765105d89ac9$var$rootIdentifier = Symbol("root");
         this.children = new Map();
         this.observersForChild = new Map();
         this.validContexts = new WeakSet();
-        if (!$033a765105d89ac9$export$e0440d5a58076798.has(value.constructor)) throw new Error(`Value "${value}" is not observable`);
+        if (!(0, $761d6ed052c8f17f$export$e0440d5a58076798).has(value.constructor)) throw new Error(`Value "${value}" is not observable`);
         if (!parent) $033a765105d89ac9$var$rootDataNodes.set(value, this);
         else parent.children.set(identifier, this);
     }
     factory() {
-        return $033a765105d89ac9$export$e0440d5a58076798.get(this.value.constructor);
+        return (0, $761d6ed052c8f17f$export$e0440d5a58076798).get(this.value.constructor);
     }
 }
 /**
@@ -110,7 +114,7 @@ class $033a765105d89ac9$export$ce224f6edbadb0e7 {
         if (typeof childValue === "function") return childValue.bind(this.observable);
         const observer = this.observer;
         // If the value is something we know how to observe, return the observable for it
-        if (childValue && !(0, $046eaf7a22d711d5$export$4f9f5282de18fc69)(childValue) && $033a765105d89ac9$export$e0440d5a58076798.has(childValue.constructor)) {
+        if (childValue && !(0, $046eaf7a22d711d5$export$4f9f5282de18fc69)(childValue) && (0, $761d6ed052c8f17f$export$e0440d5a58076798).has(childValue.constructor)) {
             let childCtx = identifier === $033a765105d89ac9$var$rootIdentifier ? this : this.observer.contexts.get(this.sharedNode.children.get(identifier)); // this.children.get(identifier);
             // Check that the childCtx is present in validContexts
             if (childCtx && !childCtx.sharedNode.validContexts.has(childCtx)) childCtx = undefined;
@@ -177,7 +181,6 @@ class $033a765105d89ac9$export$ce224f6edbadb0e7 {
         return this.observer.contexts.get(this.sharedNode.parent);
     }
 }
-const $033a765105d89ac9$export$e0440d5a58076798 = new Map();
 function $033a765105d89ac9$export$9e6a5ff84f57576(...args) {
     if (args.length === 2) return $033a765105d89ac9$var$createSimpleObserver(args[0], args[1]);
     else return $033a765105d89ac9$var$createdDerivedObserver(args[0], args[1], args[2]);
@@ -186,7 +189,7 @@ function $033a765105d89ac9$var$createSimpleObserver(data, cb) {
     // Get an existing context and SharedNode, if possible. This happens when an observable from another tree is
     // passed to observe(). Otherwise, it will create a new root SharedNode.
     const ctx = $033a765105d89ac9$var$contextForObservable.get(data);
-    const observer = new $033a765105d89ac9$var$Observer($033a765105d89ac9$export$debb760848ca95a(data, false), cb, ctx?.sharedNode);
+    const observer = new $033a765105d89ac9$var$Observer($033a765105d89ac9$export$debb760848ca95a(data), cb, ctx?.sharedNode);
     return observer.rootContext.observable;
 }
 function $033a765105d89ac9$var$createdDerivedObserver(data, deriveFn, action, compare = Object.is) {
@@ -224,14 +227,24 @@ function $033a765105d89ac9$export$aad8462122ac592b(observable) {
     if (!ctx || ctx?.observer.rootContext !== ctx) throw new Error(`Cannot reset non-observable ${observable}`);
     ctx.observer.reset();
 }
-function $033a765105d89ac9$export$debb760848ca95a(observable, observe = true) {
+function $033a765105d89ac9$var$getObservableContext(observable) {
     const ctx = $033a765105d89ac9$var$contextForObservable.get(observable);
-    if (!ctx) return observable;
+    if (!ctx) return null;
     if (ctx.sharedNode && !ctx.sharedNode.validContexts.has(ctx)) throw new Error(`You are using a stale reference to an observable value.`);
+    return ctx;
+}
+function $033a765105d89ac9$export$debb760848ca95a(observable) {
+    const ctx = $033a765105d89ac9$var$getObservableContext(observable);
+    return ctx ? ctx.sharedNode.value : observable;
+}
+function $033a765105d89ac9$export$d1203567a167490e(observable) {
+    const ctx = $033a765105d89ac9$var$getObservableContext(observable);
+    if (!ctx) return observable;
     // Unwrapping can only create an observation in select mode
-    if (observe && ctx.observer.config.select) (ctx.parent || ctx).observeIdentifier(ctx.sharedNode.identifier, ctx.value, true);
+    if (ctx.observer.config.select) (ctx.parent || ctx).observeIdentifier(ctx.sharedNode.identifier, ctx.value, true);
     return ctx.sharedNode.value;
 }
+
 
 
 const $0e8c1d39dad7c1a2$export$a27ef5714f345346 = {
@@ -259,7 +272,7 @@ const $0e8c1d39dad7c1a2$export$a27ef5714f345346 = {
                 return ctx.observeIdentifier(prop, value);
             },
             set (_, prop, value) {
-                const rawValue = (0, $033a765105d89ac9$export$debb760848ca95a)(value, false);
+                const rawValue = (0, $033a765105d89ac9$export$debb760848ca95a)(value);
                 const oldValue = Reflect.get(ctx.value, prop, ctx.value);
                 if (oldValue === rawValue) return true;
                 if (Array.isArray(ctx.value)) {
@@ -294,8 +307,8 @@ const $0e8c1d39dad7c1a2$export$a27ef5714f345346 = {
         return clone;
     }
 };
-(0, $033a765105d89ac9$export$e0440d5a58076798).set(Object, $0e8c1d39dad7c1a2$export$a27ef5714f345346);
-(0, $033a765105d89ac9$export$e0440d5a58076798).set(Array, $0e8c1d39dad7c1a2$export$a27ef5714f345346);
+(0, $761d6ed052c8f17f$export$e0440d5a58076798).set(Object, $0e8c1d39dad7c1a2$export$a27ef5714f345346);
+(0, $761d6ed052c8f17f$export$e0440d5a58076798).set(Array, $0e8c1d39dad7c1a2$export$a27ef5714f345346);
 
 
 
@@ -355,7 +368,7 @@ class $f48a0b5c6473b7e6$var$ObservableSet extends Set {
         return this[Symbol.iterator]();
     }
 }
-(0, $033a765105d89ac9$export$e0440d5a58076798).set(Set, {
+(0, $761d6ed052c8f17f$export$e0440d5a58076798).set(Set, {
     makeObservable: (ctx)=>{
         return new $f48a0b5c6473b7e6$var$ObservableSet(ctx);
     },
@@ -440,7 +453,7 @@ class $7175e756f1c09916$export$db1c0901f08fc6fd extends Map {
         for (const [key, value] of this[Symbol.iterator]())yield value;
     }
 }
-(0, $033a765105d89ac9$export$e0440d5a58076798).set(Map, {
+(0, $761d6ed052c8f17f$export$e0440d5a58076798).set(Map, {
     makeObservable: (ctx)=>{
         return new $7175e756f1c09916$export$db1c0901f08fc6fd(ctx);
     },
@@ -452,6 +465,7 @@ class $7175e756f1c09916$export$db1c0901f08fc6fd extends Map {
         return new Map(value);
     }
 });
+
 
 
 
@@ -509,4 +523,4 @@ function $f4ac19f6490f8500$export$10d01aa5776497a2(data, selector, action) {
 
 
 
-//# sourceMappingURL=index.js.map
+//# sourceMappingURL=index.cjs.map

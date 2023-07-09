@@ -1,9 +1,7 @@
-import { ObservableFactory, observableFactories, unwrap } from "../createObserver";
+import { unwrap } from "../createObserver";
+import { observableFactories, ObservableFactory } from "../observableFactories";
 
-export const objectFactory: ObservableFactory<
-  Record<string | symbol, unknown>,
-  string | symbol
-> = {
+export const objectFactory: ObservableFactory<Record<string | symbol, unknown>, string | symbol> = {
   makeObservable: (ctx) => {
     return new Proxy(
       // The target of the proxy is not really relevant since we always get/set values directly on the context value object.
@@ -30,7 +28,7 @@ export const objectFactory: ObservableFactory<
           return ctx.observeIdentifier(prop, value);
         },
         set(_, prop, value) {
-          const rawValue = unwrap(value, false);
+          const rawValue = unwrap(value);
           const oldValue = Reflect.get(ctx.value, prop, ctx.value);
           if (oldValue === rawValue) return true;
 

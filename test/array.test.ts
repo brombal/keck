@@ -1,4 +1,4 @@
-import { configure, createObserver, derive, unwrap } from "#src";
+import { configure, createObserver, derive, observe, unwrap } from "#src";
 
 const createData = () => ({
   value1: "value1",
@@ -68,7 +68,7 @@ describe("Arrays", () => {
 
     const store = createObserver(data, mockListener);
 
-    unwrap(store.array1);
+    observe(store.array1);
     configure(store, { select: false });
 
     store.array1.push({ value1: "Movie 3", value2: "test" });
@@ -106,14 +106,14 @@ describe("Arrays", () => {
 
     // Observe store1
     configure(store1, { select: true });
-    unwrap(store1.array1);
-    unwrap(store1.array1[1]);
+    observe(store1.array1);
+    observe(store1.array1[1]);
     void store1.array1[1].value1;
     configure(store1, { select: false });
 
     // Observe store2 (differently from store1, to ensure callbacks are being triggered correctly)
     configure(store2, { select: true });
-    unwrap(store2.array1[1]);
+    observe(store2.array1[1]);
     void store2.array1[1].value1;
     configure(store2, { select: false });
 
@@ -141,14 +141,14 @@ describe("Arrays", () => {
 
     // Observe store1
     configure(store1, { select: true });
-    unwrap(store1.array1);
-    unwrap(store1.array1[1]);
+    observe(store1.array1);
+    observe(store1.array1[1]);
     void store1.array1[1].value1;
     configure(store1, { select: false });
 
     // Observe store2 (differently from store1, to ensure callbacks are being triggered correctly)
     configure(store2, { select: true });
-    unwrap(store2.array1[1]);
+    observe(store2.array1[1]);
     void store2.array1[1].value1;
     configure(store2, { select: false });
 

@@ -1,4 +1,4 @@
-import { observableFactories } from "./createObserver";
+import { observableFactories } from "./observableFactories";
 
 const _ref = Symbol('ref');
 

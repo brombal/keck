@@ -225,48 +225,6 @@ function TotalCost() {
 }
 ```
 
-#### Short-circuiting
-
-Exercise caution with short-circuiting boolean operations within the callback. Depending on the
-arrangement of values and boolean operators, expressions may be skipped and values never accessed,
-and consequently the derivative function won't be re-invoked when the skipped values change.
-
-Often, this can be beneficial, as in an expression such as `state.a && state.b`, the value of
-`state.b` is irrelevant until `state.a` is true. The component should only re-render when `state.b`
-changes if `state.a` is true.
-
-However, there are cases where this can lead to unexpected behavior. Consider the following
-(extremly contrived) component, which won't re-render correctly:
-
-```jsx
-import { useObservable, derive } from "keck";
-
-function XorGate() {
-  const state = useObservable({
-    a: false,
-    b: false,
-  });
-
-  // Derived value using short-circuiting.
-  // This would NOT work, because while changing `b` affects the outcome,
-  // `b` is not accessed at all when `a` is false, so no observation is created.
-  const gateOutput = derive(() => state.a ^ state.b);
-  //                                      ^ the "exclusive or" operator
-
-  // Other correct options:
-  // const gateOutput = derive(() => state.a && state.b || !state.a && !state.b);
-  // const gateOutput = derive(() => state.a !== state.b);
-  // const gateOutput = derive(() => (state.a, state.b, state.a ^ state.b));
-
-  return (
-    <div>
-      <button onClick={() => (state.b = !state.b)}>Toggle B</button>
-      XOR Gate Output: {gateOutput ? "On" : "Off"}
-    </div>
-  );
-}
-```
-
 ### Unwrapping an observable
 
 In most scenarios, an observable looks and feels just like the original value. However, there are

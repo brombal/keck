@@ -187,11 +187,11 @@ import { useCartObservable } from "./cart";
 function ShoppingCart() {
   const cart = useCartObservable();
 
-  // We want to display a list of products in the cart, but re-render only when a product
-  // is added or removed, not when a product's quantity is changed.
-  const productList = derive(() => cart.products.map((p) => p.id), shallowCompare);
+  // We want a list of product totals (quantity * price), but only re-render only when the
+  // final list changes. Without shallowCompare, this would return a new array reference each
+  // time and would always re-renders.
+  const productTotals = derive(() => cart.products.map((p) => p.quantity * p.price), shallowCompare);
 
-  // productList will now only change when a product is added or removed, not when quantities change
   // ... rest of the component
 }
 ```

@@ -143,18 +143,6 @@ function Header() {
 }
 ```
 
-You could even create a custom hook to easily create an observable version of the cart:
-
-```tsx
-// cart.ts
-
-// ...
-
-export function useCartObservable() {
-  return useObservable(sharedCart);
-}
-```
-
 ### Deriving new values from an observable
 
 You can **derive** new values from observables, leading the component to re-render only if the

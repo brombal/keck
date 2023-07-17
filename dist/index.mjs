@@ -128,6 +128,7 @@ class $5d255de9c43b17c7$export$ce224f6edbadb0e7 {
                 // update the child SharedNode's value and invalidate all contexts for it.
                 childDataNode.value = value;
                 childDataNode.validContexts = new WeakSet();
+                childDataNode.children.clear();
             }
         }
         // Clone the value if enabled and not the root

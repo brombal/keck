@@ -172,4 +172,24 @@ describe("Objects", () => {
 
     expect(mockFn).toHaveBeenCalledTimes(1);
   });
+
+  test("Replacing object works", () => {
+    const mockFn = jest.fn();
+    const data = createData();
+    const store = createObserver({
+      sub1: {
+        sub2: {
+          sub3: {
+            value1: "value1",
+          }
+        }
+      }
+    }, mockFn);
+
+    void store.sub1.sub2.sub3.value1;
+
+    store.sub1 = { sub2: { sub3: { value1: "new-value1" } } };
+
+    expect(store.sub1.sub2.sub3.value1).toBe("new-value1");
+  });
 });

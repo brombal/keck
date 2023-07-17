@@ -247,6 +247,7 @@ export class ObservableContext<T extends object = object> {
         // update the child SharedNode's value and invalidate all contexts for it.
         childDataNode.value = value;
         childDataNode.validContexts = new WeakSet();
+        childDataNode.children.clear();
       }
     }
 

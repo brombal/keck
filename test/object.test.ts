@@ -17,12 +17,11 @@ const createData = () => ({
 
 describe("Objects", () => {
   test("Writing deep properties triggers callback and modifies store & source", () => {
-    const mockListener = jest.fn();
+    const mockFn = jest.fn();
 
     const data = createData();
 
-    const store = createObserver(data, mockListener);
-
+    const store = createObserver(data, mockFn);
 
     void store.value1;
     void store.array1[0].value1;
@@ -43,7 +42,7 @@ describe("Objects", () => {
     expect(store.array1[0].value1).toBe("new-array1-0-value1");
     expect(store.array1[0].value2).toBe("new-array1-0-value2");
 
-    expect(mockListener).toHaveBeenCalledTimes(3);
+    expect(mockFn).toHaveBeenCalledTimes(3);
   });
 
   test("Deleting properties triggers callbacks with correct value", () => {
@@ -175,7 +174,6 @@ describe("Objects", () => {
 
   test("Replacing object works", () => {
     const mockFn = jest.fn();
-    const data = createData();
     const store = createObserver({
       sub1: {
         sub2: {
@@ -191,5 +189,24 @@ describe("Objects", () => {
     store.sub1 = { sub2: { sub3: { value1: "new-value1" } } };
 
     expect(store.sub1.sub2.sub3.value1).toBe("new-value1");
+  });
+
+  test("Replacing intermediate object triggers callback for observed descendent", () => {
+    const mockFn = jest.fn();
+    const store = createObserver({
+      sub1: {
+        sub2: {
+          sub3: {
+            value1: "value1",
+          }
+        }
+      }
+    }, mockFn);
+
+    void store.sub1.sub2.sub3.value1;
+
+    store.sub1 = { sub2: { sub3: { value1: "new-value1" } } };
+
+    expect(mockFn).toHaveBeenCalledTimes(1);
   });
 });

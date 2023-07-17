@@ -55,7 +55,7 @@ declare class SharedNode {
      * callback should only be called if at least one of the derivatives returns a value different from
      * its previous invocation.
      */
-    readonly observersForChild: Map<unknown, Map<Observer, Set<Derivative>>>;
+    readonly observersForChild: Map<unknown, Map<Observer, Observation>>;
     /**
      * Used to determine whether an ObserverNode for this SharedNode is still valid.
      */
@@ -75,6 +75,13 @@ declare class Observer {
     constructor(value: object, callback: Callback | undefined, sharedNode: SharedNode | undefined);
     reset(): void;
 }
+interface Observation {
+    /**
+     * The observation should only be triggered if the value changes directly (via reassignment), not via cloning.
+     */
+    ignoreClones: boolean;
+    derivatives: Set<Derivative> | null;
+}
 /**
  * An ObserverNode is a wrapper object that contains an observable and additional information about it.
  * Since an Observable is just a proxy for a user value, and has an unknown opaque type, additional data about it
@@ -87,7 +94,7 @@ export class ObservableContext<T extends object = object> {
     sharedNode: SharedNode;
     constructor(observer: Observer, value: T, parent: ObservableContext | undefined, identifier: Identifier, sharedNode: SharedNode | undefined);
     get value(): T;
-    createObservation(identifier: Identifier): void;
+    createObservation(identifier: Identifier, ignoreClones?: boolean): void;
     /**
      * Called by observable proxies to observe a child identifier.
      * Call this to indicate that a user has accessed a property of the observed value.

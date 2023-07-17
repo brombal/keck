@@ -49,7 +49,7 @@ class SharedNode {
    * callback should only be called if at least one of the derivatives returns a value different from
    * its previous invocation.
    */
-  public readonly observersForChild = new Map<Identifier, Map<Observer, Set<Derivative>>>();
+  public readonly observersForChild = new Map<Identifier, Map<Observer, Observation>>();
 
   /**
    * Used to determine whether an ObserverNode for this SharedNode is still valid.
@@ -102,6 +102,14 @@ class Observer {
   }
 }
 
+interface Observation {
+  /**
+   * The observation should only be triggered if the value changes directly (via reassignment), not via cloning.
+   */
+  ignoreClones: boolean;
+  derivatives: Set<Derivative> | null;
+}
+
 /**
  * An ObserverNode is a wrapper object that contains an observable and additional information about it.
  * Since an Observable is just a proxy for a user value, and has an unknown opaque type, additional data about it
@@ -137,31 +145,36 @@ export class ObservableContext<T extends object = object> {
     return this.sharedNode.value as T;
   }
 
-  createObservation(identifier: Identifier) {
+  createObservation(identifier: Identifier, ignoreClones = false) {
     const sharedNode = this.sharedNode;
     const observer = this.observer;
 
     let observations = sharedNode.observersForChild.get(identifier);
     if (!observations) sharedNode.observersForChild.set(identifier, (observations = new Map()));
 
-    let derivatives = observations.get(observer);
-    // An unconditional observation (an observation with no derivatives) is represented by an empty set
-    const hasUnconditionalObservation = derivatives?.size === 0;
-    if (!derivatives) observations.set(observer, (derivatives = new Set()));
+    let observation = observations.get(observer);
+    if (!observation) {
+      observations.set(
+        observer,
+        (observation = {
+          ignoreClones,
+          derivatives: activeDerivative ? new Set() : null,
+        })
+      );
+    }
 
-    /**
-     * Since non-derived observations override derived observations (i.e. they always
-     * cause the callback to be invoked), we don't need to track any derivatives if there is already
-     * a non-derived observation.
-     */
-    if (activeDerivative) {
-      if (!hasUnconditionalObservation) derivatives.add(activeDerivative);
+    if (activeDerivative && observation.derivatives) {
+      // If there's an active derivative, create a derived observation.
+      observation.derivatives.add(activeDerivative);
     } else {
-      /**
-       * If this observation is unconditional (i.e. no derivative), clear any existing derivatives,
-       * because they are no longer needed.
-       */
-      derivatives.clear();
+      // Otherwise, create an unconditional/soft observation.
+      // If it's unconditional, it must stay unconditional. Otherwise, can be set to "soft" if true.
+      if (!ignoreClones) {
+        observation.ignoreClones = false;
+        // The existing derivatives are no longer needed.
+        observation.derivatives = null;
+      }
+      this.parent?.createObservation(this.sharedNode.identifier, true);
     }
 
     observer.disposers.add(() => observations!.delete(observer));
@@ -258,20 +271,26 @@ export class ObservableContext<T extends object = object> {
     }
 
     // Trigger all Observer callbacks for the child Identifier
-    sharedNode.observersForChild.get(childIdentifier)?.forEach((derivatives, observer) => {
-      let isAnyDifferent = true;
-      if (derivatives.size) {
-        isAnyDifferent = false;
-        for (const derivative of derivatives) {
+    sharedNode.observersForChild.get(childIdentifier)?.forEach((observation, observer) => {
+      let triggerCallback = false;
+      if (observation.derivatives) {
+        for (const derivative of observation.derivatives!) {
           activeDerivative = derivative;
           const newValue = derivative.deriveFn();
-          isAnyDifferent =
-            isAnyDifferent || !(derivative.isEqual || Object.is)(newValue, derivative.lastValue);
+          triggerCallback =
+            triggerCallback || !(derivative.isEqual || Object.is)(newValue, derivative.lastValue);
           derivative.lastValue = newValue;
           activeDerivative = undefined;
         }
       }
-      if (observer.config.enabled && isAnyDifferent)
+      if (observation.ignoreClones) {
+        // only trigger soft observables if this is a direct modification
+        triggerCallback ||= !source;
+      }
+      if (!observation.ignoreClones && !observation.derivatives) {
+        triggerCallback = true;
+      }
+      if (observer.config.enabled && triggerCallback)
         observer.callback?.(source?.[0].value || sharedNode.value, source?.[1] || childIdentifier);
     });
 

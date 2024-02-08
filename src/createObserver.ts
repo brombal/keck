@@ -13,7 +13,7 @@ const rootIdentifier = Symbol("root");
 type Identifier = unknown | typeof rootIdentifier;
 
 /**
- * Used to look up an ObserverNode for an Observable, to unwrap an Observable.
+ * Used to look up an ObservableContext for an Observable, to unwrap an Observable.
  */
 const contextForObservable = new WeakMap<Observable, ObservableContext>();
 
@@ -42,17 +42,17 @@ class SharedNode {
   /**
    * Used to iterate over observers to trigger callbacks.
    * Keys are child identifiers being observed.
-   * Each value is a Map; keys are the observers and the value is a Set of Derivatives.
-   * An empty set indicates that the child is being observed without a derive function, and the
+   * Each value is a Map; keys are the observers and the value is an Observation (a set of Derivatives, or a null set).
+   * A Derivative with a null Set indicates that the child is being observed without a derive function, and the
    * observer's callback should be called for any change.
-   * A populated Set indicates that the child is being observed with derivatives, and the observer's
+   * A Derivative with a populated Set indicates that the child is being observed with derivative functions, and the observer's
    * callback should only be called if at least one of the derivatives returns a value different from
    * its previous invocation.
    */
   public readonly observersForChild = new Map<Identifier, Map<Observer, Observation>>();
 
   /**
-   * Used to determine whether an ObserverNode for this SharedNode is still valid.
+   * Used to determine whether an ObservableContext for this SharedNode is still valid.
    */
   public validContexts = new WeakSet<ObservableContext>();
 
@@ -111,9 +111,9 @@ interface Observation {
 }
 
 /**
- * An ObserverNode is a wrapper object that contains an observable and additional information about it.
+ * An ObservableContext is a wrapper object that contains an observable and additional information about it.
  * Since an Observable is just a proxy for a user value, and has an unknown opaque type, additional data about it
- * is stored in this wrapper object. Every Observer has an ObserverNode object for each SharedNode that it
+ * is stored in this wrapper object. Every Observer has an ObservableContext object for each SharedNode that it
  * observes.
  */
 export class ObservableContext<T extends object = object> {
@@ -258,7 +258,7 @@ export class ObservableContext<T extends object = object> {
       } else if (childDataNode.value !== value) {
         // A SharedNode exists for childIdentifier, but the value is being replaced with a new object;
         // update the child SharedNode's value and invalidate all contexts for it.
-        childDataNode.value = value;
+        childDataNode.value = value as object;
         childDataNode.validContexts = new WeakSet();
         childDataNode.children.clear();
       }
@@ -299,7 +299,7 @@ export class ObservableContext<T extends object = object> {
       ?.factory()
       .handleChange(sharedNode.parent.value, sharedNode.identifier, sharedNode.value);
 
-    // Call modifyIdentifier on the parent/root ObserverNode
+    // Call modifyIdentifier on the parent/root ObservableContext if it exists
     if (this.parent)
       this.parent.modifyIdentifier(
         sharedNode.identifier,

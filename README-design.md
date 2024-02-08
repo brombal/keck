@@ -16,7 +16,7 @@ same nodes from the corresponding part of the tree they observe. This allows mul
 for the same object to stay in sync:
 
 ```ts
-const data = { a: 1 }
+const data = { a: 1 };
 const [store1] = createObservable(data);
 const [store2] = createObservable(data);
 
@@ -26,48 +26,47 @@ store2.a === 2; // true
 
 The observers also maintain references to the observable versions of the objects they are observing.
 When a value in the tree is modified, the corresponding observable is recreated, as well as all the
-observables up that branch of the tree. This allows users to use reference equality comparisons to determine if a
-value has changed.
+observables up that branch of the tree. This allows users to use reference equality comparisons to
+determine if a value has changed.
 
 ## Data types
 
-### DataNodes
+### SharedNodes
 
-Keck represents a given data object to be observed with a tree of **DataNode** objects. Each
-DataNode represents a single object in the tree, and contains a reference to the original value, as
-well as a reference to its DataNode and a map of child Identifiers and their DataNodes.
+Keck represents a given data object to be observed with a tree of **SharedNode** objects. Each
+SharedNode represents a single object in the tree, and contains a reference to the original value,
+as well as a map of child Identifiers and their SharedNodes. SharedNode children are created lazily
+when an Observer accesses a property of the object.
 
-Child DataNodes are identified within their parent by an **Identifier**. An Identifier can be any
-value that uniquely identifies the child DataNode within its parent (for example, for plain objects,
-the Identifier is the property name; for maps, the Identifier is the key). Custom observable
-factories can implement their own approaches, as long as all Identifiers for the children of a given
-DataNode are unique.
+Child SharedNodes are identified within their parent by an **Identifier**. An Identifier can be any
+value that uniquely identifies the child SharedNode within its parent (for example, for plain
+objects, the Identifier is the property name; for maps, the Identifier is the key). Custom
+observable factories can implement their own approaches, as long as all Identifiers for the children
+of a given SharedNode are unique.
 
-The same root DataNode instance is shared by every Observer of the same object. That is, there is a
-1-to-1 mapping between DataNodes and observable values. Within a DataNode tree however, it is better
-to think of the DataNodes as representing an Identifier rather than the values themselves. If a
-property of an observable object is replaced with another object, the DataNode itself is not
-replaced, but rather its value is updated to point to the new object.
-
-DataNode children are created lazily when an Observer accesses a property of the object.
+The same root SharedNode instance is shared by every Observer of the same object. That is, there is
+a 1-to-1 mapping between SharedNodes and observable values. Within a SharedNode tree however, it is
+better to think of the SharedNodes as representing an Identifier rather than the child values
+themselves. If a property of an observable object is replaced with another object, the SharedNode
+itself is not replaced, but rather its value is updated to point to the new object.
 
 ### Observers
 
 **Observers** are the instances that are created by `createObserver`. Each Observer represents a set
-of observed DataNode child Identifiers, and a callback to be invoked when any of its observed
-properties are modified. An observer can toggled to "observe" property access (or not), and its
+of observed SharedNode child Identifiers, and a callback to be invoked when any of its observed
+properties are modified. An observer can be toggled to "observe" property access (or not), and its
 callback can be enabled and disabled. The callback is only invoked when a property that was
 previously observed is modified.
 
-A DataNode contains a reference to all the Observer instances that are watching each of its child
+A SharedNode contains a reference to all the Observer instances that are watching each of its child
 Identifiers. When a child is modified, each of that child's Observer callbacks is invoked.
 
 ### ObservableContext
 
-Every supported data type has an "observable" version that is returned by the type's corresponding
-ObservableFactory. Because this observable object is an opaque type, an **ObservableContext** is
-used internally to wrap around it and carry additional meta information such as the Observer and
-DataNode used to create the observable.
+Every supported data type has a corresponding "observable" version, such as a Proxy or custom
+subclass, that is returned by the type's ObservableFactory. Because this observable object is an
+opaque type, an **ObservableContext** is used internally to carry additional meta information such
+as the Observer and SharedNode used to create the observable.
 
 The ObservableContext is passed to the `makeObservable` factory method.
 

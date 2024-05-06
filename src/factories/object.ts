@@ -1,34 +1,31 @@
-import { unwrap } from "../createObserver";
-import { observableFactories, ObservableFactory } from "../observableFactories";
+import { type ObservableFactory } from "#keck/factories/observableFactories";
+import { atomic } from "#keck/methods/atomic";
+import { unwrap } from "#keck/methods/unwrap";
 
-export const objectFactory: ObservableFactory<Record<string | symbol, unknown>, string | symbol> = {
+export const objectFactory: ObservableFactory<Record<string | symbol, unknown>> = {
   makeObservable: (ctx) => {
     return new Proxy(
       // The target of the proxy is not really relevant since we always get/set values directly on the context value object.
       // It's important to pass the original value though, because it needs to be an array for certain internal checks (Array.isArray, for example)
       ctx.value,
       {
-        getPrototypeOf() {
-          return Reflect.getPrototypeOf(ctx.value);
-        },
-        getOwnPropertyDescriptor(target, p) {
-          ctx.observeIdentifier(p);
-          return Reflect.getOwnPropertyDescriptor(ctx.value, p);
-        },
-        ownKeys() {
-          return Reflect.ownKeys(ctx.value);
-        },
         has(_, prop) {
           ctx.observeIdentifier(prop);
           return Reflect.has(ctx.value, prop);
         },
-        get(_, prop) {
-          if (prop === "toJSON") return () => ctx.value;
-          const value = Reflect.get(ctx.value, prop, ctx.value);
-          return ctx.observeIdentifier(prop, value);
+        get(_, prop, observable) {
+          // if (prop === "toJSON") return () => ctx.value;
+          const propValue = Reflect.get(ctx.value, prop, observable);
+          if (typeof propValue === "function") {
+            return (...args: unknown[]) => {
+              // Todo cache function?
+              return atomic(propValue as () => unknown, args, observable);
+            };
+          }
+          return ctx.observeIdentifier(prop, propValue);
         },
-        set(_, prop, value) {
-          const rawValue = unwrap(value);
+        set(_, prop, newValue, observer) {
+          const rawValue = unwrap(newValue);
           const oldValue = Reflect.get(ctx.value, prop, ctx.value);
           if (oldValue === rawValue) return true;
 
@@ -37,34 +34,31 @@ export const objectFactory: ObservableFactory<Record<string | symbol, unknown>, 
 
             const setResult = Reflect.set(ctx.value, prop, rawValue, ctx.value);
 
-            if (arrayLength !== ctx.value.length) ctx.modifyIdentifier("length");
-            if (prop !== "length") ctx.modifyIdentifier(prop, rawValue);
+            atomic(() => {
+              if (arrayLength !== ctx.value.length) ctx.modifyIdentifier("length");
+              if (prop !== "length") ctx.modifyIdentifier(prop);
+            });
 
             return setResult;
           }
 
-          const result = Reflect.set(ctx.value, prop, rawValue, ctx.value);
-          ctx.modifyIdentifier(prop, rawValue);
+          const result = Reflect.set(ctx.value, prop, rawValue, observer);
+          ctx.modifyIdentifier(prop);
           return result;
+        },
+        ownKeys(_) {
+          const keys = Reflect.ownKeys(ctx.value);
+          for (const key of keys) {
+            ctx.observeIdentifier(key);
+          }
+          return keys;
         },
         deleteProperty(_, prop): boolean {
           const res = Reflect.deleteProperty(ctx.value, prop);
           if (res) ctx.modifyIdentifier(prop);
           return res;
         },
-      }
+      },
     );
   },
-  handleChange(value, identifier, newValue) {
-    value[identifier] = newValue;
-  },
-  createClone(value: any) {
-    if (Array.isArray(value)) return [...value];
-    const clone = { ...value };
-    Object.setPrototypeOf(clone, Object.getPrototypeOf(value));
-    return clone;
-  },
 };
-
-observableFactories.set(Object, objectFactory);
-observableFactories.set(Array, objectFactory);

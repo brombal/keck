@@ -1,142 +1,106 @@
-import React, { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { derive, useObserver, useObserveSelector } from "#src";
-
-const createData = () => ({
-  value1: "value1",
-  value2: 0,
-  value3: true,
-  array1: [
-    { value1: "array1-0-value1", value2: "array1-0-value2" },
-    { value1: "array1-1-value1", value2: "array1-1-value2" },
-  ],
-  array2: [
-    { value1: "array2-0-value1", value2: "array2-0-value2" },
-    { value1: "array2-1-value1", value2: "array2-1-value2" },
-  ],
-});
+import React, { useState } from "react";
+import { useDerived, useObserver } from "#keck/react";
 
 describe("React", () => {
-  test("Subscriptions are reset on each render", async () => {
-    const mockListener = jest.fn();
-    const data = createData();
+  test("Component only re-renders when accessed properties are modified", async () => {
+    const mockRender = jest.fn();
+    const data = {
+      value: 0,
+    };
 
-    function NameAge() {
+    function ObserverTest() {
+      mockRender();
+
       const store = useObserver(data);
 
-      mockListener();
-
-      const [showValue1, setShowValue1] = useState(false);
+      const [showValue, setShowValue] = useState(true);
 
       return (
         <div>
-          {showValue1 && <div>{store.value2}</div>}
+          {showValue && <div>{store.value}</div>}
 
           <input
             type="checkbox"
-            checked={showValue1}
+            checked={showValue}
             onChange={() => {
-              setShowValue1((s) => !s);
+              setShowValue((s) => !s);
             }}
           />
 
-          <button
-            onClick={() => {
-              store.value2++;
-            }}
-          >
-            Grow
-          </button>
+          <button onClick={() => store.value++}>+1</button>
         </div>
       );
     }
 
-    render(<NameAge />);
+    render(<ObserverTest />);
 
-    mockListener.mockClear();
+    jest.clearAllMocks();
 
-    // Click grow button; expect render count to be 0
-    await userEvent.click(screen.getByText("Grow"));
-    expect(mockListener).toHaveBeenCalledTimes(0);
+    // Checkbox is visible; click button; expect render count to be 1
+    await userEvent.click(screen.getByText("+1"));
+    expect(mockRender).toHaveBeenCalledTimes(1);
+    jest.clearAllMocks();
 
-    // Show age; click grow button; expect render count to be 1
+    // Hide value; click button; expect render count to be 0
     await userEvent.click(screen.getByRole("checkbox"));
-    mockListener.mockClear();
-    await userEvent.click(screen.getByText("Grow"));
-    expect(mockListener).toHaveBeenCalledTimes(1);
+    expect(mockRender).toHaveBeenCalledTimes(1);
+    jest.clearAllMocks();
+    await userEvent.click(screen.getByText("+1"));
+    expect(mockRender).toHaveBeenCalledTimes(0);
+    jest.clearAllMocks();
 
-    // Hide age; click grow button; expect render count to be 0
+    // Show value; click button; expect render count to be 1
     await userEvent.click(screen.getByRole("checkbox"));
-    mockListener.mockClear();
-    await userEvent.click(screen.getByText("Grow"));
-    expect(mockListener).toHaveBeenCalledTimes(0);
+    expect(mockRender).toHaveBeenCalledTimes(1);
+    jest.clearAllMocks();
+    await userEvent.click(screen.getByText("+1"));
+    expect(mockRender).toHaveBeenCalledTimes(1);
+    jest.clearAllMocks();
   });
 
-  test("useObserveSelector only re-renders when selector result changes", async () => {
-    const mockListener = jest.fn();
-    const data = createData();
+  test("Component only re-renders when useDerived result changes", async () => {
+    const mockRender = jest.fn();
+    const data = {
+      value: 0,
+    };
 
-    function IsLessThan2() {
-      const [isEven, state] = useObserveSelector(data, (state) => {
-        return state.value2 < 2;
-      });
+    function IsEven() {
+      mockRender();
 
-      mockListener();
-
-      return (
-        <div>
-          {state.value2}
-          {isEven && "even!"}
-          <button onClick={() => state.value2++}>Increase</button>
-        </div>
-      );
-    }
-
-    render(<IsLessThan2 />);
-
-    mockListener.mockClear();
-
-    // Click grow button (value is now 1); expect render count to be 0
-    await userEvent.click(screen.getByText("Increase"));
-    expect(mockListener).toHaveBeenCalledTimes(0);
-
-    // Click grow button (value is now 2); expect render count to be 1
-    await userEvent.click(screen.getByText("Increase"));
-    expect(mockListener).toHaveBeenCalledTimes(1);
-  });
-
-  test("select() only re-renders when selector result changes", async () => {
-    const mockListener = jest.fn();
-    const data = createData();
-
-    function IsLessThan2() {
       const state = useObserver(data);
-
-      mockListener();
-
-      const isEven = derive(() => {
-        return state.value2 < 2;
+      const isEven = useDerived(data, (state) => {
+        return state.value % 2 === 0;
       });
 
       return (
         <div>
           {isEven && "even!"}
-          <button onClick={() => state.value2++}>Increase</button>
+          <button onClick={() => state.value++}>+1</button>
+          <button onClick={() => (state.value += 2)}>+2</button>
         </div>
       );
     }
 
-    render(<IsLessThan2 />);
+    render(<IsEven />);
 
-    mockListener.mockClear();
+    jest.clearAllMocks();
 
-    // Click grow button (value is now 1); expect render count to be 0
-    await userEvent.click(screen.getByText("Increase"));
-    expect(mockListener).toHaveBeenCalledTimes(0);
+    // Click +1 button (change to evenness); expect render count to be 1
+    await userEvent.click(screen.getByText("+1"));
+    // Value is now 1; expect render count to be 1
+    expect(mockRender).toHaveBeenCalledTimes(1);
+    jest.resetAllMocks();
 
-    // Click grow button (value is now 2); expect render count to be 1
-    await userEvent.click(screen.getByText("Increase"));
-    expect(mockListener).toHaveBeenCalledTimes(1);
+    // Click +2 button (no change to evenness); expect render count to be 0
+    await userEvent.click(screen.getByText("+2"));
+    expect(mockRender).toHaveBeenCalledTimes(0);
+    jest.resetAllMocks();
+
+    // Click +1 button (change to evenness); expect render count to be 1
+    await userEvent.click(screen.getByText("+1"));
+    expect(mockRender).toHaveBeenCalledTimes(1);
+    jest.resetAllMocks();
   });
 });

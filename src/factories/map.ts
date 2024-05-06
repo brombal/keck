@@ -1,10 +1,12 @@
-import { ObservableContext } from "../createObserver";
-import { observableFactories, ObservableFactory } from "../observableFactories";
+import { type FactoryObservableContext } from "#keck/core/ObservableContext";
+import { type ObservableFactory } from "#keck/factories/observableFactories";
+import { registerClass } from "#keck/factories/registerClass";
+import { atomic } from "#keck/methods/atomic";
 
 const _size = Symbol("size");
 
 export class ObservableMap<K, V> extends Map<K, V> {
-  constructor(private ctx: ObservableContext<Map<K, V>>) {
+  constructor(private ctx: FactoryObservableContext<Map<K, V>>) {
     super();
   }
 
@@ -21,8 +23,10 @@ export class ObservableMap<K, V> extends Map<K, V> {
   delete(key: K): boolean {
     const res = this.map.delete(key);
     if (res) {
-      this.ctx.modifyIdentifier(key);
-      this.ctx.modifyIdentifier(_size);
+      atomic(() => {
+        this.ctx.modifyIdentifier(key);
+        this.ctx.modifyIdentifier(_size);
+      });
     }
     return res;
   }
@@ -36,8 +40,8 @@ export class ObservableMap<K, V> extends Map<K, V> {
   }
 
   get(key: K): V | undefined {
-    this.ctx.observeIdentifier(key);
-    return this.map.get(key);
+    const value = this.map.get(key);
+    return this.ctx.observeIdentifier(key, value);
   }
 
   has(key: K): boolean {
@@ -47,11 +51,12 @@ export class ObservableMap<K, V> extends Map<K, V> {
 
   set(key: K, value: V): this {
     const size = this.map.size;
+    const oldValue = this.map.get(key);
     this.map.set(key, value);
-    if (size !== this.map.size) {
-      this.ctx.modifyIdentifier(key, value);
-      this.ctx.modifyIdentifier(_size);
-    }
+    atomic(() => {
+      if (size !== this.map.size) this.ctx.modifyIdentifier(_size);
+      if (oldValue !== value) this.ctx.modifyIdentifier(key);
+    });
     return this;
   }
 
@@ -62,9 +67,9 @@ export class ObservableMap<K, V> extends Map<K, V> {
   /** Returns an iterable of entries in the map. */
   *[Symbol.iterator](): IterableIterator<[K, V]> {
     this.ctx.observeIdentifier(_size);
-    for (const [key, value] of this.map) {
-      const observable = this.ctx.observeIdentifier(key, value);
-      yield [key, observable];
+    for (const entry of this.map) {
+      const observable = this.ctx.observeIdentifier(entry[0], entry[1]);
+      yield [entry[0], observable];
     }
   }
 
@@ -78,21 +83,14 @@ export class ObservableMap<K, V> extends Map<K, V> {
   }
 
   *values(): IterableIterator<V> {
-    for (const [key, value] of this[Symbol.iterator]()) {
-      yield value;
+    for (const value of this[Symbol.iterator]()) {
+      yield value[1];
     }
   }
 }
 
-observableFactories.set(Map, {
+registerClass(Map, {
   makeObservable: (ctx) => {
     return new ObservableMap(ctx);
   },
-  handleChange(value, identifier, newValue) {
-    value.delete(identifier);
-    value.set(identifier, newValue);
-  },
-  createClone(value) {
-    return new Map(value);
-  },
-} as ObservableFactory<Map<unknown, unknown>, any>);
+} satisfies ObservableFactory<Map<unknown, unknown>>);

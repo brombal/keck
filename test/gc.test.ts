@@ -1,39 +1,25 @@
-import { createObserver, reset, unwrap } from "#src";
+import { focus, observe, reset } from "#keck";
 
-const createData = () => ({
-  value1: "value1",
-  value2: 0,
-  value3: true,
-  array1: [
-    { value1: "array1-0-value1", value2: "array1-0-value2" },
-    { value1: "array1-1-value1", value2: "array1-1-value2" },
-    { value1: "array1-2-value1", value2: "array1-2-value2" },
-  ],
-  array2: [
-    { value1: "array2-0-value1", value2: "array2-0-value2" },
-    { value1: "array2-1-value1", value2: "array2-1-value2" },
-    { value1: "array2-2-value1", value2: "array2-2-value2" },
-  ],
-});
+import { createData } from "./shared-data";
 
 describe("Garbage collection", () => {
-  test("Works", async () => {
+  test("Garbage is collected when observable goes out of scope (non-focus)", async () => {
     expect(global.gc).toBeDefined();
 
     const mockCleanupFn = jest.fn();
 
     const r = new FinalizationRegistry(mockCleanupFn);
 
-    const mockFn = jest.fn();
+    const mockCallback = jest.fn();
 
     (() => {
-      const store = createObserver(createData(), mockFn);
+      const store = observe(createData(), mockCallback);
 
       void store.value1;
       store.value1 = "new-value1";
 
-      expect(mockFn).toHaveBeenCalledTimes(1);
-      mockFn.mockClear();
+      expect(mockCallback).toHaveBeenCalledTimes(1);
+      jest.clearAllMocks();
       r.register(store, "value1");
     })();
 
@@ -44,7 +30,7 @@ describe("Garbage collection", () => {
     expect(mockCleanupFn).toHaveBeenCalledTimes(1);
   });
 
-  test("Works after resetting", async () => {
+  test("Garbage is collected when observable goes out of scope (focus)", async () => {
     expect(global.gc).toBeDefined();
 
     const mockCleanupFn = jest.fn();
@@ -52,17 +38,18 @@ describe("Garbage collection", () => {
     const r = new FinalizationRegistry(mockCleanupFn);
 
     const data = createData();
-    const mockFn = jest.fn();
+    const mockCallback = jest.fn();
 
     (() => {
-      const store = createObserver(data, mockFn);
+      const store = observe(data, mockCallback);
+      focus(store);
 
       void store.value1;
       store.value1 = "new-value1";
       reset(store);
 
-      expect(mockFn).toHaveBeenCalledTimes(1);
-      mockFn.mockClear();
+      expect(mockCallback).toHaveBeenCalledTimes(1);
+      jest.clearAllMocks();
       r.register(store, "value1");
     })();
 

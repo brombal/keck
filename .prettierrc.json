@@ -1,4 +1,8 @@
 {
   "printWidth": 100,
-  "proseWrap": "always"
+  "proseWrap": "always",
+  "importOrder": ["<THIRD_PARTY_MODULES>", "#keck", "^[./]"],
+  "importOrderSeparation": true,
+  "importOrderSortSpecifiers": true,
+  "plugins": ["@trivago/prettier-plugin-sort-imports"]
 }

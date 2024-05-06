@@ -9,7 +9,7 @@ value, except that modifications to their properties prompt components that acce
 properties to re-render.
 
 ```jsx
-import { useObservable } from "keck";
+import { useObservable } from "~/src";
 
 function Counter() {
   const state = useObservable({ count: 0 });
@@ -54,7 +54,7 @@ and re-renders the component when these properties change.
 Create an observable using the `useObservable()` hook:
 
 ```jsx
-import { useObservable } from "keck";
+import { useObservable } from "~/src";
 
 function ShoppingCart() {
   const cart = useObservable({
@@ -75,7 +75,7 @@ directly (like strings, numbers, booleans, etc) as they're immutable and, thus, 
 reactively. If you want to observe a single value, simply wrap it in an object:
 
 ```jsx
-import { useObservable } from "keck";
+import { useObservable } from "~/src";
 
 function Price() {
   const state = useObservable({ price: 19.99 });
@@ -152,7 +152,7 @@ To create a derived value, call `derive(() => ...)` with a callback that returns
 on one or more observables' properties:
 
 ```jsx
-import { useObservable, derive } from "keck";
+import { useObservable, derive } from "~/src";
 import { useCartObservable } from "./cart";
 
 function ShippingCost() {
@@ -181,7 +181,7 @@ is useful for comparing derived objects and arrays (for example, with shallow co
 provides a simple `shallowCompare` comparator for this:
 
 ```jsx
-import { useObservable, derive, shallowCompare } from "keck";
+import { useObservable, derive, shallowCompare } from "~/src";
 import { useCartObservable } from "./cart";
 
 function ShoppingCart() {
@@ -200,7 +200,7 @@ The comparator accepts two arguments: the previous value and the new value. It s
 if the values are equal, and `false` if they are not.
 
 ```jsx
-import { useObservable, derive } from "keck";
+import { useObservable, derive } from "~/src";
 
 function TotalCost() {
   const cart = useCartObservable();
@@ -236,7 +236,7 @@ third-party library expecting a plain value might not work as expected.
 To get the plain value from an observable, wrap it in a call to `unwrap()`:
 
 ```jsx
-import { useObservable, unwrap } from "keck";
+import { useObservable, unwrap } from "~/src";
 import { useCartObservable } from "./cart";
 
 function CartDebugger() {
@@ -270,7 +270,7 @@ value changes, or when the intermediate value is directly reassigned (e.g.
 them in a call to `observe()`:
 
 ```jsx
-import { useObservable, unwrap } from "keck";
+import { useObservable, unwrap } from "~/src";
 import { useCartObservable } from "./cart";
 
 function ProductListJSON() {
@@ -300,7 +300,7 @@ either be observing the object itself (with `observe()`) or accessing a primitiv
 object (e.g. `cart.products[0].quantity`) in order for the component to re-render on changes.
 
 ```jsx
-import { useObservable } from "keck";
+import { useObservable } from "~/src";
 import { useEffect } from "react";
 
 function useProductListLogger() {

@@ -1,7 +1,7 @@
 {
   "name": "keck",
-  "version": "0.0.4",
-  "description": "Proxy-style state observations for React and vanilla",
+  "version": "0.1.0-rc-5",
+  "description": "Simple observable state ✨🔭 for React and vanilla JS",
   "author": "Alex Brombal",
   "license": "MIT",
   "repository": {
@@ -9,63 +9,49 @@
     "url": "git+https://github.com/brombal/keck.git"
   },
   "scripts": {
-    "start": "parcel example/index.html --dist-dir ./example-dist",
-    "build": "rm -rf dist && parcel build && npm run compress-benchmark",
-    "compress-benchmark": "gzip --best -k dist/compressed-benchmark.js && ls -la ./dist",
+    "build": "rm index.* react.* && rollup -c",
     "test": "node --expose_gc node_modules/.bin/jest --coverage",
-    "lint": "prettier -w ./src ./test ./example"
+    "lint": "prettier -w ./src ./test"
   },
-  "source": "./src/index.ts",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/types.d.ts",
-  "compressed-benchmark": "./dist/compressed-benchmark.js",
-  "targets": {
-    "main": {},
-    "module": {},
-    "compressed-benchmark": {
-      "source": "./src/compressed-benchmark.ts",
-      "outputFormat": "commonjs",
-      "includeNodeModules": false,
-      "optimize": true,
-      "sourceMap": false,
-      "isLibrary": true
-    }
-  },
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs",
-      "types": "./dist/types.d.ts"
-    }
-  },
-  "imports": {
-    "#src": "./src"
-  },
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
   "peerDependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
+  "typesVersions": {
+    "*": {
+      "react": ["./react.d.ts"]
+    }
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    },
+    "./react": {
+      "types": "./react.d.ts",
+      "import": "./react.js"
+    }
+  },
   "devDependencies": {
-    "@parcel/packager-ts": "^2.8.3",
-    "@parcel/transformer-typescript-types": "^2.8.3",
-    "@stylix/core": "^4.1.1",
-    "@testing-library/react": "^14.0.0",
-    "@testing-library/user-event": "^14.4.3",
-    "@types/jest": "^29.5.1",
-    "@types/lodash-es": "^4.17.7",
-    "@types/node": "^20.1.2",
-    "@types/react": "^18.2.6",
-    "@types/react-dom": "^18.2.4",
-    "jest": "^29.5.0",
-    "jest-environment-jsdom": "^29.5.0",
-    "lodash-es": "^4.17.21",
-    "parcel": "^2.8.3",
-    "prettier": "^2.8.8",
-    "process": "^0.11.10",
+    "@testing-library/react": "^14.2.1",
+    "@testing-library/user-event": "^14.5.2",
+    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.20",
+    "@types/react": "^18.2.59",
+    "@types/react-dom": "^18.2.19",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "prettier": "^3.2.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "ts-jest": "^29.1.0",
-    "typescript": "^5.0.4"
+    "rollup": "^4.12.0",
+    "rollup-plugin-ts": "^3.4.5",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.3.3"
   }
 }

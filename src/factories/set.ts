@@ -1,10 +1,11 @@
-import { ObservableContext } from "../createObserver";
-import { observableFactories, ObservableFactory } from "../observableFactories";
+import { type FactoryObservableContext } from "#keck/core/ObservableContext";
+import { type ObservableFactory } from "#keck/factories/observableFactories";
+import { registerClass } from "#keck/factories/registerClass";
 
 const _size = Symbol("size");
 
 class ObservableSet<T> extends Set<T> {
-  constructor(private ctx: ObservableContext<Set<T>>) {
+  constructor(private ctx: FactoryObservableContext<Set<T>>) {
     super();
   }
 
@@ -70,15 +71,8 @@ class ObservableSet<T> extends Set<T> {
   }
 }
 
-observableFactories.set(Set, {
+registerClass(Set, {
   makeObservable: (ctx) => {
     return new ObservableSet(ctx);
   },
-  handleChange(value, identifier, newValue) {
-    value.delete(identifier);
-    value.add(newValue);
-  },
-  createClone(value) {
-    return new Set(value);
-  },
-} as ObservableFactory<Set<unknown>, any>);
+} satisfies ObservableFactory<Set<unknown>>);

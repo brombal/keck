@@ -1,6 +1,6 @@
-import { type ObservableFactory } from "#keck/factories/observableFactories";
-import { atomic } from "#keck/methods/atomic";
-import { unwrap } from "#keck/methods/unwrap";
+import type { ObservableFactory } from 'keck/factories/observableFactories';
+import { atomic } from 'keck/methods/atomic';
+import { unwrap } from 'keck/methods/unwrap';
 
 export const objectFactory: ObservableFactory<Record<string | symbol, unknown>> = {
   makeObservable: (ctx) => {
@@ -16,7 +16,7 @@ export const objectFactory: ObservableFactory<Record<string | symbol, unknown>> 
         get(_, prop, observable) {
           // if (prop === "toJSON") return () => ctx.value;
           const propValue = Reflect.get(ctx.value, prop, observable);
-          if (typeof propValue === "function") {
+          if (typeof propValue === 'function') {
             return (...args: unknown[]) => {
               // Todo cache function?
               return atomic(propValue as () => unknown, args, observable);
@@ -35,8 +35,8 @@ export const objectFactory: ObservableFactory<Record<string | symbol, unknown>> 
             const setResult = Reflect.set(ctx.value, prop, rawValue, ctx.value);
 
             atomic(() => {
-              if (arrayLength !== ctx.value.length) ctx.modifyIdentifier("length");
-              if (prop !== "length") ctx.modifyIdentifier(prop);
+              if (arrayLength !== ctx.value.length) ctx.modifyIdentifier('length');
+              if (prop !== 'length') ctx.modifyIdentifier(prop);
             });
 
             return setResult;

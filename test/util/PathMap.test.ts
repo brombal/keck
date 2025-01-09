@@ -1,4 +1,4 @@
-import { PathMap } from "#keck/util/PathMap";
+import { PathMap } from "keck/util/PathMap";
 
 describe("PathMap", () => {
   test("set/get works", () => {

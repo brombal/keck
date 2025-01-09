@@ -1,6 +1,7 @@
-import { focus, observe, peek, registerClass } from "#keck";
+import { jest } from '@jest/globals';
+import { focus, observe, peek, registerClass } from 'keck';
 
-describe("Custom classes", () => {
+describe('Custom classes', () => {
   class Counter {
     private _value = 0;
 
@@ -41,7 +42,7 @@ describe("Custom classes", () => {
 
   registerClass(Counter);
 
-  test("Method that modifies its own property does so atomically", async () => {
+  test('Method that modifies its own property does so atomically', async () => {
     const mockCallback = jest.fn();
     const store = observe(new Counter(), mockCallback);
 
@@ -52,7 +53,7 @@ describe("Custom classes", () => {
     jest.resetAllMocks();
   });
 
-  test("Async modifications are not atomic", async () => {
+  test('Async modifications are not atomic', async () => {
     const mockCallback = jest.fn();
     const store = observe(new Counter(), mockCallback);
 
@@ -63,7 +64,7 @@ describe("Custom classes", () => {
     jest.resetAllMocks();
   });
 
-  test("Getter and setter works as expected", async () => {
+  test('Getter and setter works as expected', async () => {
     const mockCallback = jest.fn();
     const store = observe(new Counter(), mockCallback);
     focus(store);
@@ -78,7 +79,7 @@ describe("Custom classes", () => {
     expect(store.value).toBe(5);
   });
 
-  test("Nested custom value is observable", async () => {
+  test('Nested custom value is observable', async () => {
     const mockCallback = jest.fn();
     const store = observe(new Counter(), mockCallback);
     focus(store);

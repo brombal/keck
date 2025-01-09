@@ -7,7 +7,7 @@
  */
 export function shallowCompare<T>(a: T, b: T): boolean {
   if (a === b) return true;
-  if (typeof a !== "object" || typeof b !== "object") return false;
+  if (typeof a !== 'object' || typeof b !== 'object') return false;
   if (a === null || b === null) return false;
   const aKeys = Object.keys(a);
   const bKeys = Object.keys(b);

@@ -1,4 +1,5 @@
-import { atomic, observe } from "#keck";
+import { atomic, observe } from "keck";
+import { jest } from "@jest/globals";
 
 describe("observe() with derive", () => {
   test("Changing derive fn return value triggers callback", () => {
@@ -44,4 +45,9 @@ describe("observe() with derive", () => {
     expect(mockDerive).toHaveBeenCalledTimes(0);
     jest.resetAllMocks();
   });
+
+  // TODO: For now it's not recommended to use multiple different observable objects in a derive
+  //  function, because the current implementation will not trigger the callback if the other object
+  //  is modified.
+  //  test "Changing derive fn return value from other state object triggers callback"
 });

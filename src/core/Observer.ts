@@ -1,7 +1,6 @@
-import { getObservableFactory } from "#keck/factories/observableFactories";
-import { type DeriveContext } from "#keck/methods/derive";
+import type { DeriveContext } from "keck/methods/derive";
 
-import { RootNode, type Value } from "./RootNode";
+import { getRootNodeForValue, type RootNode, type Value } from "./RootNode";
 
 /**
  * An Observation represents a path that was accessed on an Observable for a specific Observer,
@@ -43,7 +42,7 @@ export class Observer {
 
   /**
    * A WeakSet of Observations for this Observer; used to invalidate Observables when the Observer's
-   * mode is changed.
+   * focus mode is disabled.
    */
   private _validObservations?: WeakSet<Observation>;
 
@@ -51,7 +50,7 @@ export class Observer {
     value: Value,
     public callback?: () => void,
   ) {
-    this.rootNode = RootNode.getForValue(value);
+    this.rootNode = getRootNodeForValue(value);
     this.createRootObservation();
   }
 
@@ -69,7 +68,7 @@ export class Observer {
 
   reset(focus: boolean) {
     if (this._isFocusing === undefined) {
-      throw new Error("reset() can only be called in focus mode");
+      throw new Error('reset() can only be called in focus mode');
     }
     this._isFocusing = !!focus;
     this._validObservations = undefined;
@@ -107,16 +106,3 @@ export class Observer {
   }
 }
 
-export function isObservable(value: any, throwEx = false): value is object {
-  if (value && typeof value === "object" && getObservableFactory(value.constructor)) {
-    return true;
-  }
-  if (throwEx) {
-    let valueLabel = String(value);
-    if (value && (typeof value === "object" || typeof value === "function"))
-      valueLabel = `of type ${value.constructor.name}`;
-    else if (typeof value === "string") valueLabel = `"${value}"`;
-    throw new Error(`Value ${valueLabel} is not observable`);
-  }
-  return false;
-}

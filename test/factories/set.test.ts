@@ -1,4 +1,5 @@
-import { deep, focus, observe } from "#keck";
+import { deep, focus, observe } from "keck";
+import { jest } from "@jest/globals";
 
 function noop() {}
 

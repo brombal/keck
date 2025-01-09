@@ -1,5 +1,5 @@
-import { focus, observe, reset } from "#keck";
-
+import { focus, observe, reset } from "keck";
+import { jest } from "@jest/globals";
 import { createData } from "./shared-data";
 
 describe("Garbage collection", () => {

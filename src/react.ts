@@ -1,5 +1,5 @@
-import { type DeriveEqualFn, disable, focus, observe, reset, unwrap } from "keck";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type DeriveEqualFn, disable, focus, observe, reset, unwrap } from 'keck';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 export function useObserver<TData extends object>(data: TData): TData {
   const [, forceRerender] = useState({});
@@ -53,10 +53,9 @@ export function useDerived<TData extends object, TDerived>(
       isEqual,
     );
   }
-  const state = ref.current;
 
   useEffect(() => {
-    return () => disable(state);
+    return () => disable(ref.current!);
   }, []);
 
   return unwrap(deriveResultRef.current!);

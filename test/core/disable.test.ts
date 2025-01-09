@@ -1,5 +1,5 @@
-import { observe, disable, enable } from "#keck";
-
+import { observe, disable, enable } from "keck";
+import { jest } from "@jest/globals";
 import { createData } from "../shared-data";
 
 describe("disable()", () => {

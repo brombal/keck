@@ -1,8 +1,6 @@
 export type Path = any[];
 
-type OutMap = { map?: Map<any, any> };
-
-const pathValue = Symbol("pathValue");
+const pathValue = Symbol('pathValue');
 
 export class PathMap<V> {
   private root = new Map<any, any>();
@@ -41,12 +39,12 @@ export class PathMap<V> {
   /**
    * Collects all values located at the given path, all of its parents, and all of its descendants into a flat array.
    */
-  collect(path: Path, type: "ancestors" | "children" | "all" = "all"): V[] {
-    let result: V[] = [];
+  collect(path: Path, type: 'ancestors' | 'children' | 'all' = 'all'): V[] {
+    const result: V[] = [];
 
     let currentLevel: Map<any, any> | undefined = this.root;
 
-    const ancestors = type === "ancestors" || type === "all";
+    const ancestors = type === 'ancestors' || type === 'all';
 
     let i = 0;
     for (; i < path.length; i++) {
@@ -59,7 +57,7 @@ export class PathMap<V> {
 
     if (currentLevel.has(pathValue)) result.push(currentLevel.get(pathValue));
 
-    if (type === "children" || type === "all") {
+    if (type === 'children' || type === 'all') {
       this.collectChildren(currentLevel, result);
     }
 

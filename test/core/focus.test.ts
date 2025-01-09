@@ -1,5 +1,5 @@
-import { focus, observe } from "#keck";
-
+import { focus, observe } from "keck";
+import { jest } from "@jest/globals";
 import { createData } from "../shared-data";
 
 describe("focus mode", () => {

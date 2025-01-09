@@ -1,8 +1,8 @@
-import { type FactoryObservableContext } from "#keck/core/ObservableContext";
-import { type ObservableFactory } from "#keck/factories/observableFactories";
-import { registerClass } from "#keck/factories/registerClass";
+import type { FactoryObservableContext } from 'keck/core/ObservableContext';
+import type { ObservableFactory } from 'keck/factories/observableFactories';
+import { registerClass } from 'keck/factories/registerClass';
 
-const _size = Symbol("size");
+const _size = Symbol('size');
 
 class ObservableSet<T> extends Set<T> {
   constructor(private ctx: FactoryObservableContext<Set<T>>) {
@@ -49,24 +49,24 @@ class ObservableSet<T> extends Set<T> {
     return this.ctx.observeIdentifier(_size, this.set.size);
   }
 
-  *[Symbol.iterator](): IterableIterator<T> {
+  *[Symbol.iterator](): SetIterator<T> {
     this.ctx.observeIdentifier(_size);
     for (const value of this.set) {
       yield this.ctx.observeIdentifier(value, value) as T;
     }
   }
 
-  *entries(): IterableIterator<[T, T]> {
+  *entries(): SetIterator<[T, T]> {
     for (const value of this[Symbol.iterator]()) {
       yield [value, value];
     }
   }
 
-  keys(): IterableIterator<T> {
+  keys(): SetIterator<T> {
     return this[Symbol.iterator]();
   }
 
-  values(): IterableIterator<T> {
+  values(): SetIterator<T> {
     return this[Symbol.iterator]();
   }
 }

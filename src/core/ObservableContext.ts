@@ -1,7 +1,7 @@
-import { getObservableFactory } from "#keck/factories/observableFactories";
+import { getObservableFactory } from 'keck/factories/observableFactories';
 
-import { type Observer } from "./Observer";
-import { type Observable, type Path, type RootNode, type Value } from "./RootNode";
+import type { Observer } from './Observer';
+import type { Observable, Path, RootNode, Value } from './RootNode';
 
 /**
  * The public interface to an ObservableContext that is made available to Observable factories.
@@ -48,7 +48,7 @@ export class ObservableContext<TValue extends object> {
   ): ObservableContext<TValue> | undefined {
     const ctx = contextForObservable.get(observable) as ObservableContext<TValue>;
     if (!ctx && throwIfMissing) {
-      throw new Error("Value is not observable");
+      throw new Error('Value is not observable');
     }
     return ctx;
   }
@@ -59,7 +59,8 @@ export class ObservableContext<TValue extends object> {
     public value: TValue,
     public path: Path,
   ) {
-    this.observable = getObservableFactory(value.constructor as any)!.makeObservable(this);
+    this.observable = getObservableFactory(value.constructor as any)?.makeObservable(this);
+    if (!this.observable) throw new Error(`Keck: value ${value} is not observable`);
     contextForObservable.set(this.observable, this);
   }
 

@@ -1,5 +1,5 @@
-import { Observation } from "#keck/core/Observer";
-import { RootNode } from "#keck/core/RootNode";
+import type { Observation } from 'keck/core/Observer';
+import { triggerObservations } from 'keck/core/triggerObservations';
 
 export let atomicObservations: Set<Observation> | undefined;
 
@@ -15,17 +15,21 @@ export function atomic<T, TArgs extends unknown[]>(
   thisArg?: unknown,
 ): T;
 
-export function atomic<T>(fn: Function, args?: unknown[], thisArg?: unknown): T {
+export function atomic<TReturn, TArgs extends any[]>(
+  fn: (...args: TArgs) => TReturn,
+  args?: TArgs,
+  thisArg?: unknown,
+): TReturn {
   let thisSetCallback = false;
   if (!atomicObservations) {
     atomicObservations = new Set();
     thisSetCallback = true;
   }
   try {
-    return fn.apply(thisArg, args);
+    return fn.apply(thisArg, args as TArgs);
   } finally {
     if (thisSetCallback) {
-      RootNode.triggerObservations(atomicObservations);
+      triggerObservations(atomicObservations);
       atomicObservations = undefined;
     }
   }

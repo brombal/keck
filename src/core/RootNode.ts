@@ -1,14 +1,17 @@
-import { ObservableContext } from "#keck/core/ObservableContext";
-import { getObservableFactory } from "#keck/factories/observableFactories";
-import { atomicObservations } from "#keck/methods/atomic";
-import { type DeriveContext, activeDeriveCtx, invokeDeriveCtx } from "#keck/methods/derive";
-import { isPeeking } from "#keck/methods/peek";
-import { isRef } from "#keck/methods/ref";
-import { silentMode } from "#keck/methods/silent";
-import { PathMap } from "#keck/util/PathMap";
-import { getMapEntry } from "#keck/util/getMapEntry";
+import { ObservableContext } from 'keck/core/ObservableContext';
+import { getObservableFactory } from 'keck/factories/observableFactories';
+import { atomicObservations } from 'keck/methods/atomic';
+import { activeDeriveCtx } from 'keck/methods/derive';
+import { isPeeking } from 'keck/methods/peek';
+import { isRef } from 'keck/methods/ref';
+import { silentMode } from 'keck/methods/silent';
+import { PathMap } from 'keck/util/PathMap';
+import { getMapEntry } from 'keck/util/getMapEntry';
 
-import { type Observation, type Observer, isObservable } from "./Observer";
+import { triggerObservations } from 'keck/core/triggerObservations';
+import type { AnyConstructor } from 'keck/util/types';
+import { type Observation, type Observer } from './Observer';
+import { isObservable } from "keck/core/IsObservable";
 
 /**
  * Branded type for a plain value that can be observed. Used to differentiate in usage from an
@@ -37,20 +40,18 @@ interface ObservablePathEntry {
    *  reassigning an Observable when it is recreated.
    */
   observables: WeakMap<Observer, ObservableContext<any>>;
-  observations: Map<Observer, Observation>; // to look up observations
+  observations: Map<Observer, Observation>; // to look up observations by Observer
+}
+
+export const rootNodeForValue = new WeakMap<Value, RootNode>();
+
+export function getRootNodeForValue(value: Value) {
+  isObservable(value, true);
+  return getMapEntry(rootNodeForValue, value, () => new RootNode());
 }
 
 export class RootNode {
   pathEntries = new PathMap<ObservablePathEntry>();
-
-  static rootNodeForValue = new WeakMap<Value, RootNode>();
-
-  static getForValue(value: Value) {
-    isObservable(value, true);
-    return getMapEntry(RootNode.rootNodeForValue, value, () => new RootNode());
-  }
-
-  private constructor() {}
 
   observePath(observer: Observer, path: Path, childValue: Value, force = false) {
     let returnValue = childValue;
@@ -59,8 +60,8 @@ export class RootNode {
 
     const isObservable =
       childValue &&
-      typeof childValue === "object" &&
-      getObservableFactory(childValue.constructor) &&
+      typeof childValue === 'object' &&
+      getObservableFactory(childValue.constructor as AnyConstructor) &&
       !isRef(childValue);
 
     // If the given value is observable, return the observable for it
@@ -76,19 +77,15 @@ export class RootNode {
   }
 
   modifyPath(path: Path) {
-    // Invalidate observables for this and all parent paths
-    // TODO probably need to modify path for all descendants as well
-    //  const x = { a: { b: { c: { d: 1 } } } }
-    //  x.a.b = { c: { e: 1 } }
-    //  then make sure accessing x.a.b.c gives correct value
-    const ancestors = this.pathEntries.collect(path, "ancestors");
+    // Invalidate observables for this and all related paths
+    const ancestors = this.pathEntries.collect(path, 'all');
     for (const pathEntry of ancestors) {
       pathEntry.observables = new WeakMap();
     }
 
     if (silentMode) return;
 
-    let observationsToCall = atomicObservations || new Set();
+    const observationsToCall = atomicObservations || new Set();
 
     const pathEntries = this.pathEntries.collect(path);
 
@@ -109,7 +106,7 @@ export class RootNode {
 
     // If atomicObservers is set, then `atomic()` will handle calling the observers
     if (observationsToCall !== atomicObservations) {
-      RootNode.triggerObservations(observationsToCall);
+      triggerObservations(observationsToCall);
     }
   }
 
@@ -141,11 +138,11 @@ export class RootNode {
       getObservationMeta,
     );
 
-    // If there's no activeDeriveFn, then clear the set (the observation is unconditional)
+    // If there's no activeDeriveCtx, then clear the set (the observation is unconditional)
     if (!activeDeriveCtx) {
       observation.deriveCtxs = undefined;
     }
-    // If there's an activeDeriveFn, and we just created the observation or there is an existing Set of deriveCtxs, add it to the Set.
+    // If there's an activeDeriveCtx, and we just created the observation or there is an existing Set of deriveCtxs, add it to the Set.
     // Otherwise, there is already an unconditional observation and we shouldn't add this derive fn.
     else if (getObservationMeta.created || observation.deriveCtxs) {
       observation.deriveCtxs = observation.deriveCtxs || new Set();
@@ -153,52 +150,5 @@ export class RootNode {
     }
 
     observer.addObservation(observation);
-  }
-
-  static triggerObservations(observations: Set<Observation>) {
-    // The Set of Observers to trigger (prevents triggering the same observer multiple times)
-    const triggerObservers = new Set<Observer>();
-
-    // Map of validated DeriveContexts and whether their return values changed
-    // (prevents redundant invocations of derive fn or isEqual)
-    const verifiedDeriveCtxs = new Map<DeriveContext<any>, boolean>();
-
-    for (const observation of observations) {
-      // By default, we don't skip any Observer callback (for non-focused Observers)
-      let skipObserver = false;
-
-      // If the observation has derive contexts, validate each one
-      if (observation.deriveCtxs) {
-        // In this case, we skip the observer by default unless one of the derived return values changed
-        skipObserver = true;
-
-        for (const deriveCtx of observation.deriveCtxs) {
-          // Already checked; skip and use same result
-          if (verifiedDeriveCtxs.has(deriveCtx)) {
-            const changedResult = verifiedDeriveCtxs.get(deriveCtx);
-            if (changedResult) skipObserver = false;
-            continue;
-          }
-
-          // Get next result and compare with previous result
-          const prevResult = deriveCtx.prevResult;
-          const nextResult = invokeDeriveCtx(deriveCtx);
-          const changedResult = deriveCtx.isEqual
-            ? !deriveCtx.isEqual(prevResult, nextResult)
-            : prevResult !== nextResult;
-
-          verifiedDeriveCtxs.set(deriveCtx, changedResult);
-
-          // If the result changed, this observer will be invoked
-          if (changedResult) skipObserver = false;
-        }
-      }
-
-      if (!skipObserver) triggerObservers.add(observation.observer);
-    }
-
-    for (const observer of triggerObservers) {
-      observer.callback?.();
-    }
   }
 }

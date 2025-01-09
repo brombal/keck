@@ -1,4 +1,5 @@
-import { deep, focus, isRef, observe, ref, unwrap } from "#keck";
+import { deep, focus, isRef, observe, ref, unwrap } from "keck";
+import { jest } from "@jest/globals";
 
 describe("ref()", () => {
   test("Modifying ref inner property doesn't trigger callback (non-focus mode)", () => {

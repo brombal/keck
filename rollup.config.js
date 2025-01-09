@@ -1,4 +1,5 @@
-import ts from "rollup-plugin-ts";
+import ts from '@rollup/plugin-typescript';
+import { dts } from 'rollup-plugin-dts';
 
 export default [
   {
@@ -10,6 +11,13 @@ export default [
     plugins: [ts()],
   },
   {
+    input: "src/index.ts",
+    output: {
+      file: "./index.d.ts",
+    },
+    plugins: [dts()],
+  },
+  {
     input: "src/react.ts",
     output: {
       file: "./react.js",
@@ -17,5 +25,13 @@ export default [
     },
     external: ["keck", "react"],
     plugins: [ts()],
+  },
+  {
+    input: "src/react.ts",
+    output: {
+      file: "./react.d.ts",
+    },
+    external: ["keck", "react"],
+    plugins: [dts()],
   },
 ];

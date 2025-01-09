@@ -1,4 +1,4 @@
-import { PathMap } from "#keck/util/PathMap";
+import { PathMap } from 'keck/util/PathMap';
 
 export type DeriveFn<T> = () => T;
 export type DeriveEqualFn<T> = (prevResult: T, nextResult: T) => boolean;

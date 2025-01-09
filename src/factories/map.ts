@@ -1,9 +1,9 @@
-import { type FactoryObservableContext } from "#keck/core/ObservableContext";
-import { type ObservableFactory } from "#keck/factories/observableFactories";
-import { registerClass } from "#keck/factories/registerClass";
-import { atomic } from "#keck/methods/atomic";
+import type { FactoryObservableContext } from 'keck/core/ObservableContext';
+import type { ObservableFactory } from 'keck/factories/observableFactories';
+import { registerClass } from 'keck/factories/registerClass';
+import { atomic } from 'keck/methods/atomic';
 
-const _size = Symbol("size");
+const _size = Symbol('size');
 
 export class ObservableMap<K, V> extends Map<K, V> {
   constructor(private ctx: FactoryObservableContext<Map<K, V>>) {
@@ -65,7 +65,7 @@ export class ObservableMap<K, V> extends Map<K, V> {
   }
 
   /** Returns an iterable of entries in the map. */
-  *[Symbol.iterator](): IterableIterator<[K, V]> {
+  *[Symbol.iterator](): MapIterator<[K, V]> {
     this.ctx.observeIdentifier(_size);
     for (const entry of this.map) {
       const observable = this.ctx.observeIdentifier(entry[0], entry[1]);
@@ -73,16 +73,16 @@ export class ObservableMap<K, V> extends Map<K, V> {
     }
   }
 
-  entries(): IterableIterator<[K, V]> {
+  entries(): MapIterator<[K, V]> {
     return this[Symbol.iterator]();
   }
 
-  keys(): IterableIterator<K> {
+  keys(): MapIterator<K> {
     this.ctx.observeIdentifier(_size);
     return this.map.keys();
   }
 
-  *values(): IterableIterator<V> {
+  *values(): MapIterator<V> {
     for (const value of this[Symbol.iterator]()) {
       yield value[1];
     }

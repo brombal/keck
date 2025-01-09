@@ -1,5 +1,5 @@
-import { atomic, focus, observe } from "#keck";
-
+import { atomic, focus, observe } from "keck";
+import { jest } from "@jest/globals";
 import { createData } from "../shared-data";
 
 describe("atomic()", () => {

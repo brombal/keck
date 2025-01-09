@@ -1,6 +1,6 @@
-import { ObservableContext } from "#keck/core/ObservableContext";
-import type { Observable } from "#keck/core/RootNode";
-import { deep } from "#keck/methods/deep";
+import { ObservableContext } from 'keck/core/ObservableContext';
+import type { Observable } from 'keck/core/RootNode';
+import { deep } from 'keck/methods/deep';
 
 /**
  * Returns the original object of an observable wrapper. If `observable` is

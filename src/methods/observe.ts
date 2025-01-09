@@ -1,9 +1,9 @@
-import { Observer } from "#keck/core/Observer";
-import { type Value } from "#keck/core/RootNode";
+import { Observer } from 'keck/core/Observer';
+import type { Value } from 'keck/core/RootNode';
 
-import { DeriveEqualFn, derive } from "./derive";
-import { focus } from "./focus";
-import { unwrap } from "./unwrap";
+import { type DeriveEqualFn, derive } from './derive';
+import { focus } from './focus';
+import { unwrap } from './unwrap';
 
 type ObserverDeriveFn<TValue, TDerived> = (state: TValue) => TDerived;
 

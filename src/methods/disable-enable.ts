@@ -1,5 +1,5 @@
-import { ObservableContext } from "#keck/core/ObservableContext";
-import type { Observable } from "#keck/core/RootNode";
+import { ObservableContext } from 'keck/core/ObservableContext';
+import type { Observable } from 'keck/core/RootNode';
 
 /**
  * Disables an observer, preventing it from triggering its callback when its

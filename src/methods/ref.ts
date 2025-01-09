@@ -1,4 +1,4 @@
-import { isObservable } from "#keck/core/Observer";
+import { isObservable } from "keck/core/IsObservable";
 
 const refMap = new WeakSet<object>();
 

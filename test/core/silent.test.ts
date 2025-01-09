@@ -1,4 +1,5 @@
-import { focus, observe, silent } from "#keck";
+import { focus, observe, silent } from "keck";
+import { jest } from "@jest/globals";
 
 describe("silent()", () => {
   test("Silent modifications do not trigger callback", () => {

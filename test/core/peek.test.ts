@@ -1,5 +1,5 @@
-import { focus, observe, peek } from "#keck";
-
+import { focus, observe, peek } from "keck";
+import { jest } from "@jest/globals";
 import { createData } from "../shared-data";
 
 describe("peek()", () => {

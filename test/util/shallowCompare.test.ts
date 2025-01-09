@@ -1,4 +1,4 @@
-import { shallowCompare } from "#keck";
+import { shallowCompare } from "keck";
 
 describe("shallowCompare", () => {
   test("Object comparison works", () => {

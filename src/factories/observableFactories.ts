@@ -1,9 +1,10 @@
-import { type FactoryObservableContext } from "#keck/core/ObservableContext";
+import type { FactoryObservableContext } from 'keck/core/ObservableContext';
+import type { AnyConstructor } from 'keck/util/types';
 
 /**
  * The map of object prototypes to their observable factories.
  */
-export const observableFactories = new Map<Function, ObservableFactory<any>>();
+export const observableFactories = new Map<AnyConstructor, ObservableFactory<any>>();
 
 /**
  * This interface is used to create observable objects. To create an observable for a class,
@@ -16,6 +17,8 @@ export interface ObservableFactory<TValue extends object> {
   makeObservable: (observableNode: FactoryObservableContext<TValue>) => TValue;
 }
 
-export function getObservableFactory(constructor: Function) {
-  return observableFactories.get(constructor);
+export function getObservableFactory(
+  classConstructor: AnyConstructor,
+): ObservableFactory<any> | undefined {
+  return observableFactories.get(classConstructor);
 }

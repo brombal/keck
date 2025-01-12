@@ -8,10 +8,10 @@ import { silentMode } from 'keck/methods/silent';
 import { PathMap } from 'keck/util/PathMap';
 import { getMapEntry } from 'keck/util/getMapEntry';
 
+import { isObservable } from 'keck/core/IsObservable';
 import { triggerObservations } from 'keck/core/triggerObservations';
 import type { AnyConstructor } from 'keck/util/types';
-import { type Observation, type Observer } from './Observer';
-import { isObservable } from "keck/core/IsObservable";
+import type { Observation, Observer } from './Observer';
 
 /**
  * Branded type for a plain value that can be observed. Used to differentiate in usage from an
@@ -136,6 +136,7 @@ export class RootNode {
       observer,
       () => ({ observer, path }),
       getObservationMeta,
+      (entry) => observer.hasObservation(entry),
     );
 
     // If there's no activeDeriveCtx, then clear the set (the observation is unconditional)

@@ -6,12 +6,12 @@ export function useObserver<TData extends object>(data: TData): TData {
   const ref = useRef<TData>();
   if (!ref.current) {
     ref.current = observe(data, () => forceRerender({}));
-    focus(ref.current);
   }
   const state = ref.current;
 
   // Begin observing on render
-  reset(state, true);
+  focus(state);
+  reset(state);
 
   // Stop observing as soon as component finishes rendering
   useLayoutEffect(() => {
@@ -21,7 +21,7 @@ export function useObserver<TData extends object>(data: TData): TData {
   // Disable callback when component unmounts
   useEffect(() => {
     return () => {
-      reset(state, true);
+      reset(state);
       disable(state);
     };
   }, [state]);

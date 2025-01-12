@@ -30,7 +30,9 @@ describe('React', () => {
             }}
           />
 
-          <button onClick={() => store.value++}>+1</button>
+          <button onClick={() => store.value++} type="button">
+            +1
+          </button>
         </div>
       );
     }
@@ -78,8 +80,12 @@ describe('React', () => {
       return (
         <div>
           {isEven && 'even!'}
-          <button onClick={() => state.value++}>+1</button>
-          <button onClick={() => (state.value += 2)}>+2</button>
+          <button onClick={() => state.value++} type="button">
+            +1
+          </button>
+          <button onClick={() => (state.value += 2)} type="button">
+            +2
+          </button>
         </div>
       );
     }

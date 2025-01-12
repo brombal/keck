@@ -32,6 +32,9 @@
       },
       "security": {
         "noDangerouslySetInnerHtml": "off"
+      },
+      "performance": {
+        "noDelete": "off"
       }
     }
   },

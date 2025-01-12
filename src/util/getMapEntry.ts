@@ -3,9 +3,10 @@ export function getMapEntry<TKey, TValue, TCreate extends TValue>(
   key: TKey,
   create: () => TCreate,
   meta?: { created?: boolean },
+  isEntryValid?: (entry: TValue) => boolean,
 ): TValue {
   let value = map.get(key as any);
-  if (!value) {
+  if (!value || (isEntryValid && !isEntryValid(value))) {
     value = create();
     map.set(key as any, value);
     if (meta) meta.created = true;

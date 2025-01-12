@@ -1,3 +1,4 @@
+import { unwrap } from 'keck/methods/unwrap';
 import { PathMap } from 'keck/util/PathMap';
 
 export type DeriveFn<T> = () => T;
@@ -19,7 +20,7 @@ export function derive<T>(fn: DeriveFn<T>, isEqual?: DeriveEqualFn<T>) {
     thisSetCallback = true;
   }
   try {
-    return (activeDeriveCtx.prevResult = fn());
+    return (activeDeriveCtx.prevResult = unwrap(fn()));
   } finally {
     if (thisSetCallback) {
       activeDeriveCtx = undefined;

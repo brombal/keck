@@ -1,9 +1,9 @@
-import { atomic, focus, observe, derive } from "keck";
-import { jest } from "@jest/globals";
-import { createData } from "../shared-data";
+import { jest } from '@jest/globals';
+import { atomic, derive, focus, observe } from 'keck';
+import { createData } from '../shared-data';
 
-describe("derive()", () => {
-  test("Changing value that alters derived value triggers callback (primitive used in derived fn)", () => {
+describe('derive()', () => {
+  test('Changing value that alters derived value triggers callback (primitive used in derived fn)', () => {
     const mockCallback = jest.fn();
 
     const data = createData();
@@ -25,7 +25,7 @@ describe("derive()", () => {
     expect(mockCallback).toHaveBeenCalledTimes(0);
   });
 
-  test("Changing value that alters derived value triggers callback (only objects used in derived fn)", () => {
+  test('Changing value that alters derived value triggers callback (only objects used in derived fn)', () => {
     const mockCallback = jest.fn();
 
     const data = createData();
@@ -46,7 +46,7 @@ describe("derive()", () => {
     expect(mockCallback).toHaveBeenCalledTimes(0);
   });
 
-  test("Reused derive fn is only triggered once per modification", () => {
+  test('Reused derive fn is only triggered once per modification', () => {
     const mockCallback = jest.fn();
 
     const state = observe(
@@ -85,7 +85,7 @@ describe("derive()", () => {
     expect(mockCallback).toHaveBeenCalledTimes(0);
   });
 
-  test("Changing a value that is focused normally triggers callback regardless of derived value", () => {
+  test('Changing a value that is focused normally triggers callback regardless of derived value', () => {
     const data = createData();
     data.value2 = 2;
 
@@ -119,7 +119,7 @@ describe("derive()", () => {
     jest.clearAllMocks();
   });
 
-  test("Only result of outer derive call triggers callback", () => {
+  test('Only result of outer derive call triggers callback', () => {
     const mockCallback = jest.fn();
 
     const data = createData();
@@ -155,7 +155,7 @@ describe("derive()", () => {
     jest.clearAllMocks();
   });
 
-  test("Derive with a custom comparison function only triggers callback when comparison changes", () => {
+  test('Derive with a custom comparison function only triggers callback when comparison changes', () => {
     const mockCallback = jest.fn();
 
     const state = observe(
@@ -192,7 +192,7 @@ describe("derive()", () => {
     expect(mockCallback).toHaveBeenCalledTimes(0);
   });
 
-  test("Multiple states in a derive fn trigger callbacks minimal number of times", () => {
+  test('Multiple states in a derive fn trigger callbacks minimal number of times', () => {
     /**
      * Creates 3 derived functions that access various properties of 2 state objects.
      * The property names of each state object indicate which derived functions they are used in.
@@ -251,7 +251,7 @@ describe("derive()", () => {
     jest.clearAllMocks();
 
     // derive 3
-    let derive3result = {};
+    const derive3result = {};
     const mockDeriveFn3 = jest.fn();
     derive(() => {
       mockDeriveFn3();
@@ -327,6 +327,27 @@ describe("derive()", () => {
     expect(mockDeriveFn1).toHaveBeenCalledTimes(1);
     expect(mockDeriveFn2).toHaveBeenCalledTimes(1);
     expect(mockDeriveFn3).toHaveBeenCalledTimes(1);
+    jest.clearAllMocks();
+  });
+
+  test('Reading properties of derive fn result should not create observation (i.e. result is unwrapped)', () => {
+    const mockCallback = jest.fn();
+
+    const state = observe(
+      {
+        values: [1, 2, 3],
+      },
+      mockCallback,
+    );
+    focus(state);
+
+    const values = derive(() => {
+      return state.values;
+    });
+
+    values.push(4);
+
+    expect(mockCallback).toHaveBeenCalledTimes(0);
     jest.clearAllMocks();
   });
 });

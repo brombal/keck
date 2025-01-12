@@ -3,7 +3,6 @@
     "target": "esnext",
     "module": "esnext",
     "jsx": "react-jsx",
-    "sourceMap": true,
     "declaration": false,
     "rootDir": "./",
     "strict": true,
@@ -13,11 +12,8 @@
     "lib": ["esnext", "dom"],
     "types": ["node", "jest"],
     "paths": {
-      // keck/* can be used to reference source files
       "keck/*": ["./src/*"],
-      // In development, importing 'keck' will reference local source files.
-      // Rollup will ignore this and treat keck as an external dependency.
-      "keck": ["./src/index.ts"],
-    },
+      "keck": ["./src/index.ts"]
+    }
   }
 }

@@ -1,6 +1,6 @@
-import type { DeriveContext } from "keck/methods/derive";
+import type { DeriveContext } from 'keck/methods/derive';
 
-import { getRootNodeForValue, type RootNode, type Value } from "./RootNode";
+import { type RootNode, type Value, getRootNodeForValue } from './RootNode';
 
 /**
  * An Observation represents a path that was accessed on an Observable for a specific Observer,
@@ -34,7 +34,7 @@ export class Observer {
    * Indicates whether focus mode is enabled, disabled, or paused for this Observer.
    * - `undefined`: focus is disabled (all modifications are observed)
    * - `true`: focus is enabled
-   * - `false`: focus is paused
+   * - `false`: focus is paused (new observations are not created but existing ones are still valid)
    */
   private _isFocusing: boolean | undefined = undefined;
 
@@ -66,13 +66,14 @@ export class Observer {
     this._isFocusing = enableFocus;
   }
 
-  reset(focus: boolean) {
+  /**
+   * Resets all observations of properties of the observable.
+   */
+  reset() {
     if (this._isFocusing === undefined) {
       throw new Error('reset() can only be called in focus mode');
     }
-    this._isFocusing = !!focus;
     this._validObservations = undefined;
-    if (!focus) this.createRootObservation();
   }
 
   /**
@@ -102,7 +103,6 @@ export class Observer {
   }
 
   hasObservation(observation: Observation) {
-    return this._validObservations?.has(observation);
+    return !!this._validObservations?.has(observation);
   }
 }
-

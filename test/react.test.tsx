@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useDerived, useObserver } from 'keck/react';
-import { StrictMode, useEffect, useRef, useState } from "react";
+import { useState } from 'react';
 
 describe('React', () => {
   test('Component only re-renders when accessed properties are modified', async () => {
@@ -214,9 +214,7 @@ describe('React', () => {
       );
     }
 
-    render(
-        <GcTestOuter />,
-    );
+    render(<GcTestOuter />);
 
     // Click the +1 button
     await userEvent.click(screen.getByTestId('store-button-1'));

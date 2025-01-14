@@ -7,7 +7,7 @@ export type DeriveContext<T> = { fn: DeriveFn<T>; isEqual?: DeriveEqualFn<T>; pr
 
 export let activeDeriveCtx: DeriveContext<any> | undefined;
 
-const deriveCtxs = new PathMap<DeriveContext<any>>();
+const deriveCtxs = new PathMap<DeriveContext<any>>({ weak: true });
 
 export function derive<T>(fn: DeriveFn<T>, isEqual?: DeriveEqualFn<T>) {
   let thisSetCallback = false;

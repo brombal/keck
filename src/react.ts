@@ -1,11 +1,26 @@
-import { type DeriveEqualFn, disable, focus, observe, reset, unwrap } from 'keck';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type DeriveEqualFn, focus, observe, reset, unwrap } from 'keck';
+import { useLayoutEffect, useRef, useState } from 'react';
 
-export function useObserver<TData extends object>(data: TData): TData {
+let finalizationRegistry: FinalizationRegistry<any> | undefined;
+
+export function useObserver<TData extends object>(data: TData, callback?: () => void): TData {
+  if (window.FinalizationRegistry && (window as any).KECK_OBSERVE_GC && !finalizationRegistry) {
+    console.log('keck/react: initializing FinalizationRegistry');
+    finalizationRegistry = new FinalizationRegistry((...args) =>
+      console.log('keck/react: FinalizationRegistry callback invoked', args),
+    );
+  }
+
+  const mounted = useRef(true);
   const [, forceRerender] = useState({});
   const ref = useRef<TData>();
   if (!ref.current) {
-    ref.current = observe(data, () => forceRerender({}));
+    ref.current = observe(data, () => {
+      if (!mounted.current) return;
+      callback?.();
+      forceRerender({});
+    });
+    finalizationRegistry?.register(ref.current, 'Keck observable released');
   }
   const state = ref.current;
 
@@ -18,13 +33,12 @@ export function useObserver<TData extends object>(data: TData): TData {
     focus(state, false);
   });
 
-  // Disable callback when component unmounts
-  useEffect(() => {
+  useLayoutEffect(() => {
+    mounted.current = true;
     return () => {
-      reset(state);
-      disable(state);
+      mounted.current = false;
     };
-  }, [state]);
+  }, []);
 
   return state;
 }
@@ -52,11 +66,8 @@ export function useDerived<TData extends object, TDerived>(
       },
       isEqual,
     );
+    finalizationRegistry?.register(ref.current, 'Keck derived observable released');
   }
-
-  useEffect(() => {
-    return () => disable(ref.current!);
-  }, []);
 
   return unwrap(deriveResultRef.current!);
 }

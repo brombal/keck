@@ -1,6 +1,6 @@
 import { DeriveEqualFn } from 'keck';
 
-declare function useObserver<TData extends object>(data: TData): TData;
+declare function useObserver<TData extends object>(data: TData, callback?: () => void): TData;
 /**
  * Hook that will observe `data`, and only re-render the component when the result of `deriveFn` changes.
  * Returns the result of `deriveFn`.

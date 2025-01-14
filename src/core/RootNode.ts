@@ -43,11 +43,17 @@ interface ObservablePathEntry {
   observations: Map<Observer, Observation>; // to look up observations by Observer
 }
 
-export const rootNodeForValue = new WeakMap<Value, RootNode>();
+export const rootNodeForValue = new WeakMap<Value, WeakRef<RootNode>>();
 
 export function getRootNodeForValue(value: Value) {
   isObservable(value, true);
-  return getMapEntry(rootNodeForValue, value, () => new RootNode());
+  return getMapEntry(
+    rootNodeForValue,
+    value,
+    () => new WeakRef(new RootNode()),
+    {},
+    (ref) => !!ref.deref(),
+  ).deref()!;
 }
 
 export class RootNode {

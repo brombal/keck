@@ -3,7 +3,11 @@ export type Path = any[];
 const pathValue = Symbol('pathValue');
 
 export class PathMap<V> {
-  private root = new Map<any, any>();
+  private readonly root: WeakMap<any, any> | Map<any, any>;
+
+  constructor(options?: { weak: boolean }) {
+    this.root = options?.weak ? new WeakMap() : new Map();
+  }
 
   set(path: Path, value: V): void {
     let currentLevel = this.root;
@@ -24,7 +28,7 @@ export class PathMap<V> {
    * Returns the value at the given path, and all children of the path.
    */
   get(path: Path): V | undefined {
-    let currentLevel: Map<any, any> | undefined = this.root;
+    let currentLevel = this.root;
 
     for (let i = 0; i < path.length; i++) {
       currentLevel = currentLevel.get(path[i]);
@@ -40,9 +44,13 @@ export class PathMap<V> {
    * Collects all values located at the given path, all of its parents, and all of its descendants into a flat array.
    */
   collect(path: Path, type: 'ancestors' | 'children' | 'all' = 'all'): V[] {
+    if (!(this.root as Map<any, any>).entries) {
+      throw new Error('Cannot call `collect` on a weak PathMap!');
+    }
+
     const result: V[] = [];
 
-    let currentLevel: Map<any, any> | undefined = this.root;
+    let currentLevel = this.root as Map<any, any>;
 
     const ancestors = type === 'ancestors' || type === 'all';
 
@@ -58,7 +66,7 @@ export class PathMap<V> {
     if (currentLevel.has(pathValue)) result.push(currentLevel.get(pathValue));
 
     if (type === 'children' || type === 'all') {
-      this.collectChildren(currentLevel, result);
+      this.collectChildren(currentLevel as Map<any, any>, result);
     }
 
     return result;

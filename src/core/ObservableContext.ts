@@ -46,7 +46,7 @@ export class ObservableContext<TValue extends object> {
     observable: Observable,
     throwIfMissing = true,
   ): ObservableContext<TValue> | undefined {
-    const ctx = contextForObservable.get(observable) as ObservableContext<TValue>;
+    const ctx = contextForObservable.get(observable);
     if (!ctx && throwIfMissing) {
       throw new Error('Value is not observable');
     }

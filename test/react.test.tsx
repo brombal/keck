@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useDerived, useObserver } from 'keck/react';
-import { useState } from 'react';
+import { StrictMode, useEffect, useRef, useState } from "react";
 
 describe('React', () => {
   test('Component only re-renders when accessed properties are modified', async () => {
@@ -109,5 +109,138 @@ describe('React', () => {
     await userEvent.click(screen.getByText('+1'));
     expect(mockRender).toHaveBeenCalledTimes(1);
     jest.resetAllMocks();
+  });
+
+  test('Garbage collector is called when component unmounts', async () => {
+    const data = {
+      value: 0,
+    };
+
+    const mockCleanupFn = jest.fn();
+    const r = new FinalizationRegistry(mockCleanupFn);
+
+    function GcTestInner() {
+      const state = useObserver(data);
+      r.register(state, 'value');
+
+      return (
+        <div>
+          <span data-testid="store-value">{state.value}</span>
+
+          <button onClick={() => state.value++} type="button">
+            +1
+          </button>
+        </div>
+      );
+    }
+
+    function GcTestOuter() {
+      const [showValue, setShowValue] = useState(true);
+
+      return (
+        <div>
+          {showValue && <GcTestInner />}
+
+          <button onClick={() => setShowValue(!showValue)} type="button">
+            Toggle
+          </button>
+        </div>
+      );
+    }
+
+    render(<GcTestOuter />);
+
+    // Click the +1 button
+    await userEvent.click(screen.getByText('+1'));
+    await userEvent.click(screen.getByText('+1'));
+
+    // Check the value
+    // expect(screen.getByTestId('store-value').textContent).toBe('2');
+
+    // Click the toggle button
+    await userEvent.click(screen.getByText('Toggle'));
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    global.gc!();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Expect the cleanup function to be called
+    expect(mockCleanupFn).toHaveBeenCalledTimes(3);
+
+    jest.clearAllMocks();
+  });
+
+  test('Component does not try to re-render after unmount', async () => {
+    (window as any).KECK_OBSERVE_GC = true;
+
+    const data = {
+      value: 0,
+    };
+
+    const renderMockFn = jest.fn();
+
+    function GcTestInner(props: { id: string }) {
+      const state = useObserver(data, () => {
+        renderMockFn(props.id);
+      });
+
+      return (
+        <div>
+          <span data-testid={`store-value-${props.id}`}>{state.value}</span>
+
+          <button
+            onClick={() => state.value++}
+            type="button"
+            data-testid={`store-button-${props.id}`}
+          >
+            +1
+          </button>
+        </div>
+      );
+    }
+
+    function GcTestOuter() {
+      const [showValue, setShowValue] = useState(true);
+
+      return (
+        <div>
+          {showValue && <GcTestInner id="1" />}
+          <GcTestInner id="2" />
+
+          <button onClick={() => setShowValue(!showValue)} type="button">
+            Toggle
+          </button>
+        </div>
+      );
+    }
+
+    render(
+        <GcTestOuter />,
+    );
+
+    // Click the +1 button
+    await userEvent.click(screen.getByTestId('store-button-1'));
+
+    // Check the value
+    expect(screen.getByTestId('store-value-1').textContent).toBe('1');
+    expect(screen.getByTestId('store-value-2').textContent).toBe('1');
+
+    // Click the +1 button
+    await userEvent.click(screen.getByTestId('store-button-2'));
+
+    // Check the value
+    expect(screen.getByTestId('store-value-1').textContent).toBe('2');
+    expect(screen.getByTestId('store-value-2').textContent).toBe('2');
+
+    // Click the toggle button
+    await userEvent.click(screen.getByText('Toggle'));
+    jest.resetAllMocks();
+
+    // Click the +1 button
+    await userEvent.click(screen.getByTestId('store-button-2'));
+
+    // Expect the render function to be called only for the second component
+    expect(renderMockFn).toHaveBeenCalledTimes(1);
+    expect(renderMockFn).toHaveBeenCalledWith('2');
   });
 });

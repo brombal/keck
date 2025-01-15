@@ -583,15 +583,21 @@ class RootNode {
         const observationsToCall = atomicObservations || new Set();
         const pathEntries = this.pathEntries.collect(path);
         for (const pathEntry of pathEntries) {
-            for (const observation of pathEntry.observations.values()) {
-                if (!observation.observer.enabled)
-                    continue;
-                // If the Observation is not valid, remove it from the map
-                // (it could have been cleared out by resetting the observer)
-                if (!observation.observer.hasObservation(observation)) {
-                    pathEntry.observations.delete(observation.observer);
+            for (const observationRef of pathEntry.allObservations) {
+                const observation = observationRef.deref();
+                const observer = observation?.observer;
+                if (!observation || !observer) {
+                    pathEntry.allObservations.delete(observationRef);
                     continue;
                 }
+                // If the Observation is not valid, remove it from the map
+                // (it could have been cleared out by resetting the observer)
+                if (!observer.hasObservation(observation)) {
+                    pathEntry.observationsForObserver.delete(observer);
+                    continue;
+                }
+                if (!observer.enabled)
+                    continue;
                 observationsToCall.add(observation);
             }
         }
@@ -605,12 +611,18 @@ class RootNode {
         return getMapEntry(this.getPathEntry(path).observables, observer, () => new ObservableContext(this, observer, childValue, path)).observable;
     }
     getPathEntry(path) {
-        return getMapEntry(this.pathEntries, path, () => ({ observables: new WeakMap(), observations: new Map() }));
+        return getMapEntry(this.pathEntries, path, () => ({
+            observables: new WeakMap(),
+            observationsForObserver: new WeakMap(),
+            allObservations: new Set(),
+        }));
     }
     createObservation(observer, path) {
         const pathEntry = this.getPathEntry(path);
         const getObservationMeta = { created: false };
-        const observation = getMapEntry(pathEntry.observations, observer, () => ({ observer, path }), getObservationMeta, (entry) => observer.hasObservation(entry));
+        const observation = getMapEntry(pathEntry.observationsForObserver, observer, () => ({ observer, path }), getObservationMeta, (entry) => observer.hasObservation(entry));
+        // If the observation was just created, add it to the set of all observations for this path
+        pathEntry.allObservations.add(new WeakRef(observation));
         // If there's no activeDeriveCtx, then clear the set (the observation is unconditional)
         if (!activeDeriveCtx) {
             observation.deriveCtxs = undefined;

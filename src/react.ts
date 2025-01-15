@@ -3,14 +3,14 @@ import { useLayoutEffect, useRef, useState } from 'react';
 
 let finalizationRegistry: FinalizationRegistry<any> | undefined;
 
-export function useObserver<TData extends object>(data: TData, callback?: () => void): TData {
-  if (window.FinalizationRegistry && (window as any).KECK_OBSERVE_GC && !finalizationRegistry) {
-    console.log('keck/react: initializing FinalizationRegistry');
-    finalizationRegistry = new FinalizationRegistry((...args) =>
-      console.log('keck/react: FinalizationRegistry callback invoked', args),
-    );
-  }
+if (window.FinalizationRegistry && (window as any).KECK_OBSERVE_GC && !finalizationRegistry) {
+  console.log('keck/react: initializing FinalizationRegistry');
+  finalizationRegistry = new FinalizationRegistry((...args) =>
+    console.log('keck/react: FinalizationRegistry callback invoked', args),
+  );
+}
 
+export function useObserver<TData extends object>(data: TData, callback?: () => void): TData {
   const mounted = useRef(true);
   const [, forceRerender] = useState({});
   const ref = useRef<TData>();

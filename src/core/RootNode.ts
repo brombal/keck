@@ -40,7 +40,8 @@ interface ObservablePathEntry {
    *  reassigning an Observable when it is recreated.
    */
   observables: WeakMap<Observer, ObservableContext<any>>;
-  observations: Map<Observer, Observation>; // to look up observations by Observer
+  observationsForObserver: WeakMap<Observer, Observation>; // to look up observations by Observer
+  allObservations: Set<WeakRef<Observation>>; // to iterate all Observations for this path
 }
 
 export const rootNodeForValue = new WeakMap<Value, WeakRef<RootNode>>();
@@ -96,15 +97,23 @@ export class RootNode {
     const pathEntries = this.pathEntries.collect(path);
 
     for (const pathEntry of pathEntries) {
-      for (const observation of pathEntry.observations.values()) {
-        if (!observation.observer.enabled) continue;
+      for (const observationRef of pathEntry.allObservations) {
+        const observation = observationRef.deref();
+        const observer = observation?.observer;
+
+        if (!observation || !observer) {
+          pathEntry.allObservations.delete(observationRef);
+          continue;
+        }
 
         // If the Observation is not valid, remove it from the map
         // (it could have been cleared out by resetting the observer)
-        if (!observation.observer.hasObservation(observation)) {
-          pathEntry.observations.delete(observation.observer);
+        if (!observer.hasObservation(observation)) {
+          pathEntry.observationsForObserver.delete(observer);
           continue;
         }
+
+        if (!observer.enabled) continue;
 
         observationsToCall.add(observation);
       }
@@ -127,23 +136,26 @@ export class RootNode {
   }
 
   private getPathEntry(path: Path) {
-    return getMapEntry(
-      this.pathEntries,
-      path,
-      () => ({ observables: new WeakMap(), observations: new Map() }) satisfies ObservablePathEntry,
-    );
+    return getMapEntry(this.pathEntries, path, () => ({
+      observables: new WeakMap(),
+      observationsForObserver: new WeakMap(),
+      allObservations: new Set<WeakRef<Observation>>(),
+    }));
   }
 
   createObservation(observer: Observer, path: Path) {
     const pathEntry = this.getPathEntry(path);
     const getObservationMeta = { created: false };
     const observation = getMapEntry(
-      pathEntry.observations,
+      pathEntry.observationsForObserver,
       observer,
       () => ({ observer, path }),
       getObservationMeta,
       (entry) => observer.hasObservation(entry),
     );
+
+    // If the observation was just created, add it to the set of all observations for this path
+    pathEntry.allObservations.add(new WeakRef(observation));
 
     // If there's no activeDeriveCtx, then clear the set (the observation is unconditional)
     if (!activeDeriveCtx) {

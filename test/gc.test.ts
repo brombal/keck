@@ -4,6 +4,9 @@ import { createData } from './shared-data';
 
 const data = createData();
 
+// Persistent observer ensures that garbage collection is still triggered if multiple observers exist
+(window as any).observer = observe(data);
+
 describe('Garbage collection', () => {
   async function sharedGcTest(cb: (observeCb: () => void) => any, afterGcCb?: () => void) {
     expect(global.gc).toBeDefined();

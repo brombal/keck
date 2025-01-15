@@ -2,11 +2,11 @@ import { observe, focus, reset, unwrap } from 'keck';
 import { useRef, useState, useLayoutEffect } from 'react';
 
 let finalizationRegistry;
+if (window.FinalizationRegistry && window.KECK_OBSERVE_GC && !finalizationRegistry) {
+    console.log('keck/react: initializing FinalizationRegistry');
+    finalizationRegistry = new FinalizationRegistry((...args) => console.log('keck/react: FinalizationRegistry callback invoked', args));
+}
 function useObserver(data, callback) {
-    if (window.FinalizationRegistry && window.KECK_OBSERVE_GC && !finalizationRegistry) {
-        console.log('keck/react: initializing FinalizationRegistry');
-        finalizationRegistry = new FinalizationRegistry((...args) => console.log('keck/react: FinalizationRegistry callback invoked', args));
-    }
     const mounted = useRef(true);
     const [, forceRerender] = useState({});
     const ref = useRef();

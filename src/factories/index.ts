@@ -1,7 +1,7 @@
 import './map';
 import { objectFactory } from './object';
-import { registerClass } from './registerClass';
+import { registerObservableClass } from './registerObservableClass';
 import './set';
 
-registerClass(Object, objectFactory);
-registerClass(Array, objectFactory);
+registerObservableClass(Object, objectFactory);
+registerObservableClass(Array, objectFactory);

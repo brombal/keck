@@ -1,6 +1,6 @@
 import type { FactoryObservableContext } from 'keck/core/ObservableContext';
 import type { ObservableFactory } from 'keck/factories/observableFactories';
-import { registerClass } from 'keck/factories/registerClass';
+import { registerObservableClass } from 'keck/factories/registerObservableClass';
 import { atomic } from 'keck/methods/atomic';
 
 const _size = Symbol('size');
@@ -89,7 +89,7 @@ export class ObservableMap<K, V> extends Map<K, V> {
   }
 }
 
-registerClass(Map, {
+registerObservableClass(Map, {
   makeObservable: (ctx) => {
     return new ObservableMap(ctx);
   },

@@ -1,6 +1,6 @@
 import type { FactoryObservableContext } from 'keck/core/ObservableContext';
 import type { ObservableFactory } from 'keck/factories/observableFactories';
-import { registerClass } from 'keck/factories/registerClass';
+import { registerObservableClass } from 'keck/factories/registerObservableClass';
 
 const _size = Symbol('size');
 
@@ -71,7 +71,7 @@ class ObservableSet<T> extends Set<T> {
   }
 }
 
-registerClass(Set, {
+registerObservableClass(Set, {
   makeObservable: (ctx) => {
     return new ObservableSet(ctx);
   },

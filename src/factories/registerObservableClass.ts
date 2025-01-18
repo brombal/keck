@@ -9,6 +9,9 @@ import { type ObservableFactory, observableFactories } from './observableFactori
  * @param classConstructor The class to register.
  * @param factory The factory to use to create observable instances of the class.
  */
-export function registerClass(classConstructor: AnyConstructor, factory?: ObservableFactory<any>) {
+export function registerObservableClass(
+  classConstructor: AnyConstructor,
+  factory?: ObservableFactory<any>,
+) {
   observableFactories.set(classConstructor, factory || objectFactory);
 }

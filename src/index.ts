@@ -13,5 +13,6 @@ export { silent } from './methods/silent';
 export { unwrap } from './methods/unwrap';
 export { shallowCompare } from './util/shallowCompare';
 export { isRef } from './methods/ref';
-export { registerClass } from './factories/registerClass';
+export { registerObservableClass } from './factories/registerObservableClass';
+export { transformInPlace } from './util/transformInPlace';
 export type { DeriveEqualFn, DeriveFn } from './methods/derive';

@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { focus, observe, peek, registerClass } from 'keck';
+import { focus, observe, peek, registerObservableClass } from 'keck';
 
 describe('Custom classes', () => {
   class Counter {
@@ -40,7 +40,7 @@ describe('Custom classes', () => {
     }
   }
 
-  registerClass(Counter);
+  registerObservableClass(Counter);
 
   test('Method that modifies its own property does so atomically', async () => {
     const mockCallback = jest.fn();

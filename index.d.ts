@@ -82,6 +82,26 @@ interface ObservableFactory<TValue extends object> {
  * @param classConstructor The class to register.
  * @param factory The factory to use to create observable instances of the class.
  */
-declare function registerClass(classConstructor: AnyConstructor, factory?: ObservableFactory<any>): void;
+declare function registerObservableClass(classConstructor: AnyConstructor, factory?: ObservableFactory<any>): void;
 
-export { type DeriveEqualFn, type DeriveFn, atomic, deep, derive, disable, enable, focus, isRef, observe, peek, ref, registerClass, reset, shallowCompare, silent, unwrap };
+/**
+ * Recursively transforms `target` into the shape of `source`, in place.
+ *
+ * - Both `target` and `source` must be arrays or plain objects;
+ *   otherwise `source` is returned.
+ * - If both `target` and `source` have the same structure type (array <-> array,
+ *   object <-> object), then we recurse.
+ * - Any mismatch in structure means we directly replace the `target` value with
+ *   the `source` value.
+ * - Any primitive or "complex object" (Date, Set, Map, etc.) in `source`
+ *   directly replaces the value in `target`.
+ * - Any properties in `target` not in `source` are deleted.
+ *
+ * @param target The object/array to transform *in-place*.
+ * @param source The source object/array to match shape.
+ * @returns The same `target` reference, now transformed to match `source`.
+ * @throws If top-level `target` or `source` is not an array or plain object.
+ */
+declare function transformInPlace<TSource>(target: unknown, source: TSource): TSource;
+
+export { type DeriveEqualFn, type DeriveFn, atomic, deep, derive, disable, enable, focus, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };

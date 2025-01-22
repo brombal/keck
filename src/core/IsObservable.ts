@@ -1,4 +1,4 @@
-import { getObservableFactory } from "keck/factories/observableFactories";
+import { getObservableFactory } from 'keck/factories/observableFactories';
 
 export function isObservable(value: any, throwEx = false): value is object {
   if (value && typeof value === 'object' && getObservableFactory(value.constructor)) {

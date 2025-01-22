@@ -1,1 +1,2 @@
-export type AnyConstructor = new (...args: any[]) => any;
+// biome-ignore lint/complexity/noBannedTypes: it is what it is
+export type AnyConstructor = Function;

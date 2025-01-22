@@ -10,7 +10,6 @@ import { getMapEntry } from 'keck/util/getMapEntry';
 
 import { isObservable } from 'keck/core/IsObservable';
 import { triggerObservations } from 'keck/core/triggerObservations';
-import type { AnyConstructor } from 'keck/util/types';
 import type { Observation, Observer } from './Observer';
 
 /**
@@ -68,7 +67,7 @@ export class RootNode {
     const isObservable =
       childValue &&
       typeof childValue === 'object' &&
-      getObservableFactory(childValue.constructor as AnyConstructor) &&
+      getObservableFactory(childValue.constructor) &&
       !isRef(childValue);
 
     // If the given value is observable, return the observable for it

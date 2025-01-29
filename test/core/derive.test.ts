@@ -350,4 +350,41 @@ describe('derive()', () => {
     expect(mockCallback).toHaveBeenCalledTimes(0);
     jest.clearAllMocks();
   });
+
+  test('nested derive', () => {
+    const mockCallback = jest.fn();
+
+    const state = observe(
+      {
+        value1: false,
+        value2: true,
+      },
+      mockCallback,
+    );
+    focus(state);
+
+    const value1 = () => {
+      return state.value1;
+    };
+    const value2 = () => {
+      return state.value2;
+    };
+
+    // derive(value1);
+    derive(() => {
+      return derive(value2) && derive(value1);
+    });
+
+    derive(value2);
+
+    jest.resetAllMocks();
+    state.value1 = true;
+
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+
+    jest.resetAllMocks();
+    state.value1 = false;
+
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+  });
 });

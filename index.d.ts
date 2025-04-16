@@ -15,7 +15,25 @@ interface FactoryObservableContext<TValue extends object> {
 declare function atomic<T>(fn: (...args: unknown[]) => unknown, args?: unknown[], thisArg?: unknown): T;
 declare function atomic<T, TArgs extends unknown[]>(fn: (...args: TArgs) => T, args: TArgs, thisArg?: unknown): T;
 
-declare function deep<T extends object>(observable: T): T;
+/**
+ * Ensures that any changes to deep properties within the given value (which should be an observable type) will trigger
+ * its observer's callback (in React, this ensures that the component is re-rendered on deep property changes).
+ *
+ * If `observable` is not an observable type (e.g. a primitive or null), it will be returned as-is. If `observer`
+ * is an observable type, but is not an observable proxy, an error will be thrown.
+ *
+ * This only applies when the observable is focused (in unfocused mode, all changes trigger the callback). In React,
+ * observers are always focused.
+ *
+ * e.g.
+ * ```ts
+ * const state = observe({ object1: { value1: 'value1' } }, callback);
+ * deep(state.object1);
+ * state.object1.value1 = 'new-value1';
+ * // callback will be triggered
+ * ```
+ */
+declare function deep<T>(observable: T): T;
 
 /**
  * Disables an observer, preventing it from triggering its callback when its
@@ -63,7 +81,7 @@ declare function unwrap<T>(observable: T, deepObserve?: boolean): T;
  */
 declare function shallowCompare<T>(a: T, b: T): boolean;
 
-type AnyConstructor = new (...args: any[]) => any;
+type AnyConstructor = Function;
 
 /**
  * This interface is used to create observable objects. To create an observable for a class,

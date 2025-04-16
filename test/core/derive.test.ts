@@ -352,39 +352,39 @@ describe('derive()', () => {
   });
 
   test('nested derive', () => {
-    const mockCallback = jest.fn();
+    // The problem:
+    // derive a calculates a value, and invokes callback a.
+    // derive b calculates a value which includes calling derive a, and invokes callback b.
+    // When a change causes derive a to be triggered within derive b (before derive a is triggered on its own), internally
+    // that will cause derive a's "remembered" value to change, so when
+    // derive a is triggered, it does not recognize that the value has changed so callback a is not triggered.
 
-    const state = observe(
-      {
-        value1: false,
-        value2: true,
-      },
-      mockCallback,
-    );
-    focus(state);
+    const mockCallbackA = jest.fn();
 
-    const value1 = () => {
-      return state.value1;
-    };
-    const value2 = () => {
-      return state.value2;
+    const data = {
+      value1: 1,
+      value2: 2,
     };
 
-    // derive(value1);
+    const stateA = observe(data, mockCallbackA);
+    focus(stateA);
+
+    const derive1 = () => {
+      return stateA.value1;
+    };
+
+    // derive b
     derive(() => {
-      return derive(value2) && derive(value1);
+      void derive(derive1);
+      return stateA.value2;
     });
 
-    derive(value2);
+    // derive a
+    derive(derive1);
 
     jest.resetAllMocks();
-    state.value1 = true;
+    stateA.value1 = 3;
 
-    expect(mockCallback).toHaveBeenCalledTimes(1);
-
-    jest.resetAllMocks();
-    state.value1 = false;
-
-    expect(mockCallback).toHaveBeenCalledTimes(1);
+    expect(mockCallbackA).toHaveBeenCalledTimes(1);
   });
 });

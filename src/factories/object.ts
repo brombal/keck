@@ -42,6 +42,15 @@ export const objectFactory: ObservableFactory<Record<string | symbol, unknown>> 
             return setResult;
           }
 
+          // Check if property is a setter or a regular property
+          if (isSetter(ctx.value, prop)) {
+            return atomic(() => {
+              const result = Reflect.set(ctx.value, prop, rawValue, observer);
+              ctx.modifyIdentifier(prop);
+              return result;
+            });
+          }
+
           const result = Reflect.set(ctx.value, prop, rawValue, observer);
           ctx.modifyIdentifier(prop);
           return result;
@@ -62,3 +71,16 @@ export const objectFactory: ObservableFactory<Record<string | symbol, unknown>> 
     );
   },
 };
+
+function findPropertyDescriptor(obj: any, prop: string | symbol) {
+  while (obj) {
+    const desc = Reflect.getOwnPropertyDescriptor(obj, prop);
+    if (desc) return desc;
+    obj = Object.getPrototypeOf(obj);
+  }
+  return undefined;
+}
+
+function isSetter(obj: any, prop: string | symbol) {
+  return !!findPropertyDescriptor(obj, prop)?.set;
+}

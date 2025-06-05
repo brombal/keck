@@ -3,11 +3,7 @@ import { triggerObservations } from 'keck/core/triggerObservations';
 
 export let atomicObservations: Set<Observation> | undefined;
 
-export function atomic<T>(
-  fn: (...args: unknown[]) => unknown,
-  args?: unknown[],
-  thisArg?: unknown,
-): T;
+export function atomic<T>(fn: (...args: unknown[]) => T, args?: unknown[], thisArg?: unknown): T;
 
 export function atomic<T, TArgs extends unknown[]>(
   fn: (...args: TArgs) => T,

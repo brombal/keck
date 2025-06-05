@@ -64,7 +64,19 @@ describe('Custom classes', () => {
     jest.resetAllMocks();
   });
 
-  test('Getter and setter works as expected', async () => {
+  test('Setter works as expected', async () => {
+    const mockCallback = jest.fn();
+    const store = observe(new Counter(), mockCallback);
+
+    expect(mockCallback).toHaveBeenCalledTimes(0);
+
+    store.value = 5;
+
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+    expect(store.value).toBe(5);
+  });
+
+  test('Getter that uses other observable property works as expected', async () => {
     const mockCallback = jest.fn();
     const store = observe(new Counter(), mockCallback);
     focus(store);

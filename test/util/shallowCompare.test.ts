@@ -1,7 +1,7 @@
-import { shallowCompare } from "keck";
+import { shallowCompare } from 'keck';
 
-describe("shallowCompare", () => {
-  test("Object comparison works", () => {
+describe('shallowCompare', () => {
+  test('Object comparison works', () => {
     const obj1 = { a: 1, b: 2 };
     const obj2 = { a: 1, b: 2 };
     const obj3 = { a: 1, b: 3 };
@@ -16,7 +16,7 @@ describe("shallowCompare", () => {
     expect(shallowCompare(obj4, obj6)).toBe(false);
   });
 
-  test("Array comparison works", () => {
+  test('Array comparison works', () => {
     const arr1 = [1, 2];
     const arr2 = [1, 2];
     const arr3 = [1, 3];
@@ -31,11 +31,11 @@ describe("shallowCompare", () => {
     expect(shallowCompare(arr4, arr6)).toBe(false);
   });
 
-  test("Primitive comparison works", () => {
+  test('Primitive comparison works', () => {
     expect(shallowCompare(1, 1)).toBe(true);
     expect(shallowCompare(1, 2)).toBe(false);
-    expect(shallowCompare("a", "a")).toBe(true);
-    expect(shallowCompare("a", "b")).toBe(false);
+    expect(shallowCompare('a', 'a')).toBe(true);
+    expect(shallowCompare('a', 'b')).toBe(false);
     expect(shallowCompare(true, true)).toBe(true);
     expect(shallowCompare(true, false)).toBe(false);
     expect(shallowCompare(null, undefined)).toBe(false);

@@ -1,8 +1,8 @@
-import { focus, observe, silent } from "keck";
-import { jest } from "@jest/globals";
+import { jest } from '@jest/globals';
+import { focus, observe, silent } from 'keck';
 
-describe("silent()", () => {
-  test("Silent modifications do not trigger callback", () => {
+describe('silent()', () => {
+  test('Silent modifications do not trigger callback', () => {
     const data = { value: 1 };
 
     // Regular store
@@ -43,7 +43,7 @@ describe("silent()", () => {
     jest.resetAllMocks();
   });
 
-  test("Silent modifications still cause object references to be different", () => {
+  test('Silent modifications still cause object references to be different', () => {
     const mockCallback = jest.fn();
     const store = observe({ value1: {}, value2: {} }, mockCallback);
 

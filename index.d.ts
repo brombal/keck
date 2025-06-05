@@ -12,7 +12,7 @@ interface FactoryObservableContext<TValue extends object> {
     modifyIdentifier(identifier: any): void;
 }
 
-declare function atomic<T>(fn: (...args: unknown[]) => unknown, args?: unknown[], thisArg?: unknown): T;
+declare function atomic<T>(fn: (...args: unknown[]) => T, args?: unknown[], thisArg?: unknown): T;
 declare function atomic<T, TArgs extends unknown[]>(fn: (...args: TArgs) => T, args: TArgs, thisArg?: unknown): T;
 
 /**

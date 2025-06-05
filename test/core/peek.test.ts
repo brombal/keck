@@ -1,9 +1,9 @@
-import { focus, observe, peek } from "keck";
-import { jest } from "@jest/globals";
-import { createData } from "../shared-data";
+import { jest } from '@jest/globals';
+import { focus, observe, peek } from 'keck';
+import { createData } from '../shared-data';
 
-describe("peek()", () => {
-  test("Modifying property that was peeked does not trigger callback", () => {
+describe('peek()', () => {
+  test('Modifying property that was peeked does not trigger callback', () => {
     const data = createData();
 
     const mockCallback1 = jest.fn();
@@ -23,7 +23,7 @@ describe("peek()", () => {
     focus(store2, false);
 
     // value1 peeked by both store; no callback triggered
-    store1.value1 = "new-value1";
+    store1.value1 = 'new-value1';
     expect(mockCallback1).toHaveBeenCalledTimes(0);
     jest.resetAllMocks();
 

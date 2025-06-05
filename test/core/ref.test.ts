@@ -1,7 +1,7 @@
-import { deep, focus, isRef, observe, ref, unwrap } from "keck";
-import { jest } from "@jest/globals";
+import { jest } from '@jest/globals';
+import { deep, focus, isRef, observe, ref, unwrap } from 'keck';
 
-describe("ref()", () => {
+describe('ref()', () => {
   test("Modifying ref inner property doesn't trigger callback (non-focus mode)", () => {
     const mockCallback = jest.fn();
     const data = {
@@ -85,7 +85,7 @@ describe("ref()", () => {
     expect(state2.object3).toBe(data.object3);
   });
 
-  test("Creating ref from primitive has no effect", () => {
+  test('Creating ref from primitive has no effect', () => {
     const mockCallback = jest.fn();
     const data = {
       object1: {} as any,
@@ -104,7 +104,7 @@ describe("ref()", () => {
     expect(state.object1).toBe(data.object1);
   });
 
-  test("Creating ref from non-observable value has no effect", () => {
+  test('Creating ref from non-observable value has no effect', () => {
     const mockCallback = jest.fn();
     const data = {
       value: 1,
@@ -133,7 +133,7 @@ describe("ref()", () => {
     expect(mockCallback).toHaveBeenCalledTimes(0);
   });
 
-  test("Creating ref from null or undefined value has no effect", () => {
+  test('Creating ref from null or undefined value has no effect', () => {
     const mockCallback = jest.fn();
     const data = {
       object1: {} as any,

@@ -1,5 +1,5 @@
+import { jest } from '@jest/globals';
 import { observe, unwrap } from 'keck';
-import { jest } from "@jest/globals";
 import { createData } from '../shared-data';
 
 describe('observe()', () => {
@@ -172,17 +172,17 @@ describe('observe()', () => {
   });
 
   test('Creating an observable from a non-observable value errors', () => {
-    expect(() => observe(1 as any, () => {})).toThrow(`Value 1 is not observable`);
+    expect(() => observe(1 as any, () => {})).toThrow('Value 1 is not observable');
     expect(() => observe('string' as any, () => {})).toThrow(`Value "string" is not observable`);
-    expect(() => observe(null as any, () => {})).toThrow(`Value null is not observable`);
-    expect(() => observe(undefined as any, () => {})).toThrow(`Value undefined is not observable`);
-    expect(() => observe(new Date(), () => {})).toThrow(`Value of type Date is not observable`);
+    expect(() => observe(null as any, () => {})).toThrow('Value null is not observable');
+    expect(() => observe(undefined as any, () => {})).toThrow('Value undefined is not observable');
+    expect(() => observe(new Date(), () => {})).toThrow('Value of type Date is not observable');
     expect(() =>
       observe(
         () => {},
         () => {},
       ),
-    ).toThrow(`Value of type Function is not observable`);
+    ).toThrow('Value of type Function is not observable');
   });
 
   test('JSON.stringify() on an observable should work', () => {

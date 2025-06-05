@@ -318,6 +318,14 @@ const objectFactory = {
                     });
                     return setResult;
                 }
+                // Check if property is a setter or a regular property
+                if (isSetter(ctx.value, prop)) {
+                    return atomic(() => {
+                        const result = Reflect.set(ctx.value, prop, rawValue, observer);
+                        ctx.modifyIdentifier(prop);
+                        return result;
+                    });
+                }
                 const result = Reflect.set(ctx.value, prop, rawValue, observer);
                 ctx.modifyIdentifier(prop);
                 return result;
@@ -338,6 +346,18 @@ const objectFactory = {
         });
     },
 };
+function findPropertyDescriptor(obj, prop) {
+    while (obj) {
+        const desc = Reflect.getOwnPropertyDescriptor(obj, prop);
+        if (desc)
+            return desc;
+        obj = Object.getPrototypeOf(obj);
+    }
+    return undefined;
+}
+function isSetter(obj, prop) {
+    return !!findPropertyDescriptor(obj, prop)?.set;
+}
 
 /**
  * Registers a class that can be observed. You can provide a custom factory that produces observable

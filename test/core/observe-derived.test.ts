@@ -1,8 +1,8 @@
-import { atomic, observe } from "keck";
-import { jest } from "@jest/globals";
+import { jest } from '@jest/globals';
+import { atomic, observe } from 'keck';
 
-describe("observe() with derive", () => {
-  test("Changing derive fn return value triggers callback", () => {
+describe('observe() with derive', () => {
+  test('Changing derive fn return value triggers callback', () => {
     const mockCallback = jest.fn();
     const mockDerive = jest.fn();
     const state = observe(

@@ -180,7 +180,8 @@ describe('Maps', () => {
     const { data } = createData();
     const store = observe(data, mockCallback);
     focus(store);
-    store.alphaMap.forEach((value) => {});
+    // biome-ignore lint/complexity/noForEach: this is purposely under test
+    store.alphaMap.forEach((_value) => {});
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(1);

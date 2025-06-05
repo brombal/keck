@@ -1,9 +1,9 @@
-import { focus, observe } from "keck";
-import { jest } from "@jest/globals";
-import { createData } from "../shared-data";
+import { jest } from '@jest/globals';
+import { focus, observe } from 'keck';
+import { createData } from '../shared-data';
 
-describe("focus mode", () => {
-  test("Modifying focused properties triggers callback", () => {
+describe('focus mode', () => {
+  test('Modifying focused properties triggers callback', () => {
     const data = createData();
 
     const mockFn1 = jest.fn();
@@ -32,13 +32,13 @@ describe("focus mode", () => {
     focus(store1, false);
     focus(store2, false);
 
-    store1.object1.value1 = "new-object1-value1";
+    store1.object1.value1 = 'new-object1-value1';
     expect(mockFn1).toHaveBeenCalledTimes(1);
     expect(mockFn2).toHaveBeenCalledTimes(1);
     mockFn1.mockReset();
     mockFn2.mockReset();
 
-    store1.object1.value2 = "new-object1-value2";
+    store1.object1.value2 = 'new-object1-value2';
     expect(mockFn1).toHaveBeenCalledTimes(1);
     expect(mockFn2).toHaveBeenCalledTimes(0);
     mockFn1.mockReset();
@@ -50,28 +50,28 @@ describe("focus mode", () => {
     mockFn1.mockReset();
     mockFn2.mockReset();
 
-    store1.object2.value1 = "new-object2-value1";
+    store1.object2.value1 = 'new-object2-value1';
     expect(mockFn1).toHaveBeenCalledTimes(0);
     expect(mockFn2).toHaveBeenCalledTimes(1);
     mockFn1.mockReset();
     mockFn2.mockReset();
 
     // No modification
-    store1.object1.value1 = "new-object1-value1";
+    store1.object1.value1 = 'new-object1-value1';
     expect(mockFn1).toHaveBeenCalledTimes(0);
     expect(mockFn2).toHaveBeenCalledTimes(0);
     mockFn1.mockReset();
     mockFn2.mockReset();
 
     // Not focused
-    store1.object2.value2 = "new-object2-value2";
+    store1.object2.value2 = 'new-object2-value2';
     expect(mockFn1).toHaveBeenCalledTimes(0);
     expect(mockFn2).toHaveBeenCalledTimes(0);
     mockFn1.mockReset();
     mockFn2.mockReset();
   });
 
-  test("Focusing and modifying object does not trigger callback", () => {
+  test('Focusing and modifying object does not trigger callback', () => {
     const data = createData();
 
     const mockCallback = jest.fn();
@@ -84,14 +84,14 @@ describe("focus mode", () => {
     expect(mockCallback).toHaveBeenCalledTimes(0);
 
     store.object1 = {
-      value1: "new-object1-value1",
-      value2: "new-object1-value2",
+      value1: 'new-object1-value1',
+      value2: 'new-object1-value2',
     } as any;
 
     expect(mockCallback).toHaveBeenCalledTimes(0);
   });
 
-  test("Replacing ancestor of focused property triggers callback", () => {
+  test('Replacing ancestor of focused property triggers callback', () => {
     const data = createData();
 
     const mockFn1 = jest.fn();
@@ -106,15 +106,15 @@ describe("focus mode", () => {
     void store2.object1.value1;
 
     store1.object1 = {
-      value1: "new-object1-value1",
-      value2: "new-object1-value2",
+      value1: 'new-object1-value1',
+      value2: 'new-object1-value2',
     } as any;
 
     expect(mockFn1).toHaveBeenCalledTimes(1);
     expect(mockFn2).toHaveBeenCalledTimes(1);
   });
 
-  test("Modifying properties accessed while focus is paused does not trigger callback", () => {
+  test('Modifying properties accessed while focus is paused does not trigger callback', () => {
     const data = createData();
 
     // store1 callback will be triggered on modification of value1 and value3
@@ -137,7 +137,7 @@ describe("focus mode", () => {
     void store2.value2;
     void store2.value3;
 
-    store1.value1 = "new-value1";
+    store1.value1 = 'new-value1';
     expect(mockFn1).toHaveBeenCalledTimes(1);
     expect(mockFn2).toHaveBeenCalledTimes(1);
     jest.clearAllMocks();

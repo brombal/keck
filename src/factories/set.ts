@@ -1,8 +1,10 @@
 import type { FactoryObservableContext } from 'keck/core/ObservableContext';
 import type { ObservableFactory } from 'keck/factories/observableFactories';
 import { registerObservableClass } from 'keck/factories/registerObservableClass';
+import { atomic } from 'keck/methods/atomic';
 
 const _size = Symbol('size');
+const _has = Symbol('has');
 
 class ObservableSet<T> extends Set<T> {
   constructor(private ctx: FactoryObservableContext<Set<T>>) {
@@ -16,19 +18,34 @@ class ObservableSet<T> extends Set<T> {
   add(value: T): this {
     const size = this.set.size;
     this.set.add(value);
-    if (size !== this.set.size) this.ctx.modifyIdentifier(_size);
+    if (size !== this.set.size) {
+      atomic(() => {
+        this.ctx.modifyIdentifier(_size);
+        this.ctx.modifyIdentifier(value);
+      });
+    }
     return this;
   }
 
   clear(): void {
     const size = this.set.size;
     this.set.clear();
-    if (size !== this.set.size) this.ctx.modifyIdentifier(_size);
+    if (size !== this.set.size) {
+      atomic(() => {
+        this.ctx.modifyIdentifier(_size);
+        this.ctx.modifyIdentifier(_has);
+      });
+    }
   }
 
   delete(value: T): boolean {
     const res = this.set.delete(value);
-    if (res) this.ctx.modifyIdentifier(_size);
+    if (res) {
+      atomic(() => {
+        this.ctx.modifyIdentifier(_size);
+        this.ctx.modifyIdentifier(value);
+      });
+    }
     return res;
   }
 
@@ -41,7 +58,8 @@ class ObservableSet<T> extends Set<T> {
   }
 
   has(value: T): boolean {
-    this.ctx.observeIdentifier(_size);
+    this.ctx.observeIdentifier(value);
+    this.ctx.observeIdentifier(_has);
     return this.set.has(value);
   }
 

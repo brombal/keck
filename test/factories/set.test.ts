@@ -93,10 +93,17 @@ describe('Sets', () => {
     focus(store);
 
     store.alphaSet.has('a');
+    store.alphaSet.has('x');
     focus(store, false);
 
     // Modify set & check callback counts
-    store.alphaSet.add('d');
+    store.alphaSet.add('d'); // 'd' was not observed, should not trigger callback
+    expect(mockCallback).toHaveBeenCalledTimes(0);
+
+    store.alphaSet.add('a'); // 'a' is already present, should not trigger callback
+    expect(mockCallback).toHaveBeenCalledTimes(0);
+
+    store.alphaSet.add('x');
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 

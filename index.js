@@ -287,10 +287,6 @@ const objectFactory = {
         // The target of the proxy is not really relevant since we always get/set values directly on the context value object.
         // It's important to pass the original value though, because it needs to be an array for certain internal checks (Array.isArray, for example)
         ctx.value, {
-            has(_, prop) {
-                ctx.observeIdentifier(prop);
-                return Reflect.has(ctx.value, prop);
-            },
             get(_, prop, observable) {
                 // if (prop === "toJSON") return () => ctx.value;
                 const propValue = Reflect.get(ctx.value, prop, observable);
@@ -452,7 +448,8 @@ registerObservableClass(Map, {
     },
 });
 
-const _size = Symbol('size');
+const _size = Symbol("size");
+const _has = Symbol("has");
 class ObservableSet extends Set {
     ctx;
     constructor(ctx) {
@@ -465,20 +462,32 @@ class ObservableSet extends Set {
     add(value) {
         const size = this.set.size;
         this.set.add(value);
-        if (size !== this.set.size)
-            this.ctx.modifyIdentifier(_size);
+        if (size !== this.set.size) {
+            atomic(() => {
+                this.ctx.modifyIdentifier(_size);
+                this.ctx.modifyIdentifier(value);
+            });
+        }
         return this;
     }
     clear() {
         const size = this.set.size;
         this.set.clear();
-        if (size !== this.set.size)
-            this.ctx.modifyIdentifier(_size);
+        if (size !== this.set.size) {
+            atomic(() => {
+                this.ctx.modifyIdentifier(_size);
+                this.ctx.modifyIdentifier(_has);
+            });
+        }
     }
     delete(value) {
         const res = this.set.delete(value);
-        if (res)
-            this.ctx.modifyIdentifier(_size);
+        if (res) {
+            atomic(() => {
+                this.ctx.modifyIdentifier(_size);
+                this.ctx.modifyIdentifier(value);
+            });
+        }
         return res;
     }
     forEach(callbackFn, thisArg) {
@@ -489,7 +498,8 @@ class ObservableSet extends Set {
         void this.size;
     }
     has(value) {
-        this.ctx.observeIdentifier(_size);
+        this.ctx.observeIdentifier(value);
+        this.ctx.observeIdentifier(_has);
         return this.set.has(value);
     }
     get size() {
@@ -516,7 +526,7 @@ class ObservableSet extends Set {
 registerObservableClass(Set, {
     makeObservable: (ctx) => {
         return new ObservableSet(ctx);
-    },
+    }
 });
 
 registerObservableClass(Object, objectFactory);

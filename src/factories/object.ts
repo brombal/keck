@@ -9,10 +9,6 @@ export const objectFactory: ObservableFactory<Record<string | symbol, unknown>> 
       // It's important to pass the original value though, because it needs to be an array for certain internal checks (Array.isArray, for example)
       ctx.value,
       {
-        has(_, prop) {
-          ctx.observeIdentifier(prop);
-          return Reflect.has(ctx.value, prop);
-        },
         get(_, prop, observable) {
           // if (prop === "toJSON") return () => ctx.value;
           const propValue = Reflect.get(ctx.value, prop, observable);

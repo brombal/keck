@@ -149,4 +149,31 @@ describe('Arrays', () => {
     expect(store2.array1[1].value1).toBe('new-array1-1-value1');
     expect(store2.array1[2]).toBeUndefined();
   });
+
+  /**
+   * Iteration methods like `.map()` and `.forEach()` on an array should not trigger callbacks when modifying the properties of an item in the array.
+   * This test was added because I noticed that in React, iterating an array to produce elements that eventually
+   * modified the array items was re-rendering the component that contained the `.map()` (specifically, a form
+   * that had an array of objects, and the form inputs were modifying the object entries). As a result, I removed
+   * the Proxy's handler for `has`, which was creating an observation on the array indexes. As of now, all the tests
+   * continued to pass so it did not appear to have any internal adverse effects. However, it will be a breaking change
+   * for anything using `has` and expecting it to create an observation (such as checking `'property' in object` then
+   * creating that property later).
+   */
+  test("Modifying a deep property after forEach doesn't trigger callbacks", () => {
+    const mockFn1 = jest.fn();
+
+    const data = createData();
+
+    const store1 = observe(data, mockFn1);
+
+    focus(store1);
+    // biome-ignore lint/complexity/noForEach: <explanation>
+    store1.array1.forEach(() => {});
+    focus(store1, false);
+
+    store1.array1[0].value1 = 'new-array1-0-value1';
+
+    expect(mockFn1).toHaveBeenCalledTimes(0);
+  });
 });

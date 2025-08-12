@@ -91,7 +91,7 @@ export class RootNode {
 
     if (silentMode) return;
 
-    const observationsToCall = atomicObservations || new Set();
+    const observationsToCall = atomicObservations || new Set<Observation>();
 
     const pathEntries = this.pathEntries.collect(path);
 

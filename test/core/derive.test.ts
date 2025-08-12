@@ -387,4 +387,68 @@ describe('derive()', () => {
 
     expect(mockCallbackA).toHaveBeenCalledTimes(1);
   });
+
+  test('derive double value', () => {
+    const mockCallbackA = jest.fn();
+
+    const data = {
+      object1: {
+        value1: '',
+        value2: '',
+      },
+    };
+
+    const stateA = observe(data, mockCallbackA);
+    focus(stateA);
+    derive(() => {
+      return !!stateA.object1.value1 || !!stateA.object1.value2;
+    });
+    focus(stateA, false);
+
+    stateA.object1.value1 = 'a';
+    stateA.object1.value2 = 'b';
+    jest.resetAllMocks();
+    atomic(() => {
+      stateA.object1.value1 = 'x';
+    });
+    expect(mockCallbackA).toHaveBeenCalledTimes(0);
+
+    stateA.object1.value1 = 'a';
+    stateA.object1.value2 = 'b';
+    jest.resetAllMocks();
+    stateA.object1.value1 = '';
+    expect(mockCallbackA).toHaveBeenCalledTimes(0);
+
+    stateA.object1.value1 = 'a';
+    stateA.object1.value2 = 'b';
+    jest.resetAllMocks();
+    stateA.object1.value2 = '';
+    expect(mockCallbackA).toHaveBeenCalledTimes(0);
+
+    stateA.object1.value1 = 'a';
+    stateA.object1.value2 = 'b';
+    jest.resetAllMocks();
+    stateA.object1.value1 = '';
+    stateA.object1.value2 = '';
+    expect(mockCallbackA).toHaveBeenCalledTimes(1);
+
+    // stateA.value1 = "";
+    // stateA.value2 = "";
+    // jest.resetAllMocks();
+    // stateA.value1 = "a";
+    // expect(mockCallbackA).toHaveBeenCalledTimes(1);
+    //
+    // jest.resetAllMocks();
+    // stateA.value1 = "b";
+    // expect(mockCallbackA).toHaveBeenCalledTimes(0);
+    //
+    // stateA.value1 = "";
+    // jest.resetAllMocks();
+    // stateA.value2 = "a";
+    // expect(mockCallbackA).toHaveBeenCalledTimes(1);
+    //
+    // jest.resetAllMocks();
+    // stateA.value2 = "b";
+    // expect(mockCallbackA).toHaveBeenCalledTimes(0);
+  });
 });

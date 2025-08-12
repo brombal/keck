@@ -1,31 +1,49 @@
-import { observe, focus, reset, unwrap } from 'keck';
+import { focus, reset, observe, unwrap } from 'keck';
 import { useRef, useState, useLayoutEffect } from 'react';
 
 let finalizationRegistry;
 if (window.FinalizationRegistry && window.KECK_OBSERVE_GC && !finalizationRegistry) {
-    console.log('keck/react: initializing FinalizationRegistry');
-    finalizationRegistry = new FinalizationRegistry((...args) => console.log('keck/react: FinalizationRegistry callback invoked', args));
+    console.log("keck/react: initializing FinalizationRegistry");
+    finalizationRegistry = new FinalizationRegistry((...args) => console.log("keck/react: FinalizationRegistry callback invoked", args));
 }
-function useObserver(data, callback) {
+const renderStack = new Set();
+function useObserver(data, depsOrCallback, callback) {
+    let deps = typeof depsOrCallback === "function" ? [] : (depsOrCallback || []);
+    callback = typeof depsOrCallback === "function" ? depsOrCallback : callback;
+    const id = renderStack.size + 1;
+    renderStack.add(id);
     const mounted = useRef(true);
     const [, forceRerender] = useState({});
-    const ref = useRef();
-    if (!ref.current) {
-        ref.current = observe(data, () => {
+    const ref = useRefWithDeps(() => {
+        const value = observe(data, () => {
             if (!mounted.current)
                 return;
-            callback?.();
-            forceRerender({});
+            const rerender = () => {
+                callback?.();
+                forceRerender({});
+            };
+            if (renderStack.has(id) || !renderStack.size) {
+                rerender(); // Current component or not in render phase — safe to re-render immediately
+            }
+            else {
+                queueMicrotask(rerender); // Other components — defer
+            }
         });
-        finalizationRegistry?.register(ref.current, 'Keck observable released');
-    }
+        finalizationRegistry?.register(value, "Keck observable released");
+        return value;
+    }, deps);
     const state = ref.current;
     // Begin observing on render
     focus(state);
     reset(state);
-    // Stop observing as soon as component finishes rendering
     useLayoutEffect(() => {
         focus(state, false);
+        renderStack.delete(id);
+    });
+    // Stop observing as soon as component finishes rendering
+    queueMicrotask(() => {
+        focus(state, false);
+        renderStack.delete(id);
     });
     useLayoutEffect(() => {
         mounted.current = true;
@@ -47,9 +65,21 @@ function useDerived(data, deriveFn, isEqual) {
         ref.current = observe(data, () => forceRerender({}), (data) => {
             return (deriveResultRef.current = deriveFn(data));
         }, isEqual);
-        finalizationRegistry?.register(ref.current, 'Keck derived observable released');
+        finalizationRegistry?.register(ref.current, "Keck derived observable released");
     }
     return unwrap(deriveResultRef.current);
+}
+function useRefWithDeps(factory, deps) {
+    const ref = useRef();
+    const depsRef = useRef();
+    const hasChanged = !depsRef.current ||
+        deps.length !== depsRef.current.length ||
+        deps.some((dep, i) => !Object.is(dep, depsRef.current[i]));
+    if (hasChanged) {
+        ref.current = factory();
+        depsRef.current = deps;
+    }
+    return ref;
 }
 
 export { useDerived, useObserver };

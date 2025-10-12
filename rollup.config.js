@@ -1,5 +1,6 @@
 import ts from '@rollup/plugin-typescript';
 import { dts } from 'rollup-plugin-dts';
+import filesize from 'rollup-plugin-filesize';
 import tsConfig from './tsconfig.json' with { type: 'json' };
 
 const dtsPlugin = dts({
@@ -13,7 +14,7 @@ export default [
       file: './index.js',
       sourcemap: true,
     },
-    plugins: [ts()],
+    plugins: [ts(), filesize()],
   },
   {
     input: 'src/index.ts',

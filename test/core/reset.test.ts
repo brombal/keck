@@ -109,4 +109,8 @@ describe('reset()', () => {
     store.value1 = 'new-value1-2';
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
+
+  test('Calling reset() on non-observable throws', () => {
+    expect(() => reset({})).toThrow('Value is not observable');
+  });
 });

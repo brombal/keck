@@ -70,11 +70,10 @@ declare function silent(callback: () => void): void;
  * Returns the original object of an observable wrapper. If `observable` is
  * not actually an observable, the value will be returned as-is.
  */
-declare function unwrap<T>(observable: T, deepObserve?: boolean): T;
+declare function unwrap<T>(observable: T): T;
 
 /**
- * Compares two objects for shallow equality. This is provided as a convenience utility for the k.derive()
- * method.
+ * Compares two objects for shallow equality. This is provided as a convenience utility for `derive()`.
  *
  * @param a The value to compare
  * @param b The value to compare against

@@ -2,9 +2,9 @@ import { jest } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useDerived, useObserver } from 'keck/react';
-import { useState } from 'react';
+import { useInsertionEffect, useState } from 'react';
 
-describe('React', () => {
+describe('useObserver', () => {
   test('Component only re-renders when accessed properties are modified', async () => {
     const mockRender = jest.fn();
     const data = {
@@ -180,9 +180,8 @@ describe('React', () => {
     const renderMockFn = jest.fn();
 
     function GcTestInner(props: { id: string }) {
-      const state = useObserver(data, () => {
-        renderMockFn(props.id);
-      });
+      const state = useObserver(data);
+      renderMockFn(props.id);
 
       return (
         <div>
@@ -240,5 +239,87 @@ describe('React', () => {
     // Expect the render function to be called only for the second component
     expect(renderMockFn).toHaveBeenCalledTimes(1);
     expect(renderMockFn).toHaveBeenCalledWith('2');
+  });
+
+  test('Updating state during render defers re-render of other components sharing state', async () => {
+    // Note this is mostly a coverage test; this should cause coverage of the useLayoutEffect in useObserver
+
+    const actions = [] as string[];
+
+    const data = {
+      value: 0,
+    };
+
+    function ComponentA() {
+      actions.push('Render ComponentA');
+      const state = useObserver(data);
+
+      if (state.value === 0) {
+        state.value = 1; // Update during render
+      }
+
+      useInsertionEffect(() => {
+        actions.push('Commit ComponentA');
+      });
+
+      return <div>Component A Value: {state.value}</div>;
+    }
+
+    function ComponentB() {
+      actions.push('Render ComponentB');
+      const state = useObserver(data);
+
+      useInsertionEffect(() => {
+        actions.push('Commit ComponentB');
+      });
+
+      return (
+        <div>
+          Component B Value: {state.value}
+          <button onClick={() => (state.value = 0)} type="button">
+            Reset
+          </button>
+        </div>
+      );
+    }
+
+    function TestApp() {
+      return (
+        <div>
+          <ComponentA />
+          <ComponentB />
+        </div>
+      );
+    }
+
+    render(<TestApp />);
+
+    expect(actions).toEqual([
+      'Render ComponentA',
+      'Render ComponentB',
+      'Commit ComponentA',
+      'Commit ComponentB',
+      'Render ComponentA',
+      'Commit ComponentA',
+    ]);
+    actions.length = 0;
+
+    // Click Reset
+    await userEvent.click(screen.getByText('Reset'));
+
+    expect(actions).toEqual([
+      'Render ComponentA',
+      'Render ComponentB',
+      'Commit ComponentA',
+      'Commit ComponentB',
+      'Render ComponentA',
+      'Render ComponentB',
+      'Commit ComponentA',
+      'Commit ComponentB',
+    ]);
+
+    // Final values should be consistent
+    expect(screen.getByText('Component A Value: 1')).toBeDefined();
+    expect(screen.getByText('Component B Value: 1')).toBeDefined();
   });
 });

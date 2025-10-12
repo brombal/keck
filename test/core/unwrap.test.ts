@@ -37,17 +37,4 @@ describe('unwrap()', () => {
 
     expect(mockCallback).not.toHaveBeenCalled();
   });
-
-  test('Unwrapping with deep observation works', () => {
-    const data = createData();
-    const mockCallback = jest.fn();
-    const store1 = observe(data, mockCallback);
-    focus(store1);
-
-    unwrap(store1, true);
-
-    store1.object1.value1 = 'new-object1-value1';
-
-    expect(mockCallback).toHaveBeenCalledTimes(1);
-  });
 });

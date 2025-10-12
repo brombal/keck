@@ -58,4 +58,9 @@ describe('PathMap', () => {
     expect(arrmap.collect(['a', x], 'children')).toEqual(['d', 'e']);
     expect(arrmap.collect(['a', x, 3], 'children')).toEqual(['e']);
   });
+
+  test('Calling .collect() on weak PathMap throws', () => {
+    const arrmap = new PathMap<string>({ weak: true });
+    expect(() => arrmap.collect([])).toThrow('Cannot call `collect` on a weak PathMap!');
+  });
 });

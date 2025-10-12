@@ -58,47 +58,12 @@ class ObservableContext {
 }
 
 /**
- * Ensures that any changes to deep properties within the given value (which should be an observable type) will trigger
- * its observer's callback (in React, this ensures that the component is re-rendered on deep property changes).
- *
- * If `observable` is not an observable type (e.g. a primitive or null), it will be returned as-is. If `observer`
- * is an observable type, but is not an observable proxy, an error will be thrown.
- *
- * This only applies when the observable is focused (in unfocused mode, all changes trigger the callback). In React,
- * observers are always focused.
- *
- * e.g.
- * ```ts
- * const state = observe({ object1: { value1: 'value1' } }, callback);
- * deep(state.object1);
- * state.object1.value1 = 'new-value1';
- * // callback will be triggered
- * ```
- */
-function deep(observable) {
-    const ctx = ObservableContext.getForObservable(observable, false);
-    if (ctx) {
-        return ctx.observer.rootNode.observePath(ctx.observer, ctx.path, ctx.value, true);
-    }
-    // It's okay if `observable` is not actually an observable type, just return it as-is
-    const f = observable && typeof observable === 'object'
-        ? getObservableFactory(observable.constructor)
-        : null;
-    if (!f)
-        return observable;
-    // However, if it's an observable type but not actually an observable proxy, throw an error
-    throw new Error('Keck: deep: value is not observable');
-}
-
-/**
  * Returns the original object of an observable wrapper. If `observable` is
  * not actually an observable, the value will be returned as-is.
  */
-function unwrap(observable, deepObserve = false) {
+function unwrap(observable) {
     const ctx = ObservableContext.getForObservable(observable, false);
     if (ctx) {
-        if (deepObserve)
-            deep(observable);
         return ctx.value;
     }
     return observable;
@@ -448,8 +413,8 @@ registerObservableClass(Map, {
     },
 });
 
-const _size = Symbol("size");
-const _has = Symbol("has");
+const _size = Symbol('size');
+const _has = Symbol('has');
 class ObservableSet extends Set {
     ctx;
     constructor(ctx) {
@@ -526,11 +491,44 @@ class ObservableSet extends Set {
 registerObservableClass(Set, {
     makeObservable: (ctx) => {
         return new ObservableSet(ctx);
-    }
+    },
 });
 
 registerObservableClass(Object, objectFactory);
 registerObservableClass(Array, objectFactory);
+
+/**
+ * Ensures that any changes to deep properties within the given value (which should be an observable type) will trigger
+ * its observer's callback (in React, this ensures that the component is re-rendered on deep property changes).
+ *
+ * If `observable` is not an observable type (e.g. a primitive or null), it will be returned as-is. If `observer`
+ * is an observable type, but is not an observable proxy, an error will be thrown.
+ *
+ * This only applies when the observable is focused (in unfocused mode, all changes trigger the callback). In React,
+ * observers are always focused.
+ *
+ * e.g.
+ * ```ts
+ * const state = observe({ object1: { value1: 'value1' } }, callback);
+ * deep(state.object1);
+ * state.object1.value1 = 'new-value1';
+ * // callback will be triggered
+ * ```
+ */
+function deep(observable) {
+    const ctx = ObservableContext.getForObservable(observable, false);
+    if (ctx) {
+        return ctx.observer.rootNode.observePath(ctx.observer, ctx.path, ctx.value, true);
+    }
+    // It's okay if `observable` is not actually an observable type, just return it as-is
+    const f = observable && typeof observable === 'object'
+        ? getObservableFactory(observable.constructor)
+        : null;
+    if (!f)
+        return observable;
+    // However, if it's an observable type but not actually an observable proxy, throw an error
+    throw new Error('Keck: deep: value is not observable');
+}
 
 /**
  * Disables an observer, preventing it from triggering its callback when its
@@ -787,8 +785,7 @@ function reset(observable) {
 }
 
 /**
- * Compares two objects for shallow equality. This is provided as a convenience utility for the k.derive()
- * method.
+ * Compares two objects for shallow equality. This is provided as a convenience utility for `derive()`.
  *
  * @param a The value to compare
  * @param b The value to compare against

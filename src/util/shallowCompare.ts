@@ -1,6 +1,5 @@
 /**
- * Compares two objects for shallow equality. This is provided as a convenience utility for the k.derive()
- * method.
+ * Compares two objects for shallow equality. This is provided as a convenience utility for `derive()`.
  *
  * @param a The value to compare
  * @param b The value to compare against

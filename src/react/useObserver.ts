@@ -1,25 +1,17 @@
-import { focus, reset, observe, unwrap } from 'keck';
-import { useRef, useState, useInsertionEffect, useLayoutEffect } from 'react';
+import { type DeriveEqualFn, focus, observe, reset, unwrap } from 'keck';
+import { useInsertionEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useRefWithDeps } from './useRefWithDeps';
 
-function useRefWithDeps(factory, deps) {
-    const ref = useRef();
-    const depsRef = useRef();
-    const hasChanged = !depsRef.current ||
-        deps.length !== depsRef.current.length ||
-        deps.some((dep, i) => !Object.is(dep, depsRef.current[i]));
-    if (hasChanged) {
-        ref.current = factory();
-        depsRef.current = deps;
-    }
-    return ref;
-}
+let finalizationRegistry: FinalizationRegistry<any> | undefined;
 
-let finalizationRegistry;
 /* istanbul ignore next */
-if (window.FinalizationRegistry && window.KECK_OBSERVE_GC && !finalizationRegistry) {
-    console.log('keck/react: initializing FinalizationRegistry');
-    finalizationRegistry = new FinalizationRegistry((...args) => console.log('keck/react: FinalizationRegistry callback invoked', args));
+if (window.FinalizationRegistry && (window as any).KECK_OBSERVE_GC && !finalizationRegistry) {
+  console.log('keck/react: initializing FinalizationRegistry');
+  finalizationRegistry = new FinalizationRegistry((...args) =>
+    console.log('keck/react: FinalizationRegistry callback invoked', args),
+  );
 }
+
 /**
  * `isRendering` informally tracks whether react is currently in a render phase. This is set to true directly inside useObserver,
  * and then immediately set to false when useInsertionEffect is invoked. Any keck state updates
@@ -30,7 +22,9 @@ if (window.FinalizationRegistry && window.KECK_OBSERVE_GC && !finalizationRegist
  * tries to honor that behavior.
  */
 let isRendering = false;
-const renderRequests = new Set();
+
+const renderRequests = new Set<() => void>();
+
 /**
  * Returns an observable version of `data` that will cause the component to re-render when any of its observed properties change. This includes deep object properties,
  * Map/Set entries, and array elements (including implicit property access such as an array's `.length` if you use `.map()`, for example).
@@ -71,63 +65,80 @@ const renderRequests = new Set();
  * updated during a the render phase, this callback will also be invoked
  * synchronously during the render phase, so it should not cause any side effects (e.g. triggering more renders).
  */
-function useObserver(data, deps) {
-    isRendering = true;
-    const [, forceRerender] = useState({});
-    const ref = useRefWithDeps(() => {
-        const value = observe(data, () => {
-            const rerender = () => {
-                forceRerender({});
-            };
-            if (isRendering) {
-                renderRequests.add(rerender); // Other components — defer
-            }
-            else {
-                rerender(); // Current component or not in render phase — safe to re-render immediately
-            }
-        });
-        finalizationRegistry?.register(value, 'Keck observable released');
-        return value;
-    }, deps || []);
-    const state = ref.current;
-    // Begin observing on render
-    focus(state);
-    reset(state);
-    // Stop observing as soon as component finishes rendering
-    useInsertionEffect(() => {
-        focus(state, false);
-        isRendering = false;
+export function useObserver<TData extends object>(data: TData, deps?: unknown[]): TData {
+  isRendering = true;
+  const [, forceRerender] = useState({});
+
+  const ref = useRefWithDeps<TData>(() => {
+    const value = observe(data, () => {
+      const rerender = () => {
+        forceRerender({});
+      };
+
+      if (isRendering) {
+        renderRequests.add(rerender); // Other components — defer
+      } else {
+        rerender(); // Current component or not in render phase — safe to re-render immediately
+      }
     });
-    useLayoutEffect(() => {
-        for (const rerender of renderRequests) {
-            rerender();
-        }
-        renderRequests.clear();
-    });
-    // biome-ignore lint/correctness/useExhaustiveDependencies: just used for unmounting cleanup
-    useLayoutEffect(() => {
-        return () => {
-            reset(state);
-        };
-    }, []);
-    return state;
+    finalizationRegistry?.register(value, 'Keck observable released');
+    return value;
+  }, deps || []);
+
+  const state = ref.current;
+
+  // Begin observing on render
+  focus(state);
+  reset(state);
+
+  // Stop observing as soon as component finishes rendering
+  useInsertionEffect(() => {
+    focus(state, false);
+    isRendering = false;
+  });
+
+  useLayoutEffect(() => {
+    for (const rerender of renderRequests) {
+      rerender();
+    }
+    renderRequests.clear();
+  });
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: just used for unmounting cleanup
+  useLayoutEffect(() => {
+    return () => {
+      reset(state);
+    };
+  }, []);
+
+  return state;
 }
+
 /**
  * Hook that will observe `data`, and only re-render the component when the result of `deriveFn` changes.
  * Returns the result of `deriveFn`.
  */
-function useDerived(data, deriveFn, isEqual) {
-    const [, forceRerender] = useState({});
-    const deriveResultRef = useRef();
-    const ref = useRef();
-    if (!ref.current) {
-        ref.current = observe(data, () => forceRerender({}), (data) => {
-            return (deriveResultRef.current = deriveFn(data));
-        }, isEqual);
-        finalizationRegistry?.register(ref.current, 'Keck derived observable released');
-    }
-    return unwrap(deriveResultRef.current);
-}
+export function useDerived<TData extends object, TDerived>(
+  data: TData,
+  deriveFn: (state: TData) => TDerived,
+  isEqual?: DeriveEqualFn<TDerived>,
+): TDerived {
+  const [, forceRerender] = useState({});
 
-export { useDerived, useObserver };
-//# sourceMappingURL=react.js.map
+  const deriveResultRef = useRef<TDerived>();
+
+  const ref = useRef<TData>();
+  if (!ref.current) {
+    ref.current = observe(
+      data,
+      () => forceRerender({}),
+      (data): TDerived => {
+        return (deriveResultRef.current = deriveFn(data));
+      },
+      isEqual,
+    );
+    finalizationRegistry?.register(ref.current, 'Keck derived observable released');
+  }
+
+  return unwrap(deriveResultRef.current!);
+}

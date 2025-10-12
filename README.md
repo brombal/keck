@@ -1,317 +1,442 @@
-# <img src="logo.svg" alt="Keck">
+# <img src="logo.svg" alt="Keck" style="display: block; max-width: 600px">
 
 <br>
 
-Keck.js is a library for managing **reactive state objects** in React and vanilla JS.
+# Keck ✨🔭 Simple observable state for React
 
-Use reactive state objects as you would use any other value. They operate just like the original
-value, except that modifications to their properties prompt components that accessed those
-properties to re-render.
+Keck is a lightweight, proxy-based React state management library. It provides fine-grained
+reactivity with zero boilerplate—just modify your state, and components will re-render **only if they rendered
+the modified properties.**
 
-```jsx
-import { useObservable } from "~/src";
+```tsx
+import { useObserver } from 'keck/react';
 
 function Counter() {
-  const state = useObservable({ count: 0 });
+  const state = useObserver({ count: 0 });
 
   return (
     <div>
-      {state.count}
-      <button onClick={() => state.count++}>+</button>
+      <p>Count: {state.count}</p>
+      <button onClick={() => state.count++}>Increment</button>
     </div>
   );
 }
 ```
 
-Features:
+That's it! No `setState`, no reducers, no actions. Just modify your state object, and your component re-renders.
 
-- Supports objects, arrays, Maps, Sets, [custom classes](#custom-classes), and is
-  [extensible](#supporting-other-types)
-- Works with deeply nested structures
-- No dependencies
-- Tiny (~2.5KB gzipped)
-- 100% test coverage
-- Compatible with all browsers that support [Proxy](https://caniuse.com/?search=Proxy)
+## Features
 
----
+- ✨ **Zero boilerplate** – No special methods, just modify your state naturally
+- ⚡ **High performance** – The fine-grained reactivity results in far fewer total re-renders.
+- 🔗 **Shared state** – Share state across components easily without triggering full tree re-renders
+- 🧮 **Derived values** – Compute values that only trigger re-renders when their result changes
+- 🔍 **Deep observation** – Observe changes to arbitrarily deep objects and arrays
+- 📘 **TypeScript support** – Full type safety
+- 🪶 **Tiny size** – ~3.2kB minified + gzipped
+- 🎯 **No dependencies** – Works with React 18.2+
+- ✅ **Well-tested** – 100% unit test coverage
 
-## Install
+## Installation
 
-```shell
+```bash
 npm install keck
-# or
-yarn add keck
 ```
 
-## React Guide
+## Observing state with `useObserver()`
 
-### Creating an observable
-
-In Keck, **observables** refer to reactive state objects. These are transparent wrappers around
-values you wish to observe for changes. Keck tracks properties accessed during a component's render
-and re-renders the component when these properties change.
-
-Create an observable using the `useObservable()` hook:
-
-```jsx
-import { useObservable } from "~/src";
-
-function ShoppingCart() {
-  const cart = useObservable({
-    products: [],
-    coupon: "",
-  });
-
-  //...
-}
-```
-
-The component will _only_ re-render when a property accessed during the render function execution is
-modified, but _not_ for properties accessed solely in `useEffect` callbacks, event handlers, etc.
-
-The `initialValue` can be an object, array, Map, Set, or even a [custom class](#custom-classes).
-Values can be deeply nested and composed of any of the supported types. You can't pass primitives
-directly (like strings, numbers, booleans, etc) as they're immutable and, thus, can't be "modified"
-reactively. If you want to observe a single value, simply wrap it in an object:
-
-```jsx
-import { useObservable } from "~/src";
-
-function Price() {
-  const state = useObservable({ price: 19.99 });
-  //...
-}
-```
-
-Although the value `useObservable` returns is a different object reference (i.e., it won't compare
-as identical `===` to the original value), it's **not** a clone of the original value. It holds a
-reference to the original value and behaves as if it _were_ the original value. Modifying the
-observable modifies the original value, and vice versa. This happens instantly (not in subsequent
-renders, as with `useState`), allowing you to read from the value immediately after modifying it.
-
-### Sharing observable values
-
-Passing the same object reference to `useObservable()` in different components enables shared
-state—no boilerplate or React context needed. Modifying the object in one component causes all
-components observing that object to re-render.
-
-In ES6 or TypeScript, this could be accomplished as simply as exporting the shared value from a
-module:
+Simply pass your state object to `useObserver()`. The value returned by `useObserver()` is an **observable wrapper**
+around the underlying state object that you can read and modify just like the original object.
 
 ```tsx
-// cart.ts
+import { useObserver } from 'keck/react';
 
-export interface ShoppingCart {
-  products: Array<{
-    id: string;
-    price: number;
-    quantity: number;
-  }>;
-  coupon: string;
-}
-
-export const sharedCart: ShoppingCart = {
-  products: [],
-  coupon: "",
-};
-
-// You could even create a custom hook to easily
-// create an observable cart:
-
-export function useCartObservable() {
-  return useObservable(sharedCart);
-}
-```
-
-```tsx
-// Header.tsx
-
-import { useCartObservable } from "./cart";
-
-function Header() {
-  const cart = useCartObservable();
-
-  return (
-    <header>
-      <div>Total items in cart: {cart.itemCount}</div>
-      <label>
-        Coupon:
-        <input value={cart.coupon} onChange={(e) => (cart.coupon = e.target.value)} />
-      </label>
-    </header>
-  );
-}
-```
-
-### Deriving new values from an observable
-
-You can **derive** new values from observables, leading the component to re-render only if the
-_derived_ value changes. This can enhance performance by preventing unnecessary re-renders.
-
-To create a derived value, call `derive(() => ...)` with a callback that returns a new value based
-on one or more observables' properties:
-
-```jsx
-import { useObservable, derive } from "~/src";
-import { useCartObservable } from "./cart";
-
-function ShippingCost() {
-  const cart = useCartObservable();
-
-  // We want to display a "free shipping" label, but only when the total cost of items in the
-  // cart exceeds $50. This value will be derived from the `cart` observable
-  const totalCost = derive(() =>
-    cart.products.reduce((total, product) => total + product.price * product.quantity, 0)
-  );
-
-  //... other parts of the component
-  return <>{totalCost > 50 ? <div>Free shipping!</div> : <div>Shipping: $10</div>}</>;
-}
-```
-
-Your callback will be invoked immediately to derive the new value. **You can access any observables
-from within the callback**, and the callback is re-invoked when any accessed properties change. The
-component will then re-render only if the returned value differs from the previous render.
-
-#### Custom comparisons
-
-Derived values are compared to their previous values using **strict equality** (`===`) by default.
-Pass a custom comparator as the second argument to `derive()` to customize value comparisons. This
-is useful for comparing derived objects and arrays (for example, with shallow comparison). Keck
-provides a simple `shallowCompare` comparator for this:
-
-```jsx
-import { useObservable, derive, shallowCompare } from "~/src";
-import { useCartObservable } from "./cart";
-
-function ShoppingCart() {
-  const cart = useCartObservable();
-
-  // We want a list of product totals (quantity * price), but only re-render only when the
-  // final list changes. Without shallowCompare, this would return a new array reference each
-  // time and would always re-renders.
-  const productTotals = derive(() => cart.products.map((p) => p.quantity * p.price), shallowCompare);
-
-  // ... rest of the component
-}
-```
-
-The comparator accepts two arguments: the previous value and the new value. It should return `true`
-if the values are equal, and `false` if they are not.
-
-```jsx
-import { useObservable, derive } from "~/src";
-
-function TotalCost() {
-  const cart = useCartObservable();
-
-  const totalCost = derive(
-    () => {
-      // Calculate total cost of products in the cart.
-      return cart.products.reduce((total, product) => total + product.price * product.quantity, 0);
-    },
-    (prev, next) => {
-      // Custom comparison function that considers the values to be equal
-      // if the difference is less than or equal to $1.
-      return Math.abs(prev - next) <= 1;
-    }
-  );
+function Counter() {
+  const state = useObserver({ count: 0 });
 
   return (
     <div>
-      <h2>Total Cost: ${totalCost.toFixed(2)}</h2>
+      <p>Count: {state.count}</p>
+      <button onClick={() => state.count++}>Increment</button>
     </div>
   );
 }
 ```
 
-### Unwrapping an observable
+Behind the scenes, Keck tracks which properties are read during the render. When you modify properties, Keck will only
+re-render components if they accessed those properties. Properties accessed outside of rendering (e.g. in effects, event
+handlers, etc.) won't cause your components to re-render when they change.
 
-In most scenarios, an observable looks and feels just like the original value. However, there are
-edge cases where the observable doesn't behave exactly like its plain counterpart. For instance,
-logging an observable to the console will show the observable wrapper value instead of the value
-itself (which might be interesting, but not really useful). Similarly, passing an observable to a
-third-party library expecting a plain value might not work as expected.
+If you conditionally render a section of your component,
+properties accessed in that section are only tracked if they are actually rendered. If the section is hidden,
+changes to those properties will no longer trigger re-renders.
 
-To get the plain value from an observable, wrap it in a call to `unwrap()`:
+```tsx
+import { useObserver } from "keck/react";
 
-```jsx
-import { useObservable, unwrap } from "~/src";
-import { useCartObservable } from "./cart";
-
-function CartDebugger() {
-  const cart = useCartObservable();
+function Counter() {
+  const state = useObserver({ count: 0, displayCounter: true });
 
   return (
-    <button
-      onClick={() => {
-        // Log the plain value, not the observable wrapper
-        console.log(unwrap(cart));
-      }}
-    >
-      Log Cart
+    <div>
+      {state.displayCounter && (
+        <p>Count: {state.count}</p>
+      )}
+
+      <label>
+        <input
+          type="checkbox"
+          checked={state.displayCounter}
+          onChange={e => state.displayCounter = e.target.checked}
+        />
+        Show counter
+      </label>
+
+      <button onClick={() => state.count++}>Increment</button>
+    </div>
+  );
+}
+```
+
+In this example, `state.count` isn't accessed when the checkbox is unchecked, so clicking the **Increment** button
+updates the count but doesn't trigger a re-render. When you enable the checkbox, the component re-renders and now tracks
+`state.count`. This is a powerful performance improvement, preventing unnecessary re-renders by automatically observing
+properties that are actually rendered.
+
+### Shared State
+
+Keck's true power shines with shared state across multiple components. Simply pass the same object to `useObserver()` in
+different components, and each component will only re-render when properties it accesses change.
+
+**Let's define an example state object:**
+
+```tsx
+// store.ts
+export const store = {
+  cart: {
+    items: [] as Array<{
+      id: number;
+      name: string;
+      price: number
+    }>
+  },
+  user: {
+    name: "",
+    email: ""
+  },
+  ui: {
+    cartOpen: false
+  }
+};
+```
+
+For these examples, we use a simple module-level variable. In a real app, you might use React context to avoid global
+state, or keep the module-level approach for truly global data like auth state or app configuration. The key is that
+every component that calls `useObserver(store)` with the same object will share that object's state, reacting to changes
+made anywhere in the app.
+
+#### Fine-Grained Reactivity
+
+Different components observing the same state will only re-render when the specific properties they access change:
+
+- `CartButton` only re-renders when the length of `cart.items` changes:
+
+```tsx
+// CartButton.tsx
+import { useObserver } from 'keck/react';
+import { store } from './store';
+
+function CartButton() {
+  const state = useObserver(store);
+
+  return (
+    <button onClick={() => state.ui.cartOpen = true}>
+      Cart ({state.cart.items.length} items)
     </button>
   );
 }
 ```
 
-Note that this only applies to object, arrays, and other complex observable types. Primitive values
-like strings and numbers are always unwrapped—there's no need to call `unwrap()` on them.
+- `CartDrawer` re-renders when `cart.items` changes, but only if the drawer is open (nothing renders when `ui.cartOpen`
+  is false, so changes to `cart.items` don't cause re-renders):
 
-### Observing all properties of a value
+```tsx
+// CartDrawer.tsx
+import { useObserver } from "keck/react";
+import { store } from "./store";
 
-When you access a "deep" property of an observable (e.g. `cart.products[0].quantity`), Keck assumes
-you are only interested in that specific property, and will avoid unnecessary re-renders when other
-parts of `cart.products` change.
+function CartDrawer() {
+  const state = useObserver(store);
 
-However, if you _do_ want the component to re-render when any descendant property of an intermediate
-value changes, or when the intermediate value is directly reassigned (e.g.
-`cart.products[0] = otherProduct`), you can explicitly observe the intermediate values by wrapping
-them in a call to `observe()`:
+  // Don't render anything if the cart is closed
+  if (!state.ui.cartOpen) return null;
 
-```jsx
-import { useObservable, unwrap } from "~/src";
-import { useCartObservable } from "./cart";
+  return (
+    <div className="drawer">
+      <h2>Your Cart</h2>
 
-function ProductListJSON() {
-  const cart = useCartObservable();
+      <ul>
+        {state.cart.items.map(item => (
+          <li key={item.id}>
+            {item.name} - ${item.price}
+          </li>
+        ))}
+      </ul>
 
-  // observe the whole product list for changes
-  const products = observe(cart.products);
-
-  return <pre>{JSON.stringify(products, null, 2)}</pre>;
+      <button onClick={() => state.ui.cartOpen = false}>Close</button>
+    </div>
+  );
 }
 ```
 
-`observe()` returns the **unwrapped** value, just like `unwrap()`. (In fact, the only difference
-between `observe()` and `unwrap()` is that `observe()` will cause a component re-render when the
-intermediate value changes, while `unwrap()` will not.)
+- `AddToCartButton` only adds items to the cart. This component will never re-render because it doesn't access any state
+  properties during render:
 
-#### Object Cloning
+```tsx
+// AddToCartButton.tsx
+import { useObserver } from 'keck/react';
+import { store } from './store';
 
-Keck.js ensures that React's `useEffect` (and similar) callbacks function correctly by cloning each
-object in the path of a modified value. If you modify a nested property within an observable object,
-every parent object up to (but not including) the root will be cloned. This allows callbacks that
-have dependency lists with these objects to be triggered correctly, as the references will have
-changed.
+function AddToCartButton({ product }) {
+  const state = useObserver(store);
 
-While it's valid to pass an observable object to a dependency list, don't forget that you must
-either be observing the object itself (with `observe()`) or accessing a primitive property of the
-object (e.g. `cart.products[0].quantity`) in order for the component to re-render on changes.
+  const addItem = () => {
+    state.cart.items.push(product);
+  };
 
-```jsx
-import { useObservable } from "~/src";
+  return <button onClick={addItem}>Add to Cart</button>;
+}
+```
+
+## Derived Values with `derive()`
+
+Sometimes you compute values from state, but you only care when the result changes, not when the source data changes.
+For example, you might render "Free Shipping" if the cart total is over $1000, but not render the exact amount.
+
+Use `derive()` to compute values from your state object, and Keck will only trigger re-renders when the computed value
+changes.
+
+```tsx
+// ShippingStatus.tsx
+import { useObserver } from 'keck/react';
+import { derive } from 'keck';
+import { store } from './store';
+
+function ShippingStatus() {
+  const state = useObserver(store);
+
+  // Only re-renders when eligibility changes (not when total changes)
+  const freeShipping = derive(() => state.cart.total >= 1000);
+
+  return (
+    <div>
+      {freeShipping ? '✓ Free shipping!' : 'Add $1000 for free shipping'}
+    </div>
+  );
+}
+```
+
+Even though `state.cart.total` is accessed in the derive callback, the component only re-renders when the boolean result
+changes (crossing the $1000 threshold), not on every price change.
+
+**Custom equality for arrays/objects:**
+
+By default, `derive()` uses strict equality (`===`) to compare subsequent results, making it useful for primitive
+values. If the derived value is an object or array, use a custom equality function to determine if the component should
+re-render. Keck provides a `shallowCompare` utility for basic shallow object or array comparison,
+but you can also write your own.
+
+```tsx
+// ProductComparison.tsx
+import { useObserver } from "keck/react";
+import { derive, shallowCompare } from "keck";
+import { store } from "./store";
+
+function ProductComparison() {
+  const state = useObserver(store);
+
+  // Use shallowCompare for simple array equality
+  const productIds = derive(
+    () => state.cart.items.map(item => item.id),
+    shallowCompare
+  );
+
+  // Or use a custom function (e.g. when creating an array of objects)
+  const selectedProducts = derive(
+    () => state.cart.items.filter(item => item.selected),
+    (prev, next) => {
+      return prev.length === next.length && prev.every((product, i) => next.find(p => p.id === product.id));
+    }
+  );
+
+  // ...
+}
+```
+
+## Deep Observation with `deep()`
+
+By default, Keck only tracks properties you access if they have primitive values (strings, numbers, etc), because these
+are generally the only kinds of values that can be rendered by React.
+
+But sometimes you want a component to re-render when *any* change occurs within an object—for example, to trigger a
+useEffect that saves user profile changes whenever *any* property of `state.user` changes.
+
+**The problem:** Normally, accessing `state.user` alone won't cause a re-render, because Keck only responds to changes
+of primitive values that are accessed during a render. Even if it did, an object reference doesn't change when its
+properties are modified, so it wouldn't trigger an effect to run.
+
+**The solution:** Calling `deep(state.user)` in a component render tells Keck to track all nested properties for that
+object. When any nested property changes, Keck re-renders the component. Additionally, Keck creates a new proxy wrapper
+for the modified object, allowing it to be used in dependency arrays to trigger effects.
+
+> **Note:** You _don't_ need `deep()` for rendering—Keck automatically tracks the properties you access, including
+> implicit ones like `.length` when you call `.map()`.
+
+```tsx
+// UserProfile.tsx
+import { useObserver } from "keck/react";
+import { deep } from "keck";
 import { useEffect } from "react";
+import { store } from "./store";
 
-function useProductListLogger() {
-  const cart = useObservableCart();
+function UserProfile() {
+  const state = useObserver(store);
 
-  // observe() is necessary to cause the component to re-render when any
-  // descendent property of cart.products changes
-  observe(cart.products);
+  // This marks `state.user` for deep tracking, triggering re-renders when it is modified.
+  deep(state.user);
 
-  useEffect(() => {
-    console.log("Products:", cart.products);
-  }, [cart.products]); // <-- this could also be [observe(cart.products)] if you prefer
+  useEffect(
+    () => {
+      console.log("Saving user profile...");
+      // Save to localStorage, API, etc.
+    },
+    // The proxy wrapper for `state.user` will be recreated whenever any nested property is modified. 
+    // This new proxy reference triggers the effect, even though the underlying object stays the same.
+    [state.user]
+  );
+
+  return (
+    <div>
+      <input
+        value={state.user.name}
+        onChange={e => state.user.name = e.target.value}
+      />
+      <input
+        value={state.user.email}
+        onChange={e => state.user.email = e.target.value}
+      />
+    </div>
+  );
 }
 ```
+
+> Note that you can also use `[deep(state.user)]` directly in the dependency array, because `deep()` simply returns what
+> is passed to it. This example used a separate call to `deep()` for clarity.
+
+## Removing proxy wrappers with `unwrap()`
+
+Sometimes you need the raw underlying value of your state object (or part of it) instead of the Keck proxy. For example,
+it's best to avoid passing proxy wrappers to external libraries or API calls.
+
+**`unwrap(state)`** returns the raw underlying value of a proxy. You can pass the root state object or any nested
+object or array. Accessing properties of the unwrapped value will of course not create any observations, so be careful
+not to render the unwrapped values, or you may miss updates.
+
+```tsx
+import { unwrap } from 'keck';
+
+const logCart = (state) => {
+  const rawCart = unwrap(state.cart);
+  console.log(JSON.stringify(rawCart));
+};
+```
+
+## API Reference
+
+### `useObserver<T>(data: T, deps?: unknown[]): T`
+
+Creates an **observable** state object that tracks property access and triggers re-renders when those properties change.
+
+- **`data`**: The state object to observe
+- **`deps`** (optional): Dependency array for refreshing the state object when dependencies change
+
+**Returns:** An observable proxy wrapper around the original object
+
+The returned value is a proxy wrapper around the original object that tracks properties that are accessed during
+rendering. Any subsequent updates to those properties will trigger a re-render of the component. Properties accessed
+outside of the render (during effects, event callbacks, etc.) are not tracked.
+
+The returned value and its nested object properties (e.g. `state.cart.items[0]`, etc) are light-weight proxy wrappers
+that behave just like the original objects. The underlying objects are persistent between renders, but the proxy
+wrappers are recreated whenever any descendent property changes. This allows you to use observables in dependency arrays
+to trigger effects when any nested property changes (if they are being observed—see `deep()` below).
+
+Every component using `useObserver()` on the same object will share its state, re-rendering when that object is changed,
+anywhere in the application. However, Keck ensures fine-grained reactivity: components will only re-render when
+properties they
+accesses change. State objects can be shared using React context, props, module-level variables, etc. When sharing
+state, be careful not to use observable proxies created by other components. Every component should call `useObserver()`
+on the object to create its own proxy.
+
+For local, inline state objects, the value passed to `useObserver()` is memoized on the first render. If you want to
+recreate the observable value (for example, to reset the state when some prop changes), pass a dependency array as the
+second argument ot `useObserver()`. The observable will be recreated whenever any dependency value changes.
+
+### `derive<T>(fn: () => T, isEqual?: (prev: T, next: T) => boolean): T`
+
+Use `derive()` to compute values from your state object that only trigger re-renders when the result changes.
+
+```tsx
+function derive<T>(fn: () => T, isEqual?: (prev: T, next: T) => boolean): T;
+```
+
+- **`fn`**: Function that computes the derived value
+- **`isEqual`** (optional): Custom equality function. Accepts previous and next values, returns true if equal
+
+**Returns:** The computed value
+
+### `deep<T>(observable: T): T`
+
+Marks an observable for deep tracking. Use in dependency arrays to trigger effects when any nested property changes.
+
+```tsx
+useEffect(() => {
+  // Runs when any property of user changes
+}, [deep(state.user)]);
+```
+
+### `unwrap<T>(value: T)`
+
+Returns the raw underlying object of an observable. This allows property accesses that do not create observations. This
+is useful when passing data to external libraries, APIs, etc.
+
+```tsx
+const raw = unwrap(state.cart);
+```
+
+### `peek<T>(fn: () => T): T`
+
+Reads properties without tracking them for observations.
+
+```tsx
+const value = peek(() => state.internalState);
+```
+
+### `silent(fn: () => void): void)`
+
+Updates state without triggering callbacks or re-renders.
+
+```tsx
+silent(() => {
+  state.metadata.accessed = true;
+});
+```
+
+## License
+
+MIT License
+
+## Contributing
+
+Contributions are welcome! Please visit the [GitHub repository](https://github.com/brombal/keck) to report issues or
+submit pull requests.

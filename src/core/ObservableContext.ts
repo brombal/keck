@@ -18,11 +18,15 @@ export interface FactoryObservableContext<TValue extends object> {
 const contextForObservable = new WeakMap<Observable, ObservableContext<any>>();
 
 /**
- * An ObservableContext is used to manage an Observable (a proxy wrapper) value. Because Observables
- * have to be transparently identical to the value they represent, additional data about them has
- * to be stored in a separate object. ObservableContexts are transient objects that are created
- * internally when a property is accessed, and only exist until a descendant property is modified,
- * which invalidates it and its associated Observable. This invalidation is what allows references
+ * An ObservableContext is used to manage additional data associated with an observable proxy
+ * wrapper. Because observable proxies
+ * have to be behaviorally identical to the value they represent, additional data about them has
+ * to be stored in this separate object.
+ *
+ * ObservableContexts are ephemeral objects that are created
+ * internally when a property is accessed, and only exist within the scope of the proxy — they are
+ * garbage collected with the proxy. They also only exist until a descendant property is modified,
+ * which invalidates it and its associated proxy. This invalidation is what allows references
  * to compare as unequal when the underlying value changes.
  *
  * ObservableContext objects are not accessible externally. They only exist while their associated

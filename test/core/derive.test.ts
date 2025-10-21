@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { atomic, derive, focus, observe } from 'keck';
+import { atomic, derive, focus, observe, unwrap } from 'keck';
 import { createData } from '../shared-data';
 
 describe('derive()', () => {
@@ -450,5 +450,37 @@ describe('derive()', () => {
     // jest.resetAllMocks();
     // stateA.value2 = "b";
     // expect(mockCallbackA).toHaveBeenCalledTimes(0);
+  });
+
+  test('deriving an object should trigger if nested property changes', () => {
+    const mockCallback = jest.fn();
+
+    const data = createData();
+    const state = observe(data, mockCallback);
+
+    focus(state);
+    derive(() => {
+      return state.object1;
+    });
+
+    jest.clearAllMocks();
+
+    state.object1!.value1 = 'new-value';
+
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+  });
+
+  test('deriving an object should return unwrapped value', () => {
+    const mockCallback = jest.fn();
+
+    const data = createData();
+    const state = observe(data, mockCallback);
+
+    focus(state);
+    const result = derive(() => {
+      return state.object1;
+    });
+
+    expect(result).toBe(unwrap(state.object1));
   });
 });

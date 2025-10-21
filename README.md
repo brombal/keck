@@ -108,7 +108,7 @@ properties that are actually rendered.
 Keck's true power shines with shared state across multiple components. Simply pass the same object to `useObserver()` in
 different components, and each component will only re-render when properties it accesses change.
 
-**Let's define an example state object:**
+Let's define an example state object:
 
 ```tsx
 // store.ts
@@ -189,8 +189,8 @@ function CartDrawer() {
 }
 ```
 
-- `AddToCartButton` only adds items to the cart. This component will never re-render because it doesn't access any state
-  properties during render:
+- `AddToCartButton` only adds items to the cart. Keck will never re-render this component because it doesn't access any
+  state properties during render:
 
 ```tsx
 // AddToCartButton.tsx
@@ -282,12 +282,12 @@ But sometimes you want a component to re-render when *any* change occurs within 
 useEffect that saves user profile changes whenever *any* property of `state.user` changes.
 
 **The problem:** Normally, accessing `state.user` alone won't cause a re-render, because Keck only responds to changes
-of primitive values that are accessed during a render. Even if it did, an object reference doesn't change when its
-properties are modified, so it wouldn't trigger an effect to run.
+of primitive values. Even if the component did re-render, using an object in a useEffect dependency array wouldn't
+trigger the effect, because normally the object reference doesn't change when its properties are modified.
 
-**The solution:** Calling `deep(state.user)` in a component render tells Keck to track all nested properties for that
-object. When any nested property changes, Keck re-renders the component. Additionally, Keck creates a new proxy wrapper
-for the modified object, allowing it to be used in dependency arrays to trigger effects.
+**The solution:** Calling `deep(state.user)` in a component render tells Keck to re-render the component when any
+descendant property changes. Because Keck creates a new proxy wrapper whenever an object is modified, using it in a
+dependency array will trigger effects or recompute `useMemo` and `useCallback` values.
 
 > **Note:** You _don't_ need `deep()` for rendering—Keck automatically tracks the properties you access, including
 > implicit ones like `.length` when you call `.map()`.
@@ -353,34 +353,84 @@ const logCart = (state) => {
 
 ## API Reference
 
-### `useObserver<T>(data: T, deps?: unknown[]): T`
+### `useObserver<T>(value: T, deps?: unknown[]): T`
 
-Creates an **observable** state object that tracks property access and triggers re-renders when those properties change.
+Creates an **observable** state object that tracks property access, and triggers re-renders when those properties
+change.
 
-- **`data`**: The state object to observe
+- **`value`**: The state object to observe
 - **`deps`** (optional): Dependency array for refreshing the state object when dependencies change
 
-**Returns:** An observable proxy wrapper around the original object
+The returned value is an **observable** proxy wrapper around the original object that you can
+read from and write to just like the original object.
 
-The returned value is a proxy wrapper around the original object that tracks properties that are accessed during
-rendering. Any subsequent updates to those properties will trigger a re-render of the component. Properties accessed
-outside of the render (during effects, event callbacks, etc.) are not tracked.
+Observables behave just like their underlying object, with some
+important
+differences:
 
-The returned value and its nested object properties (e.g. `state.cart.items[0]`, etc) are light-weight proxy wrappers
-that behave just like the original objects. The underlying objects are persistent between renders, but the proxy
-wrappers are recreated whenever any descendent property changes. This allows you to use observables in dependency arrays
-to trigger effects when any nested property changes (if they are being observed—see `deep()` below).
+- Reading properties during rendering **observes** them, so that changes to those properties trigger a re-render of the
+  components that accessed them.
+- Writing properties of an observable will
+  **trigger re-renders** of all components that access those properties. This applies to all observables of the *same
+  object, anywhere in your application*. Keck ensures
+  **fine-grained reactivity**: components will only re-render
+  when properties they accessed during their render are changed.
+- Observable proxies are **not clones** of the original object, but rather *transparent wrappers* around them.
+  Modifications to
+  one observable
+  will be immediately reflected in another; likewise, modifications directly to the underlying object will also be
+  reflected in all observables wrapping that object (but will not trigger re-renders).
+- Observable proxy wrappers are **not referentially equal** (`===`) to the underlying object. However, observables
+  remain
+  **stable between renders** *until any descendent property changes*—that is, the same proxy instance is returned on
+  every render
+  until a property is modified. This allows you to use observables in dependency arrays to trigger effects (or refresh
+  useMemos and useCallbacks) when any
+  nested property changes (if they are being observed—see `deep()` below for observing entire objects).
+- Accessing deeply nested object or array properties of an observable will return observables for those nested values.
+  The same behavior and rules apply to those nested observables.
 
-Every component using `useObserver()` on the same object will share its state, re-rendering when that object is changed,
-anywhere in the application. However, Keck ensures fine-grained reactivity: components will only re-render when
-properties they
-accesses change. State objects can be shared using React context, props, module-level variables, etc. When sharing
-state, be careful not to use observable proxies created by other components. Every component should call `useObserver()`
-on the object to create its own proxy.
+#### Local State
 
-For local, inline state objects, the value passed to `useObserver()` is memoized on the first render. If you want to
-recreate the observable value (for example, to reset the state when some prop changes), pass a dependency array as the
-second argument ot `useObserver()`. The observable will be recreated whenever any dependency value changes.
+Using `useObserver` is great for local component state, allowing you to easily and naturally read and modify a state object
+without complex boilerplate.
+
+
+```tsx
+function Counter() {
+  const state = useObserver({ count: 0 });
+  return (
+    <div>
+      <p>Count: {state.count}</p>
+      <button onClick={() => state.count++}>Increment</button>
+    </div>
+  );
+}
+```
+
+The value passed to `useObserver()` is memoized on the first render, effectively treating the inline object as an "initializer" and the returned observable
+as a persistent state value for the lifetime of the
+component. If you want to re-initialize the value (for example, to reset the state when some prop changes), pass a
+dependency array as the second argument ot `useObserver()`. The observable will be recreated whenever any dependency
+value changes.
+
+#### Shared State
+
+`useObserver` is equally powerful at observing shared state: objects that are passed from React context, props, module-level
+variables,
+etc. 
+
+Every component calling `useObserver()` on the same object will share its state, and will be re-render whenever that object
+is changed anywhere in the application. Keck ensures that only components that accessed the changed properties will re-render.
+
+> When sharing state objects, be careful not to use observable proxies created by other components. Every component should
+call `useObserver()` on the object to create its own proxy.
+
+
+For shared state objects (e.g. from context or module-level variables), you typically don't need to pass dependencies
+to `useObserver()` if
+the object reference remains stable. If you expect the shared object reference to change (e.g. a context object that is
+occasionally re-created), you can pass the object itself in the dependency array.
 
 ### `derive<T>(fn: () => T, isEqual?: (prev: T, next: T) => boolean): T`
 

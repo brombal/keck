@@ -2,6 +2,8 @@ import type { ObservableFactory } from 'keck/factories/observableFactories';
 import { atomic } from 'keck/methods/atomic';
 import { unwrap } from 'keck/methods/unwrap';
 
+const keyLength = Symbol('keyLength');
+
 export const objectFactory: ObservableFactory<Record<string | symbol, unknown>> = {
   makeObservable: (ctx) => {
     return new Proxy(
@@ -24,6 +26,8 @@ export const objectFactory: ObservableFactory<Record<string | symbol, unknown>> 
           const rawValue = unwrap(newValue);
           const oldValue = Reflect.get(ctx.value, prop, ctx.value);
           if (oldValue === rawValue) return true;
+
+          const oldHas = Reflect.has(ctx.value, prop);
 
           if (Array.isArray(ctx.value)) {
             const arrayLength = ctx.value.length;
@@ -48,19 +52,25 @@ export const objectFactory: ObservableFactory<Record<string | symbol, unknown>> 
           }
 
           const result = Reflect.set(ctx.value, prop, rawValue, observer);
-          ctx.modifyIdentifier(prop);
+          atomic(() => {
+            ctx.modifyIdentifier(prop);
+            if (!oldHas) ctx.modifyIdentifier(keyLength);
+          });
           return result;
         },
         ownKeys(_) {
           const keys = Reflect.ownKeys(ctx.value);
-          for (const key of keys) {
-            ctx.observeIdentifier(key);
-          }
+          ctx.observeIdentifier(keyLength);
           return keys;
         },
         deleteProperty(_, prop): boolean {
           const res = Reflect.deleteProperty(ctx.value, prop);
-          if (res) ctx.modifyIdentifier(prop);
+          if (res) {
+            atomic(() => {
+              ctx.modifyIdentifier(prop);
+              ctx.modifyIdentifier(keyLength);
+            });
+          }
           return res;
         },
       },

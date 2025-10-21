@@ -1,1 +1,1 @@
-export { useObserver, useDerived } from "./react/useObserver";
+export { useObserver } from "./react/useObserver";

@@ -26,7 +26,7 @@ describe('object', () => {
     jest.clearAllMocks();
   });
 
-  test('Modification after accessing with Object.keys triggers callback', () => {
+  test('Modification to key length after accessing with Object.keys triggers callback', () => {
     const data = createData();
     const mockCallback = jest.fn();
     const store = observe(data, mockCallback);
@@ -36,15 +36,15 @@ describe('object', () => {
     focus(store, false);
 
     store.object1.value1 = 'new-value1';
-    expect(mockCallback).toHaveBeenCalledTimes(1);
+    expect(mockCallback).toHaveBeenCalledTimes(0);
     jest.clearAllMocks();
 
     delete store.object1.value3;
     expect(mockCallback).toHaveBeenCalledTimes(1);
     jest.clearAllMocks();
 
-    store.object2.value1 = 'new-value1';
-    expect(mockCallback).toHaveBeenCalledTimes(0);
+    store.object1.value3 = {} as any;
+    expect(mockCallback).toHaveBeenCalledTimes(1);
     jest.clearAllMocks();
   });
 
@@ -82,15 +82,39 @@ describe('object', () => {
     focus(store, false);
 
     store.object1.value1 = 'new-value1';
-    expect(mockCallback).toHaveBeenCalledTimes(1);
+    expect(mockCallback).toHaveBeenCalledTimes(0);
     jest.clearAllMocks();
 
     delete store.object1.value3;
     expect(mockCallback).toHaveBeenCalledTimes(1);
     jest.clearAllMocks();
 
-    store.object2.value1 = 'new-value1';
-    expect(mockCallback).toHaveBeenCalledTimes(0);
+    store.object1.value3 = {} as any;
+    expect(mockCallback).toHaveBeenCalledTimes(1);
     jest.clearAllMocks();
+  });
+
+  test('Observing with Object.keys and then adding/deleting a property triggers callback', () => {
+    const mockCallback = jest.fn();
+    const store = observe({ object: {} as Record<string, any> }, mockCallback);
+    focus(store);
+
+    Object.keys(store.object);
+    focus(store, false);
+    store.object.newValue = 'added-value';
+    delete store.object.newValue;
+    expect(mockCallback).toHaveBeenCalledTimes(2);
+  });
+
+  test('Observing with Object.entries and then adding/deleting a property triggers callback', () => {
+    const mockCallback = jest.fn();
+    const store = observe({ object: {} as Record<string, any> }, mockCallback);
+    focus(store);
+
+    Object.entries(store.object);
+    focus(store, false);
+    store.object.newValue = 'added-value';
+    delete store.object.newValue;
+    expect(mockCallback).toHaveBeenCalledTimes(2);
   });
 });

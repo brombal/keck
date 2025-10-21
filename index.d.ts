@@ -121,4 +121,9 @@ declare function registerObservableClass(classConstructor: AnyConstructor, facto
  */
 declare function transformInPlace<TSource>(target: unknown, source: TSource): TSource;
 
-export { type DeriveEqualFn, type DeriveFn, atomic, deep, derive, disable, enable, focus, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };
+declare global {
+    var keckFinalizationRegistry: FinalizationRegistry<any> | undefined;
+}
+declare function initGarbageCollectionObservation(cb: (heldValue: any) => void): void;
+
+export { type DeriveEqualFn, type DeriveFn, atomic, deep, derive, disable, enable, focus, initGarbageCollectionObservation, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };

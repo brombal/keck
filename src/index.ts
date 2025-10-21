@@ -15,4 +15,5 @@ export { shallowCompare } from './util/shallowCompare';
 export { isRef } from './methods/ref';
 export { registerObservableClass } from './factories/registerObservableClass';
 export { transformInPlace } from './util/transformInPlace';
+export { initGarbageCollectionObservation } from './util/garbageCollection';
 export type { DeriveEqualFn, DeriveFn } from './methods/derive';

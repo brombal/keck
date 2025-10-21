@@ -3,12 +3,13 @@ import type { DeriveContext } from 'keck/methods/derive';
 import { type RootNode, type Value, getRootNodeForValue } from './RootNode';
 
 /**
- * An Observation represents a path that was accessed on an Observable for a specific Observer,
- * and should trigger the Observer's callback when that property is modified.
- * When an Observable's property is modified, each Observation is tested, and if all conditions are
- * met, it will trigger the callback for its associated Observer.
+ * An Observation represents a path accessed on an observable proxy that should trigger the proxy's
+ * Observer's callback when that path is modified.
+ * When an proxy's path is modified, Keck looks up the proxy's Observer's RootNode, and checks
+ * all of its Observation for that path. If all conditions are met, it will trigger the callback for
+ * the Observation's Observer.
  *
- * These are stored in a PathMap on the RootNode, which is used to look up all Observations for a
+ * These are stored in a PathMap on the shared RootNode, which is used to look up all Observations for a
  * given path, regardless of the Observer that created them. They are also stored in a WeakMap on the
  * Observer, which is used to invalidate Observations when the Observer's mode is changed.
  */
@@ -27,6 +28,16 @@ export interface Observation {
   deriveCtxs?: Set<DeriveContext<any>>;
 }
 
+/**
+ * An Observer represents a callback to be triggered when properties on an observable object graph
+ * are modified. An Observer is responsible for creating the Observations that might trigger its
+ * callback, and for tracking which observations are still valid (all Observations, however, are
+ * stored on the RootNode).
+ *
+ * Observers are created directly by the `observe` method, and internally, care is taken to ensure
+ * that no persistent references to Observers exist that might prevent them from being garbage
+ * collected.
+ */
 export class Observer {
   private _enabled = true;
 
@@ -70,9 +81,9 @@ export class Observer {
    * Resets all observations of properties of the observable.
    */
   reset() {
-    if (this._isFocusing === undefined) {
-      throw new Error('reset() can only be called in focus mode');
-    }
+    // if (this._isFocusing === undefined) {
+    //   throw new Error('reset() can only be called in focus mode');
+    // }
     this._validObservations = undefined;
   }
 

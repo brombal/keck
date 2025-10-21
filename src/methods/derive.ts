@@ -20,11 +20,11 @@ export function derive<T>(fn: DeriveFn<T>, isEqual?: DeriveEqualFn<T>) {
     thisSetCallback = true;
   }
   try {
-    const result = unwrap(fn());
+    const result = fn();
     if (thisSetCallback) {
       activeDeriveCtx.prevResult = result;
     }
-    return result;
+    return unwrap(result);
   } finally {
     if (thisSetCallback) {
       activeDeriveCtx = undefined;
@@ -43,11 +43,11 @@ export function invokeDeriveCtx(ctx: DeriveContext<any>) {
     thisSetCallback = true;
   }
   try {
-    const result = unwrap(activeDeriveCtx.fn());
+    const result = activeDeriveCtx.fn();
     if (thisSetCallback) {
       activeDeriveCtx.prevResult = result;
     }
-    return result;
+    return unwrap(result);
   } finally {
     if (thisSetCallback) {
       activeDeriveCtx = undefined;

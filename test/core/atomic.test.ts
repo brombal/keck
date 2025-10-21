@@ -47,4 +47,33 @@ describe('atomic()', () => {
     expect(mockFn1).toHaveBeenCalledTimes(1);
     expect(mockFn2).toHaveBeenCalledTimes(1);
   });
+
+  test('Mutating during a callback that was triggered while inside atomic still triggers', () => {
+    const data1 = { value1: 0 };
+    const data2 = { value2: 0 };
+
+    const mockFn1 = jest.fn();
+    const mockFn2 = jest.fn();
+
+    const store1 = observe(data1, () => {
+      store2.value2++;
+      mockFn1();
+    });
+    const store2 = observe(data2, () => {
+      mockFn2();
+    });
+
+    store1.value1++;
+
+    expect(mockFn1).toHaveBeenCalledTimes(1);
+    expect(mockFn2).toHaveBeenCalledTimes(1);
+    jest.clearAllMocks();
+
+    atomic(() => {
+      store1.value1++;
+    });
+
+    expect(mockFn1).toHaveBeenCalledTimes(1);
+    expect(mockFn2).toHaveBeenCalledTimes(1);
+  });
 });

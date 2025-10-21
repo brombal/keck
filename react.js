@@ -1,5 +1,5 @@
-import { focus, reset, observe, unwrap } from 'keck';
-import { useRef, useState, useInsertionEffect, useLayoutEffect } from 'react';
+import { reset, observe, focus, derive } from 'keck';
+import { useRef, useInsertionEffect, useState, useLayoutEffect } from 'react';
 
 function useRefWithDeps(factory, deps) {
     const ref = useRef();
@@ -8,18 +8,51 @@ function useRefWithDeps(factory, deps) {
         deps.length !== depsRef.current.length ||
         deps.some((dep, i) => !Object.is(dep, depsRef.current[i]));
     if (hasChanged) {
-        ref.current = factory();
+        ref.current = factory(ref.current);
         depsRef.current = deps;
     }
     return ref;
 }
 
-let finalizationRegistry;
-/* istanbul ignore next */
-if (window.FinalizationRegistry && window.KECK_OBSERVE_GC && !finalizationRegistry) {
-    console.log('keck/react: initializing FinalizationRegistry');
-    finalizationRegistry = new FinalizationRegistry((...args) => console.log('keck/react: FinalizationRegistry callback invoked', args));
+/**
+ * Returns an observable proxy for `data` that invokes the provided callback when `data` is
+ * modified. The observable is unfocused, so it will invoke the callback for any changes.
+ * The callback is only active while the component is mounted.
+ *
+ * The observable proxy is memoized based on the `deps` array. To re-initialize the data, provide
+ * a dependency array that includes values that would indicate when to reset the state.
+ *
+ * @internal Internal use only. This is exported as the overloaded method `useObserver()`.
+ * @param data The data to observe.
+ * @param cb The callback to invoke when any observed property changes.
+ * @param deps Optional dependency array to refresh the observable proxy reference.
+ */
+function useObserverCallback(data, cb, deps) {
+    return useRefWithDeps((previous) => {
+        if (previous)
+            reset(previous);
+        const value = observe(data, cb);
+        globalThis?.keckFinalizationRegistry?.register(value, 'Keck observable released');
+        return value;
+    }, deps || []).current;
 }
+
+function useObserverDeriveCallback(data, deriveFn, cb, deps) {
+    const state = useObserverCallback(data, () => cb(deriveFn(state)), deps);
+    focus(state);
+    reset(state);
+    derive(() => deriveFn(state));
+    // Stop observing specific properties as soon as component finishes rendering
+    useInsertionEffect(() => {
+        focus(state, false);
+    });
+    // biome-ignore lint/correctness/useExhaustiveDependencies: just used for unmounting cleanup
+    useInsertionEffect(() => {
+        return () => reset(state);
+    }, []);
+    return state;
+}
+
 /**
  * `isRendering` informally tracks whether react is currently in a render phase. This is set to true directly inside useObserver,
  * and then immediately set to false when useInsertionEffect is invoked. Any keck state updates
@@ -32,102 +65,90 @@ if (window.FinalizationRegistry && window.KECK_OBSERVE_GC && !finalizationRegist
 let isRendering = false;
 const renderRequests = new Set();
 /**
- * Returns an observable version of `data` that will cause the component to re-render when any of its observed properties change. This includes deep object properties,
- * Map/Set entries, and array elements (including implicit property access such as an array's `.length` if you use `.map()`, for example).
+ * Returns an observable proxy for `data` that will cause the component to re-render when any of
+ * its observed properties change. Properties are only observed while the component is rendering.
+ * After render, only changes to observed properties will cause re-renders.
  *
- * **Observed properties** are properties that are accessed (read) while the component is rendering.
+ * `data` is memoized based on the `deps` array.
+ * - For local, inline state objects, this allows the same state object to persist between renders.
+ *   You can think of the `data` parameter as the "initial value" for the observable state. If you
+ *   want to reinitialize the state object, you can provide a dependency array that includes values
+ *   that would indicate when to reset the state.
+ * - For shared state objects that might change reference between renders (e.g. from props, context,
+ *   etc), you should include the object in the dependency array to ensure that an observable proxy
+ *   for the new object is returned. If you never expect the `data` object to change (e.g. global
+ *   or module-level variables), you can omit the `deps` array.
  *
- * ## Deep Observations
- *
- * Only properties with primitive values (string, number, boolean, null, undefined) are tracked for changes.
- * You can wrap an object in `deep()` to observe deep changes to nested objects or arrays. This will cause a re-render whenever any deep property within the object changes.
- *
- * Additionally, the object reference will change between renders if any deep property changes, which can be useful for dependency lists. E.g.:
- *
- * ```tsx
- * const state = useObserver({ filter: { search: '', tags: [] } });
- * useEffect(() => {
- *   // Effect will run when any deep property of state.filter changes
- * }, [deep(state.filter)]);
- * ```
- *
- * `deep()` simply returns the passed value, so the returned Proxy wrapper acts as an object reference that React will recognize as a changed object reference,
- * causing the effect to fire. Note that the underlying object is not a new copy—only the object reference of the Proxy wrapper changes.
- *
- * ## Sharing State
- *
- * You can pass a shared object reference (e.g. from props, context, a module-level variable, etc) to have multiple components share the same observable state.
- * Components that observe the same object will only re-render when the properties that they observed have changed.
- * For example, if Component A observes `state.a` and Component B observes `state.b`, changing `state.a` will only re-render Component A.
- * However, either component can modify any property on the shared state object, and the changes will be reflected in all components that observed that property.
- *
- * The object passed to `useObserver()` is memoized on the first render, and the observable object returned by `useObserver` will always be the same object reference.
- * You can provide a dependency array to `useObserver()` to have the object re-created when the dependencies change.
- * This is useful if you want to reset the observed object when certain values change.
- *
- * ## Mutation Callbacks
- *
- * If a `callback` is provided, it will be called on property changes, immediately before re-rendering. Note that if the keck state is
- * updated during a the render phase, this callback will also be invoked
- * synchronously during the render phase, so it should not cause any side effects (e.g. triggering more renders).
+ * @param data The data to observe.
+ * @param deps Optional dependency array to refresh the observable proxy reference.
+ * @return The observable proxy of `data`.
  */
-function useObserver(data, deps) {
+function useObserverRenderer(data, deps) {
     isRendering = true;
     const [, forceRerender] = useState({});
-    const ref = useRefWithDeps(() => {
-        const value = observe(data, () => {
-            const rerender = () => {
-                forceRerender({});
-            };
-            if (isRendering) {
-                renderRequests.add(rerender); // Other components — defer
-            }
-            else {
-                rerender(); // Current component or not in render phase — safe to re-render immediately
-            }
-        });
-        finalizationRegistry?.register(value, 'Keck observable released');
-        return value;
-    }, deps || []);
-    const state = ref.current;
+    const state = useObserverCallback(data, () => {
+        const rerender = () => {
+            forceRerender({});
+        };
+        if (isRendering) {
+            renderRequests.add(rerender); // Other components — defer
+        }
+        else {
+            rerender(); // Current component or not in render phase — safe to re-render immediately
+        }
+    }, deps);
     // Begin observing on render
     focus(state);
     reset(state);
-    // Stop observing as soon as component finishes rendering
+    // Disable isRendering and stop observing specific properties as soon as component finishes rendering
     useInsertionEffect(() => {
-        focus(state, false);
         isRendering = false;
+        focus(state, false);
     });
+    // biome-ignore lint/correctness/useExhaustiveDependencies: just used for unmounting cleanup
+    useInsertionEffect(() => {
+        return () => {
+            reset(state);
+        };
+    }, []);
+    // Process any deferred render requests
     useLayoutEffect(() => {
         for (const rerender of renderRequests) {
             rerender();
         }
         renderRequests.clear();
     });
-    // biome-ignore lint/correctness/useExhaustiveDependencies: just used for unmounting cleanup
-    useLayoutEffect(() => {
-        return () => {
-            reset(state);
-        };
-    }, []);
+    // If the render is abandoned by React, effects won't run, so we also clear isRendering in a microtask just in case.
+    // TODO It's possible this would be better handled by a deferral mechanism that allows registering observations
+    //  but not "committing" them until later, e.g.:
+    //  const commit = defer(state);
+    //  useLayoutEffect(() => commit());
+    queueMicrotask(() => {
+        isRendering = false;
+    });
     return state;
 }
+
 /**
- * Hook that will observe `data`, and only re-render the component when the result of `deriveFn` changes.
- * Returns the result of `deriveFn`.
+ * @internal This is the function implementation that handles all the overloads.
  */
-function useDerived(data, deriveFn, isEqual) {
-    const [, forceRerender] = useState({});
-    const deriveResultRef = useRef();
-    const ref = useRef();
-    if (!ref.current) {
-        ref.current = observe(data, () => forceRerender({}), (data) => {
-            return (deriveResultRef.current = deriveFn(data));
-        }, isEqual);
-        finalizationRegistry?.register(ref.current, 'Keck derived observable released');
+function useObserver(...args) {
+    const data = args.shift();
+    const hasDeps = Array.isArray(args[args.length - 1]);
+    const deps = hasDeps ? args.pop() : undefined;
+    if (!args.length) {
+        return useObserverRenderer(data, deps);
     }
-    return unwrap(deriveResultRef.current);
+    if (args.length === 1) {
+        const cb = args[0];
+        return useObserverCallback(data, cb, deps);
+    }
+    if (args.length === 2) {
+        const deriveFn = args[0];
+        const cb = args[1];
+        return useObserverDeriveCallback(data, deriveFn, cb, deps);
+    }
 }
 
-export { useDerived, useObserver };
+export { useObserver };
 //# sourceMappingURL=react.js.map

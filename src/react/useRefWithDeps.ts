@@ -1,6 +1,9 @@
 import { type MutableRefObject, useRef } from 'react';
 
-export function useRefWithDeps<T>(factory: () => T, deps: unknown[]): MutableRefObject<T> {
+export function useRefWithDeps<T>(
+  factory: (previous: T | undefined) => T,
+  deps: unknown[],
+): MutableRefObject<T> {
   const ref = useRef<T>();
   const depsRef = useRef<unknown[]>();
 
@@ -10,7 +13,7 @@ export function useRefWithDeps<T>(factory: () => T, deps: unknown[]): MutableRef
     deps.some((dep, i) => !Object.is(dep, depsRef.current![i]));
 
   if (hasChanged) {
-    ref.current = factory();
+    ref.current = factory(ref.current);
     depsRef.current = deps;
   }
 

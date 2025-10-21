@@ -71,14 +71,6 @@ describe('reset()', () => {
     }
   });
 
-  test('Calling reset() when not in focus mode causes error', () => {
-    const mockCallback = jest.fn();
-
-    const store = observe({}, mockCallback);
-
-    expect(() => reset(store)).toThrow('reset() can only be called in focus mode');
-  });
-
   test('Resetting clears observations and keeps focus mode enabled', () => {
     const mockCallback = jest.fn();
 

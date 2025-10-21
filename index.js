@@ -8,11 +8,15 @@ function getObservableFactory(classConstructor) {
 
 const contextForObservable = new WeakMap();
 /**
- * An ObservableContext is used to manage an Observable (a proxy wrapper) value. Because Observables
- * have to be transparently identical to the value they represent, additional data about them has
- * to be stored in a separate object. ObservableContexts are transient objects that are created
- * internally when a property is accessed, and only exist until a descendant property is modified,
- * which invalidates it and its associated Observable. This invalidation is what allows references
+ * An ObservableContext is used to manage additional data associated with an observable proxy
+ * wrapper. Because observable proxies
+ * have to be behaviorally identical to the value they represent, additional data about them has
+ * to be stored in this separate object.
+ *
+ * ObservableContexts are ephemeral objects that are created
+ * internally when a property is accessed, and only exist within the scope of the proxy — they are
+ * garbage collected with the proxy. They also only exist until a descendant property is modified,
+ * which invalidates it and its associated proxy. This invalidation is what allows references
  * to compare as unequal when the underlying value changes.
  *
  * ObservableContext objects are not accessible externally. They only exist while their associated
@@ -151,11 +155,11 @@ function derive(fn, isEqual) {
         thisSetCallback = true;
     }
     try {
-        const result = unwrap(fn());
+        const result = fn();
         if (thisSetCallback) {
             activeDeriveCtx.prevResult = result;
         }
-        return result;
+        return unwrap(result);
     }
     finally {
         if (thisSetCallback) {
@@ -174,11 +178,11 @@ function invokeDeriveCtx(ctx) {
         thisSetCallback = true;
     }
     try {
-        const result = unwrap(activeDeriveCtx.fn());
+        const result = activeDeriveCtx.fn();
         if (thisSetCallback) {
             activeDeriveCtx.prevResult = result;
         }
-        return result;
+        return unwrap(result);
     }
     finally {
         if (thisSetCallback) {
@@ -188,43 +192,46 @@ function invokeDeriveCtx(ctx) {
 }
 
 function triggerObservations(observations) {
-    // The Set of Observers to trigger (prevents triggering the same observer multiple times)
-    const triggerObservers = new Set();
-    // Map of validated DeriveContexts and whether their return values changed
-    // (prevents redundant invocations of derive fn or isEqual)
-    const verifiedDeriveCtxs = new Map();
-    for (const observation of observations) {
-        // By default, we don't skip any Observer callback (for non-focused Observers)
-        let skipObserver = false;
-        // If the observation has derive contexts, validate each one
-        if (observation.deriveCtxs) {
-            // In this case, we skip the observer by default unless one of the derived return values changed
-            skipObserver = true;
-            for (const deriveCtx of observation.deriveCtxs) {
-                // Already checked; skip and use same result
-                if (verifiedDeriveCtxs.has(deriveCtx)) {
-                    const changedResult = verifiedDeriveCtxs.get(deriveCtx);
+    while (observations.size > 0) {
+        // The Set of Observers to trigger (prevents triggering the same observer multiple times)
+        const triggerObservers = new Set();
+        // Map of validated DeriveContexts and whether their return values changed
+        // (prevents redundant invocations of derive fn or isEqual)
+        const verifiedDeriveCtxs = new Map();
+        for (const observation of observations) {
+            observations.delete(observation);
+            // By default, we don't skip any Observer callback (for non-focused Observers)
+            let skipObserver = false;
+            // If the observation has derive contexts, validate each one
+            if (observation.deriveCtxs) {
+                // In this case, we skip the observer by default unless one of the derived return values changed
+                skipObserver = true;
+                for (const deriveCtx of observation.deriveCtxs) {
+                    // Already checked; skip and use same result
+                    if (verifiedDeriveCtxs.has(deriveCtx)) {
+                        const changedResult = verifiedDeriveCtxs.get(deriveCtx);
+                        if (changedResult)
+                            skipObserver = false;
+                        continue;
+                    }
+                    // Get next result and compare with previous result
+                    const prevResult = deriveCtx.prevResult;
+                    const nextResult = invokeDeriveCtx(deriveCtx);
+                    const changedResult = deriveCtx.isEqual
+                        ? !deriveCtx.isEqual(prevResult, nextResult)
+                        : prevResult !== nextResult;
+                    verifiedDeriveCtxs.set(deriveCtx, changedResult);
+                    // If the result changed, this observer will be invoked
                     if (changedResult)
                         skipObserver = false;
-                    continue;
                 }
-                // Get next result and compare with previous result
-                const prevResult = deriveCtx.prevResult;
-                const nextResult = invokeDeriveCtx(deriveCtx);
-                const changedResult = deriveCtx.isEqual
-                    ? !deriveCtx.isEqual(prevResult, nextResult)
-                    : prevResult !== nextResult;
-                verifiedDeriveCtxs.set(deriveCtx, changedResult);
-                // If the result changed, this observer will be invoked
-                if (changedResult)
-                    skipObserver = false;
             }
+            if (!skipObserver)
+                triggerObservers.add(observation.observer);
         }
-        if (!skipObserver)
-            triggerObservers.add(observation.observer);
-    }
-    for (const observer of triggerObservers) {
-        observer.callback?.();
+        for (const observer of triggerObservers) {
+            observer.callback?.();
+        }
     }
 }
 
@@ -246,6 +253,7 @@ function atomic(fn, args, thisArg) {
     }
 }
 
+const keyLength = Symbol('keyLength');
 const objectFactory = {
     makeObservable: (ctx) => {
         return new Proxy(
@@ -268,6 +276,7 @@ const objectFactory = {
                 const oldValue = Reflect.get(ctx.value, prop, ctx.value);
                 if (oldValue === rawValue)
                     return true;
+                const oldHas = Reflect.has(ctx.value, prop);
                 if (Array.isArray(ctx.value)) {
                     const arrayLength = ctx.value.length;
                     const setResult = Reflect.set(ctx.value, prop, rawValue, ctx.value);
@@ -288,20 +297,29 @@ const objectFactory = {
                     });
                 }
                 const result = Reflect.set(ctx.value, prop, rawValue, observer);
-                ctx.modifyIdentifier(prop);
+                atomic(() => {
+                    ctx.modifyIdentifier(prop);
+                    if (!oldHas)
+                        ctx.modifyIdentifier(keyLength);
+                });
                 return result;
             },
             ownKeys(_) {
                 const keys = Reflect.ownKeys(ctx.value);
-                for (const key of keys) {
-                    ctx.observeIdentifier(key);
-                }
+                // for (const key of keys) {
+                //   ctx.observeIdentifier(key);
+                // }
+                ctx.observeIdentifier(keyLength);
                 return keys;
             },
             deleteProperty(_, prop) {
                 const res = Reflect.deleteProperty(ctx.value, prop);
-                if (res)
-                    ctx.modifyIdentifier(prop);
+                if (res) {
+                    atomic(() => {
+                        ctx.modifyIdentifier(prop);
+                        ctx.modifyIdentifier(keyLength);
+                    });
+                }
                 return res;
             },
         });
@@ -617,11 +635,23 @@ function getRootNodeForValue(value) {
     isObservable(value, true);
     return getMapEntry(rootNodeForValue, value, () => new WeakRef(new RootNode()), {}, (ref) => !!ref.deref()).deref();
 }
+/**
+ * A RootNode is the root of the observable tracking system for a given object graph. Only one
+ * RootNode exists per root Value object.
+ * It maintains a PathMap of all observed paths, and is responsible for creating Observations
+ * and ObservableContexts as needed.
+ *
+ * When a path is modified, it invalidates all related Observables and triggers the appropriate
+ * Observations.
+ *
+ * RootNode objects are only created by getRootNodeForValue, and are stored in a WeakMap keyed by
+ * the root Value object.
+ */
 class RootNode {
     pathEntries = new PathMap();
     observePath(observer, path, childValue, force = false) {
         let returnValue = childValue;
-        if (isPeeking())
+        if (!force && isPeeking())
             return returnValue;
         const isObservable = childValue &&
             typeof childValue === 'object' &&
@@ -631,7 +661,7 @@ class RootNode {
         if (isObservable) {
             returnValue = this.getObservable(observer, path, childValue);
         }
-        if (force || activeDeriveCtx || (!isObservable && observer.isFocusing)) {
+        if (force || (observer.isFocusing && (activeDeriveCtx || !isObservable))) {
             this.createObservation(observer, path);
         }
         return returnValue;
@@ -701,6 +731,16 @@ class RootNode {
     }
 }
 
+/**
+ * An Observer represents a callback to be triggered when properties on an observable object graph
+ * are modified. An Observer is responsible for creating the Observations that might trigger its
+ * callback, and for tracking which observations are still valid (all Observations, however, are
+ * stored on the RootNode).
+ *
+ * Observers are created directly by the `observe` method, and internally, care is taken to ensure
+ * that no persistent references to Observers exist that might prevent them from being garbage
+ * collected.
+ */
 class Observer {
     callback;
     _enabled = true;
@@ -736,9 +776,9 @@ class Observer {
      * Resets all observations of properties of the observable.
      */
     reset() {
-        if (this._isFocusing === undefined) {
-            throw new Error('reset() can only be called in focus mode');
-        }
+        // if (this._isFocusing === undefined) {
+        //   throw new Error('reset() can only be called in focus mode');
+        // }
         this._validObservations = undefined;
     }
     /**
@@ -882,5 +922,12 @@ function isSupportedStructure(val) {
     return Array.isArray(val) || isPlainObject(val);
 }
 
-export { atomic, deep, derive, disable, enable, focus, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };
+function initGarbageCollectionObservation(cb) {
+    /* istanbul ignore next */
+    if (window.FinalizationRegistry && !globalThis.keckFinalizationRegistry) {
+        globalThis.keckFinalizationRegistry = new FinalizationRegistry(cb);
+    }
+}
+
+export { atomic, deep, derive, disable, enable, focus, initGarbageCollectionObservation, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };
 //# sourceMappingURL=index.js.map

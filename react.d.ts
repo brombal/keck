@@ -1,50 +1,97 @@
-import { DeriveEqualFn } from 'keck';
-
 /**
- * Returns an observable version of `data` that will cause the component to re-render when any of its observed properties change. This includes deep object properties,
- * Map/Set entries, and array elements (including implicit property access such as an array's `.length` if you use `.map()`, for example).
+ * Creates an observable for `data` that re-renders the component when its observed properties
+ * change. Returns an observable object that you can read during the component's render and modify
+ * in effects or event handlers.
  *
- * **Observed properties** are properties that are accessed (read) while the component is rendering.
+ * e.g.
  *
- * ## Deep Observations
- *
- * Only properties with primitive values (string, number, boolean, null, undefined) are tracked for changes.
- * You can wrap an object in `deep()` to observe deep changes to nested objects or arrays. This will cause a re-render whenever any deep property within the object changes.
- *
- * Additionally, the object reference will change between renders if any deep property changes, which can be useful for dependency lists. E.g.:
+ * In your component's render:
  *
  * ```tsx
- * const state = useObserver({ filter: { search: '', tags: [] } });
- * useEffect(() => {
- *   // Effect will run when any deep property of state.filter changes
- * }, [deep(state.filter)]);
+ * const data = { count: 0 };
+ * const state = useObserver(data);
  * ```
  *
- * `deep()` simply returns the passed value, so the returned Proxy wrapper acts as an object reference that React will recognize as a changed object reference,
- * causing the effect to fire. Note that the underlying object is not a new copy—only the object reference of the Proxy wrapper changes.
+ * Render a property:
  *
- * ## Sharing State
+ * ```tsx
+ * return <>{state.count}<>;
+ * ```
  *
- * You can pass a shared object reference (e.g. from props, context, a module-level variable, etc) to have multiple components share the same observable state.
- * Components that observe the same object will only re-render when the properties that they observed have changed.
- * For example, if Component A observes `state.a` and Component B observes `state.b`, changing `state.a` will only re-render Component A.
- * However, either component can modify any property on the shared state object, and the changes will be reflected in all components that observed that property.
+ * Modify a property (e.g. in an effect or event callback):
  *
- * The object passed to `useObserver()` is memoized on the first render, and the observable object returned by `useObserver` will always be the same object reference.
- * You can provide a dependency array to `useObserver()` to have the object re-created when the dependencies change.
- * This is useful if you want to reset the observed object when certain values change.
+ * ```tsx
+ * <button onClick={() => state.count += 1}>Increment</button>
+ * ```
  *
- * ## Mutation Callbacks
- *
- * If a `callback` is provided, it will be called on property changes, immediately before re-rendering. Note that if the keck state is
- * updated during a the render phase, this callback will also be invoked
- * synchronously during the render phase, so it should not cause any side effects (e.g. triggering more renders).
+ * @param data The data to observe. This can be a plain object or an existing observable proxy.
+ * @param deps Optional dependency array to refresh the callback, in case it references values from the component scope.
  */
 declare function useObserver<TData extends object>(data: TData, deps?: unknown[]): TData;
 /**
- * Hook that will observe `data`, and only re-render the component when the result of `deriveFn` changes.
- * Returns the result of `deriveFn`.
+ * Registers a callback that is invoked when any properties of the observer are modified. The
+ * callback will be invoked on changes to ANY observable throughout your app created from the same
+ * data object. The callback will only be active while the component is mounted.
+ *
+ * > Note: DO NOT use the returned state object in the component's render, as changes to its
+ * > properties will not trigger re-renders. However, you may read and modify properties in effects
+ * > or event handlers.
+ *
+ * e.g.
+ *
+ * In your component's render:
+ *
+ * ```tsx
+ * const state = useObserver(
+ *   { count: 0 },
+ *   () => console.log('data changed')
+ * );
+ * ```
+ *
+ * Modify a property (e.g. in an effect or event callback):
+ *
+ * ```tsx
+ * <button onClick={() => state.count += 1}>Increment</button>
+ * ```
+ *
+ * @param data The data to observe. This can be a plain object or an existing observable proxy.
+ * @param cb The callback to invoke when the derived value changes.
+ * @param deps Optional dependency array to refresh the callback, in case it references values from the component scope.
  */
-declare function useDerived<TData extends object, TDerived>(data: TData, deriveFn: (state: TData) => TDerived, isEqual?: DeriveEqualFn<TDerived>): TDerived;
+declare function useObserver<TData extends object>(data: TData, cb: () => void, deps?: unknown[]): TData;
+/**
+ * Registers a callback that is invoked when the result of the derive function changes. The callback
+ * will be invoked on changes to ANY observable throughout your app created from the same data
+ * object (if they affect the derived value). The callback will only be active while the component
+ * is mounted.
+ *
+ * > Note: DO NOT use the returned state object in the component's render, as changes to its properties will not trigger re-renders.
+ * > However, you may read and modify properties in effects or event handlers.
+ *
+ * e.g.
+ *
+ * In your component's render:
+ *
+ * ```tsx
+ * const state = useObserver(
+ *   { count: 0 },
+ *   (state) => state.count % 2 === 0,
+ *   (isEven) => console.log('is count even:', isEven, state.count)
+ * );
+ * ```
+ *
+ * Modify a property (e.g. in an effect or event callback):
+ *
+ * ```tsx
+ * <button onClick={() => state.count += 1}>Increment</button>
+ * ```
+ *
+ * @param data The data to observe. This can be a plain object or an existing observable proxy.
+ * @param deriveFn A function that derives a value from the observed data. The function receives the observable
+ *   proxy of `data`, from which you can derive a value.
+ * @param cb The callback to invoke when the derived value changes.
+ * @param deps Optional dependency array to refresh the callback, in case it references values from the component scope.
+ */
+declare function useObserver<TData extends object, TDerived>(data: TData, deriveFn: (data: TData) => TDerived, cb: (derived: TDerived) => void, deps?: unknown[]): TData;
 
-export { useDerived, useObserver };
+export { useObserver };

@@ -56,13 +56,25 @@ export function getRootNodeForValue(value: Value) {
   ).deref()!;
 }
 
+/**
+ * A RootNode is the root of the observable tracking system for a given object graph. Only one
+ * RootNode exists per root Value object.
+ * It maintains a PathMap of all observed paths, and is responsible for creating Observations
+ * and ObservableContexts as needed.
+ *
+ * When a path is modified, it invalidates all related Observables and triggers the appropriate
+ * Observations.
+ *
+ * RootNode objects are only created by getRootNodeForValue, and are stored in a WeakMap keyed by
+ * the root Value object.
+ */
 export class RootNode {
   pathEntries = new PathMap<ObservablePathEntry>();
 
   observePath(observer: Observer, path: Path, childValue: Value, force = false) {
     let returnValue = childValue;
 
-    if (isPeeking()) return returnValue;
+    if (!force && isPeeking()) return returnValue;
 
     const isObservable =
       childValue &&
@@ -75,7 +87,7 @@ export class RootNode {
       returnValue = this.getObservable(observer, path, childValue) as any as Value;
     }
 
-    if (force || activeDeriveCtx || (!isObservable && observer.isFocusing)) {
+    if (force || (observer.isFocusing && (activeDeriveCtx || !isObservable))) {
       this.createObservation(observer, path);
     }
 

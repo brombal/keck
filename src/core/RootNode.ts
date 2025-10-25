@@ -29,10 +29,14 @@ export type Observable = object & { __observable: true };
  */
 export type Path = any[];
 
-interface ObservablePathEntry {
+/**
+ * Represents an entry in a RootNode's pathEntries PathMap structure.
+ * @see RootNode.pathEntries
+ */
+interface RootNodePathEntry {
   /**
    * Used to look up an existing ObservableContext for an Observer at the given path,
-   * and to invalidate all ObservableContexts for an Observer at a given path.
+   * and to invalidate the ObservableContext for an Observer at a given path.
    *
    * TODO should there be a separate WeakMap for Observables? It might be more performant to
    *  only invalidate Observables but leave their ObservableContexts intact and reuse them by
@@ -69,7 +73,11 @@ export function getRootNodeForValue(value: Value) {
  * the root Value object.
  */
 export class RootNode {
-  pathEntries = new PathMap<ObservablePathEntry>();
+  /**
+   * A tree structure that mirrors this RootNode's associated value's object structure, containing
+   * information about all of the observations on the value's observed paths.
+   */
+  pathEntries = new PathMap<RootNodePathEntry>();
 
   observePath(observer: Observer, path: Path, childValue: Value, force = false) {
     let returnValue = childValue;
@@ -136,6 +144,11 @@ export class RootNode {
     }
   }
 
+  /**
+   * Returns the observable proxy wrapper for the given observer at the given path and child value.
+   * If no such observable exists yet, or the existing observable does not reference the given
+   * child value, it will be (re-)created.
+   */
   getObservable(observer: Observer, path: Path, childValue: Value) {
     isObservable(childValue, true);
 
@@ -143,6 +156,12 @@ export class RootNode {
       this.getPathEntry(path).observables,
       observer,
       () => new ObservableContext(this, observer, childValue, path),
+      undefined,
+      /**
+       * The ObservableContext's value must match childValue. If it doesn't that likely means
+       * the object was replaced and a new ObservableContext needs to be created.
+       */
+      (ctx) => ctx.value === childValue,
     ).observable;
   }
 

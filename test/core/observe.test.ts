@@ -192,19 +192,43 @@ describe('observe()', () => {
     expect(JSON.stringify(store1)).toBe(JSON.stringify(data));
   });
 
-  test('Replacing a deep value structure should work', () => {
-    const form = observe({
+  test('Replacing a nested object in original data should be reflected in observable', () => {
+    const data = {
       a: {
         b: { c: 'value1' },
       },
-    });
+    };
+    const form = observe(data);
 
+    expect(form.a).toEqual({ b: { c: 'value1' } });
+    expect(form.a.b).toEqual({ c: 'value1' });
     expect(form.a.b.c).toBe('value1');
 
-    form.a = {
+    data.a = {
       b: { c: 'value2' },
     };
 
+    expect(form.a).toEqual({ b: { c: 'value2' } });
+    expect(form.a.b).toEqual({ c: 'value2' });
     expect(form.a.b.c).toBe('value2');
+  });
+
+  test('Replacing a nested object in original data should change observable reference', () => {
+    const data = {
+      a: {
+        b: { c: 'value1' },
+      },
+    };
+    const form = observe(data);
+
+    const aObservableRef = form.a;
+    const abObservableRef = form.a.b;
+
+    data.a.b = {
+      c: 'value2',
+    };
+
+    expect(form.a).toBe(aObservableRef);
+    expect(form.a.b).not.toBe(abObservableRef);
   });
 });

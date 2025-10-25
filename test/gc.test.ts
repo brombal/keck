@@ -8,6 +8,12 @@ const data = createData();
 (window as any).observer = observe(data);
 
 describe('Garbage collection', () => {
+  /**
+   * Test utility for garbage collection.
+   * This will run the given callback, which should create and return an observable that invokes the given observeCb when modified.
+   * After the observable goes out of scope, garbage collection is triggered, and this will test that the FinalizationRegistry callback is invoked
+   * and that observeCb is not called after garbage collection.
+   */
   async function sharedGcTest(cb: (observeCb: () => void) => any, afterGcCb?: () => void) {
     expect(global.gc).toBeDefined();
 
@@ -21,13 +27,17 @@ describe('Garbage collection', () => {
       r.register(store, 'value1');
     })();
 
+    jest.clearAllMocks();
+
     await new Promise((resolve) => setTimeout(resolve, 50));
     global.gc!();
     await new Promise((resolve) => setTimeout(resolve, 50));
 
+    expect(mockCleanupFn).toHaveBeenCalledTimes(1);
+
     afterGcCb?.();
 
-    expect(mockCleanupFn).toHaveBeenCalledTimes(1);
+    expect(mockCallback).toHaveBeenCalledTimes(0);
   }
 
   test('Smoke test for WeakRef', async () => {
@@ -51,12 +61,17 @@ describe('Garbage collection', () => {
   });
 
   test('Garbage is collected when observable goes out of scope (unfocused; no modifications)', async () => {
+    const mockCb = jest.fn();
+    const state = observe(data, mockCb);
+
     await sharedGcTest(
       (cb) => {
+        // This observable should be garbage collected; cb will not be called
         return observe(data, cb);
       },
       () => {
-        observe(data);
+        state.value1 = 'new-value1';
+        expect(mockCb).toHaveBeenCalledTimes(1);
       },
     );
   });

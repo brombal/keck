@@ -306,9 +306,6 @@ const objectFactory = {
             },
             ownKeys(_) {
                 const keys = Reflect.ownKeys(ctx.value);
-                // for (const key of keys) {
-                //   ctx.observeIdentifier(key);
-                // }
                 ctx.observeIdentifier(keyLength);
                 return keys;
             },
@@ -648,6 +645,10 @@ function getRootNodeForValue(value) {
  * the root Value object.
  */
 class RootNode {
+    /**
+     * A tree structure that mirrors this RootNode's associated value's object structure, containing
+     * information about all of the observations on the value's observed paths.
+     */
     pathEntries = new PathMap();
     observePath(observer, path, childValue, force = false) {
         let returnValue = childValue;
@@ -700,9 +701,19 @@ class RootNode {
             triggerObservations(observationsToCall);
         }
     }
+    /**
+     * Returns the observable proxy wrapper for the given observer at the given path and child value.
+     * If no such observable exists yet, or the existing observable does not reference the given
+     * child value, it will be (re-)created.
+     */
     getObservable(observer, path, childValue) {
         isObservable(childValue, true);
-        return getMapEntry(this.getPathEntry(path).observables, observer, () => new ObservableContext(this, observer, childValue, path)).observable;
+        return getMapEntry(this.getPathEntry(path).observables, observer, () => new ObservableContext(this, observer, childValue, path), undefined, 
+        /**
+         * The ObservableContext's value must match childValue. If it doesn't that likely means
+         * the object was replaced and a new ObservableContext needs to be created.
+         */
+        (ctx) => ctx.value === childValue).observable;
     }
     getPathEntry(path) {
         return getMapEntry(this.pathEntries, path, () => ({

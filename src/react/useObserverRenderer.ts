@@ -36,11 +36,15 @@ const renderRequests = new Set<() => void>();
  */
 export function useObserverRenderer<TData extends object>(data: TData, deps?: unknown[]): TData {
   isRendering = true;
+  let renderValid = false;
   const [, forceRerender] = useState({});
 
   const state = useObserverCallback(
     data,
     () => {
+      // React may abandon the render for Suspense, etc. In that case, we should not attempt to re-render.
+      if (!renderValid) return;
+
       const rerender = () => {
         forceRerender({});
       };
@@ -61,6 +65,17 @@ export function useObserverRenderer<TData extends object>(data: TData, deps?: un
   // Disable isRendering and stop observing specific properties as soon as component finishes rendering
   useInsertionEffect(() => {
     isRendering = false;
+    renderValid = true;
+    focus(state, false);
+  });
+
+  // If the render is abandoned by React, effects won't run, so we also clear isRendering in a microtask just in case.
+  // TODO It's possible this would be better handled by a deferral mechanism that allows registering observations
+  //  but not "committing" them until later, e.g.:
+  //  const commit = defer(state);
+  //  useLayoutEffect(() => commit());
+  queueMicrotask(() => {
+    isRendering = false;
     focus(state, false);
   });
 
@@ -77,15 +92,6 @@ export function useObserverRenderer<TData extends object>(data: TData, deps?: un
       rerender();
     }
     renderRequests.clear();
-  });
-
-  // If the render is abandoned by React, effects won't run, so we also clear isRendering in a microtask just in case.
-  // TODO It's possible this would be better handled by a deferral mechanism that allows registering observations
-  //  but not "committing" them until later, e.g.:
-  //  const commit = defer(state);
-  //  useLayoutEffect(() => commit());
-  queueMicrotask(() => {
-    isRendering = false;
   });
 
   return state;

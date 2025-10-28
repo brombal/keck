@@ -253,8 +253,6 @@ describe('useObserver', () => {
       'Render ComponentB',
       'Commit ComponentA',
       'Commit ComponentB',
-      'Render ComponentA',
-      'Commit ComponentA',
     ]);
 
     // Final values should be consistent

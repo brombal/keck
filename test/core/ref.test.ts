@@ -148,4 +148,37 @@ describe('ref()', () => {
     state.object2 = ref(null);
     expect(state.object2).toBeNull();
   });
+
+  test('Accessing ref returns unwrapped value', () => {
+    const innerObject = {
+      value: 'value',
+    };
+    const state = observe({
+      object1: ref(innerObject),
+    });
+
+    expect(state.object1).toBe(innerObject);
+  });
+
+  test("Reassigning ref of same object doesn't trigger rerender", () => {
+    const mockCallback = jest.fn();
+    const state = observe(
+      {
+        object1: ref({
+          value: 'value',
+        }),
+      },
+      mockCallback,
+    );
+    focus(state);
+    void state.object1.value;
+
+    // Assigning same ref should not trigger callback
+    state.object1 = ref(state.object1);
+    expect(mockCallback).toHaveBeenCalledTimes(0);
+
+    // Assigning different ref should trigger callback
+    state.object1 = ref({ value: 'value' });
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+  });
 });

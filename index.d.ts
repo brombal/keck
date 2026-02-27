@@ -126,4 +126,5 @@ declare global {
 }
 declare function initGarbageCollectionObservation(cb: (heldValue: any) => void): void;
 
-export { type DeriveEqualFn, type DeriveFn, atomic, deep, derive, disable, enable, focus, initGarbageCollectionObservation, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };
+export { atomic, deep, derive, disable, enable, focus, initGarbageCollectionObservation, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };
+export type { DeriveEqualFn, DeriveFn };

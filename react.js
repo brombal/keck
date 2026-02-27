@@ -1,4 +1,4 @@
-import { reset, observe, focus, derive } from 'keck';
+import { reset, observe, focus, derive, ref } from 'keck';
 import { useRef, useInsertionEffect, useState, useLayoutEffect } from 'react';
 
 function useRefWithDeps(factory, deps) {
@@ -156,5 +156,36 @@ function useObserver(...args) {
     }
 }
 
-export { useObserver };
+/**
+ * Creates a "ref" object compatible with React refs. You can use this within a Keck observable to store DOM elements.
+ *
+ * e.g.
+ *
+ * ```ts
+ * const state = useObserver({
+ *   myElementRef: reactRef<HTMLElement>(),
+ * });
+ *
+ * <div ref={state.myElementRef}>
+ * ```
+ *
+ * access it by using the ref's `.current` property:
+ *
+ * ```
+ * const el = state.myElementRef.current;
+ * ```
+ */
+function reactRef() {
+    let current = null;
+    return {
+        get current() {
+            return current;
+        },
+        set current(value) {
+            current = ref(value);
+        },
+    };
+}
+
+export { reactRef, useObserver };
 //# sourceMappingURL=react.js.map

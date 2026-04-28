@@ -20,10 +20,6 @@ import { useInsertionEffect, useLayoutEffect, useRef, useState } from 'react';
  */
 let isRendering = false;
 
-function registerObservableFinalizer(state: object) {
-  (globalThis as any)?.keckFinalizationRegistry?.register(state, 'Keck observable released');
-}
-
 const renderRequests = new Set<() => void>();
 
 /**
@@ -150,17 +146,13 @@ export function useObserver(...args: any[]): any {
       if (mode === 'render') return data;
       if (previous) reset(previous);
       if (mode === 'callback') {
-        const state = observe(data, () => (cbRef.current as (() => void) | undefined)?.());
-        registerObservableFinalizer(state);
-        return state;
+        return observe(data, () => (cbRef.current as (() => void) | undefined)?.());
       }
-      const state = observe(data, {
+      return observe(data, {
         derive: (s) => deriveFnRef.current!(s),
         onChange: (derived) => (cbRef.current as ((d: any) => void) | undefined)?.(derived),
         isEqual: isEqualRef.current ? (a, b) => isEqualRef.current!(a, b) : undefined,
       });
-      registerObservableFinalizer(state);
-      return state;
     },
     [...(deps || []), mode],
   );
@@ -188,7 +180,6 @@ export function useObserver(...args: any[]): any {
         rerender(); // Current component or not in render phase — safe to re-render immediately
       }
     });
-    registerObservableFinalizer(value);
     return value;
   }, deps || []);
 

@@ -167,10 +167,12 @@ describe('Maps', () => {
 
   test('Clearing empty Map does not trigger callback', () => {
     const mockCallback = jest.fn();
-    const store = observe({ emptySet: new Set() }, mockCallback);
+    const store = observe({ emptyMap: new Map(), emptySet: new Set() }, mockCallback);
     focus(store);
+    deep(store.emptyMap);
     deep(store.emptySet);
 
+    store.emptyMap.clear();
     store.emptySet.clear();
     expect(mockCallback).toHaveBeenCalledTimes(0);
   });

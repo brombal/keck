@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { focus, observe } from 'keck';
+import { focus, initGarbageCollectionObservation, observe } from 'keck';
 import { createData } from './shared-data';
 
 const data = createData();
@@ -118,5 +118,61 @@ describe('Garbage collection', () => {
       state.value1 = 'value1-new';
       return state;
     });
+  });
+});
+
+describe('initGarbageCollectionObservation', () => {
+  const unsubs: Array<() => void> = [];
+  afterEach(() => {
+    unsubs.splice(0).forEach((u) => void u());
+  });
+
+  test('callback fires when observe() result is garbage collected', async () => {
+    const gcCallback = jest.fn();
+    unsubs.push(initGarbageCollectionObservation(gcCallback));
+
+    (() => {
+      observe(data, jest.fn());
+    })();
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    global.gc!();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(gcCallback).toHaveBeenCalledWith('Keck observable released');
+  });
+
+  test('multiple callbacks all fire', async () => {
+    const cb1 = jest.fn();
+    const cb2 = jest.fn();
+    unsubs.push(initGarbageCollectionObservation(cb1));
+    unsubs.push(initGarbageCollectionObservation(cb2));
+
+    (() => {
+      observe(data, jest.fn());
+    })();
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    global.gc!();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(cb1).toHaveBeenCalledWith('Keck observable released');
+    expect(cb2).toHaveBeenCalledWith('Keck observable released');
+  });
+
+  test('unsubscribed callback does not fire', async () => {
+    const cb = jest.fn();
+    const unsub = initGarbageCollectionObservation(cb);
+    unsub();
+
+    (() => {
+      observe(data, jest.fn());
+    })();
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    global.gc!();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(cb).not.toHaveBeenCalled();
   });
 });

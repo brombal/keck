@@ -85,21 +85,23 @@ declare function isRef(value: any): boolean;
 
 declare function reset(observable: any): void;
 
-declare function beginTransaction(observable: object): void;
-declare function commitTransaction(observable: object): void;
-declare function discardTransaction(observable: object): void;
-
 /**
  * Use `silent` to execute a block of code without triggering any observer callbacks when modifications are made.
  * @param callback The block of code to execute.
  */
 declare function silent(callback: () => void): void;
 
+declare function beginTransaction(observable: object): void;
+declare function commitTransaction(observable: object): void;
+declare function discardTransaction(observable: object): void;
+
 /**
  * Returns the original object of an observable wrapper. If `observable` is
  * not actually an observable, the value will be returned as-is.
  */
 declare function unwrap<T>(observable: T): T;
+
+declare function initGarbageCollectionObservation(cb: (heldValue: any) => void): () => void;
 
 /**
  * Compares two objects for shallow equality. This is provided as a convenience utility for `derive()`.
@@ -129,5 +131,5 @@ declare function shallowCompare<T>(a: T, b: T): boolean;
  */
 declare function transformInPlace<TSource>(target: unknown, source: TSource): TSource;
 
-export { atomic, beginTransaction, commitTransaction, deep, derive, disable, discardTransaction, enable, focus, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };
+export { atomic, beginTransaction, commitTransaction, deep, derive, disable, discardTransaction, enable, focus, initGarbageCollectionObservation, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };
 export type { DeriveEqualFn, DeriveFn };

@@ -14,5 +14,6 @@ export { reset } from './methods/reset';
 export { silent } from './methods/silent';
 export { beginTransaction, commitTransaction, discardTransaction } from './methods/transaction';
 export { unwrap } from './methods/unwrap';
+export { initGarbageCollectionObservation } from './util/garbageCollection';
 export { shallowCompare } from './util/shallowCompare';
 export { transformInPlace } from './util/transformInPlace';

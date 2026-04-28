@@ -470,6 +470,46 @@ describe('derive()', () => {
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
+  test('derive fn side effect: reentrant invokeDeriveCtx updates prevResult correctly', () => {
+    // The reentrant case requires that `derive()` is called at the top level (outside any
+    // atomic context, so atomicObservations is undefined). When the derive fn modifies a
+    // property, it creates a fresh atomic that calls triggerObservations while activeDeriveCtx
+    // is still set by the outer derive() call. invokeDeriveCtx(ctxB) is then entered reentrant.
+    //
+    // Bug in old code: it called activeDeriveCtx.fn() (= ctxA.fn()) instead of ctx.fn()
+    // (= ctxB.fn()), and never updated ctxB.prevResult. So the next time stateB.y changes
+    // on its own, the comparison uses stale prevResult and may silently skip a callback.
+
+    const callbackB = jest.fn();
+    const stateA = observe({ x: 1 }, jest.fn());
+    const stateB = observe({ y: 10 }, callbackB);
+
+    // ctxB: fires when (y > 5) changes
+    focus(stateB);
+    derive(() => stateB.y > 5); // initial call: prevResult = true
+    focus(stateB, false);
+
+    // ctxA: when called at top level, immediately sets stateB.y = 3 as a side effect.
+    // Because atomicObservations is undefined here, the proxy set on stateB.y creates a fresh
+    // atomic and calls triggerObservations while activeDeriveCtx = ctxA → reentrant ctxB call.
+    focus(stateA);
+    derive(() => {
+      stateB.y = 3; // side effect on every evaluation; y: 10 → 3 (derive: true → false)
+      return stateA.x;
+    });
+    // After this call, ctxB.prevResult should be false (correctly updated after reentrant call).
+    focus(stateA, false);
+
+    jest.clearAllMocks();
+
+    // stateB.y goes 3 → 8: derive flips back (false → true).
+    // Correct: prevResult = false, nextResult = true → changed → callbackB fires.
+    // Buggy:   prevResult = true (stale, never updated in reentrant call),
+    //          nextResult = true → not changed → callbackB silently skipped.
+    stateB.y = 8;
+    expect(callbackB).toHaveBeenCalledTimes(1);
+  });
+
   test('deriving an object should return unwrapped value', () => {
     const mockCallback = jest.fn();
 

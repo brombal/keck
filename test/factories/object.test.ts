@@ -106,6 +106,18 @@ describe('object', () => {
     expect(mockCallback).toHaveBeenCalledTimes(2);
   });
 
+  test('Deleting a non-configurable property does not trigger callback and throws TypeError', () => {
+    const mockCallback = jest.fn();
+    const obj: Record<string, any> = {};
+    Object.defineProperty(obj, 'locked', { value: 42, configurable: false });
+    const store = observe({ obj }, mockCallback);
+
+    expect(() => {
+      delete (store.obj as any).locked;
+    }).toThrow(TypeError);
+    expect(mockCallback).toHaveBeenCalledTimes(0);
+  });
+
   test('Observing with Object.entries and then adding/deleting a property triggers callback', () => {
     const mockCallback = jest.fn();
     const store = observe({ object: {} as Record<string, any> }, mockCallback);

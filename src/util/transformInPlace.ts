@@ -36,8 +36,9 @@ export function transformInPlace<TSource>(target: unknown, source: TSource): TSo
         delete target[key];
       }
     }
-  } else if (Array.isArray(target) && Array.isArray(source)) {
-    // Adjust length of target array
+  } else {
+    // Both must be arrays: the type-mismatch check above already returned if types differ,
+    // and both are supported structures, so if not plain objects they must be arrays.
     target.length = source.length;
   }
 

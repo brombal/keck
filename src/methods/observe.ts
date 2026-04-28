@@ -1,5 +1,6 @@
 import { Observer } from 'keck/core/Observer';
 import type { Value } from 'keck/core/RootNode';
+import { registerObservableFinalizer } from 'keck/util/garbageCollection';
 
 import { type DeriveEqualFn, derive } from './derive';
 import { focus } from './focus';
@@ -51,5 +52,6 @@ export function observe<TValue extends object, TDerived>(
     focus(state, false);
   }
 
+  registerObservableFinalizer(state);
   return state;
 }

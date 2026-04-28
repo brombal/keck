@@ -149,6 +149,43 @@ describe('ref()', () => {
     expect(state.object2).toBeNull();
   });
 
+  test('ref() works with non-extensible objects', () => {
+    const mockCallback = jest.fn();
+    const data = {
+      frozen: {} as any,
+      sealed: {} as any,
+      nonExtensible: {} as any,
+    };
+    const state = observe(data, mockCallback);
+
+    const frozenObj = Object.freeze({ value: 1 });
+    const sealedObj = Object.seal({ value: 1 });
+    const nonExtObj = Object.preventExtensions({ value: 1 });
+
+    // None of these should throw
+    expect(() => {
+      state.frozen = ref(frozenObj);
+    }).not.toThrow();
+    expect(() => {
+      state.sealed = ref(sealedObj);
+    }).not.toThrow();
+    expect(() => {
+      state.nonExtensible = ref(nonExtObj);
+    }).not.toThrow();
+
+    // Values should be accessible correctly
+    expect(state.frozen).toBe(frozenObj);
+    expect(state.sealed).toBe(sealedObj);
+    expect(state.nonExtensible).toBe(nonExtObj);
+
+    jest.clearAllMocks();
+
+    // Modifying mutable property of sealed/non-extensible refs should not trigger callback
+    sealedObj.value = 2;
+    nonExtObj.value = 2;
+    expect(mockCallback).toHaveBeenCalledTimes(0);
+  });
+
   test('Accessing ref returns unwrapped value', () => {
     const innerObject = {
       value: 'value',

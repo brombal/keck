@@ -9,7 +9,7 @@ import { useObserver, reactRef } from "keck/react";
 
 | Entry point | Exports |
 | --- | --- |
-| `keck` | `observe`, `derive`, `deep`, `unwrap`, `peek`, `silent`, `atomic`, `ref`, `isRef`, `reset`, `disable`, `enable`, `focus`, `beginTransaction`, `commitTransaction`, `discardTransaction`, `shallowCompare`, `transformInPlace`, `registerObservableClass` |
+| `keck` | `observe`, `derive`, `deep`, `unwrap`, `peek`, `silent`, `atomic`, `ref`, `isRef`, `reset`, `disable`, `enable`, `focus`, `beginTransaction`, `commitTransaction`, `discardTransaction`, `shallowCompare`, `transformInPlace`, `registerObservableClass`, `initGarbageCollectionObservation` |
 | `keck/react` | `useObserver`, `reactRef` |
 
 ## React
@@ -265,3 +265,22 @@ const wrapped = ref(new WebSocket("wss://example.com"));
 isRef(wrapped); // true
 isRef({});      // false
 ```
+
+### `initGarbageCollectionObservation(cb: (heldValue: any) => void): () => void`
+
+Registers a callback that fires whenever a Keck observable is garbage collected. Returns an unsubscribe function. Multiple callbacks can be registered independently.
+
+Call before creating observables. Works with both `observe()` and `useObserver()`.
+
+```ts
+import { initGarbageCollectionObservation } from "keck";
+
+const unsub = initGarbageCollectionObservation((heldValue) => {
+  console.log("Observable GC'd:", heldValue); // heldValue is 'Keck observable released'
+});
+
+// Later, to stop receiving callbacks:
+unsub();
+```
+
+Calling this function more than once registers an additional independent callback; each call returns its own unsubscribe function. The underlying `FinalizationRegistry` is created lazily on the first call and released automatically when all callbacks are unsubscribed.

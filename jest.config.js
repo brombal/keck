@@ -5,6 +5,6 @@ export default {
   rootDir: './',
   moduleNameMapper: {
     '^keck$': '<rootDir>/src/index.ts',
-    '^keck/(.*)': '<rootDir>/src/$1.ts'
+    '^keck/(.*)': '<rootDir>/src/$1.ts',
   },
 };

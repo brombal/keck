@@ -37,20 +37,13 @@ export function derive<T>(fn: DeriveFn<T>, isEqual?: DeriveEqualFn<T>) {
  * This allows any observations made during the derive function to continue being derived observations.
  */
 export function invokeDeriveCtx(ctx: DeriveContext<any>) {
-  let thisSetCallback = false;
-  if (!activeDeriveCtx) {
-    activeDeriveCtx = ctx;
-    thisSetCallback = true;
-  }
+  const prev = activeDeriveCtx;
+  activeDeriveCtx = ctx;
   try {
-    const result = activeDeriveCtx.fn();
-    if (thisSetCallback) {
-      activeDeriveCtx.prevResult = result;
-    }
+    const result = ctx.fn();
+    ctx.prevResult = result;
     return unwrap(result);
   } finally {
-    if (thisSetCallback) {
-      activeDeriveCtx = undefined;
-    }
+    activeDeriveCtx = prev;
   }
 }

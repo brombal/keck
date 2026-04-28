@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { focus, observe, peek, registerObservableClass } from 'keck';
+import { observableFactories } from 'keck/factories/observableFactories';
 
 describe('Custom classes', () => {
   class Counter {
@@ -89,6 +90,18 @@ describe('Custom classes', () => {
 
     expect(mockCallback).toHaveBeenCalledTimes(1);
     expect(store.value).toBe(5);
+  });
+
+  test('Factory whose makeObservable returns falsy throws an error', () => {
+    class BrokenClass {}
+    registerObservableClass(BrokenClass, { makeObservable: () => null as any });
+
+    try {
+      const state = observe({ obj: new BrokenClass() }, jest.fn());
+      expect(() => state.obj).toThrow('is not observable');
+    } finally {
+      observableFactories.delete(BrokenClass);
+    }
   });
 
   test('Nested custom value is observable', async () => {

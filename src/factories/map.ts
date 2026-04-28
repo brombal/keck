@@ -2,30 +2,40 @@ import type { FactoryObservableContext } from 'keck/core/ObservableContext';
 import type { ObservableFactory } from 'keck/factories/observableFactories';
 import { registerObservableClass } from 'keck/factories/registerObservableClass';
 import { atomic } from 'keck/methods/atomic';
+import { unwrap } from 'keck/methods/unwrap';
 
 const _size = Symbol('size');
 
 export class ObservableMap<K, V> extends Map<K, V> {
-  constructor(private ctx: FactoryObservableContext<Map<K, V>>) {
+  #ctx: FactoryObservableContext<Map<K, V>>;
+
+  constructor(ctx: FactoryObservableContext<Map<K, V>>) {
     super();
+    this.#ctx = ctx;
+    Object.defineProperty(this, 'constructor', {
+      value: Map,
+      enumerable: false,
+      configurable: true,
+    });
   }
 
   private get map(): Map<K, V> {
-    return this.ctx.value;
+    return this.#ctx.value;
   }
 
   clear(): void {
     const size = this.map.size;
     this.map.clear();
-    if (size !== this.map.size) this.ctx.modifyIdentifier(_size);
+    if (size !== this.map.size) this.#ctx.modifyIdentifier(_size);
   }
 
   delete(key: K): boolean {
-    const res = this.map.delete(key);
+    const rawKey = unwrap(key);
+    const res = this.map.delete(rawKey);
     if (res) {
       atomic(() => {
-        this.ctx.modifyIdentifier(key);
-        this.ctx.modifyIdentifier(_size);
+        this.#ctx.modifyIdentifier(rawKey);
+        this.#ctx.modifyIdentifier(_size);
       });
     }
     return res;
@@ -33,42 +43,46 @@ export class ObservableMap<K, V> extends Map<K, V> {
 
   forEach(callbackFn: (value: V, key: K, map: Map<K, V>) => void, thisArg?: any): void {
     this.map.forEach((value, key) => {
-      const observable = this.ctx.observeIdentifier(key, value);
+      const observable = this.#ctx.observeIdentifier(key, value);
       callbackFn.call(thisArg, observable, key, this);
     }, thisArg);
     void this.size;
   }
 
   get(key: K): V | undefined {
-    const value = this.map.get(key);
-    return this.ctx.observeIdentifier(key, value);
+    const rawKey = unwrap(key);
+    const value = this.map.get(rawKey);
+    return this.#ctx.observeIdentifier(rawKey, value);
   }
 
   has(key: K): boolean {
-    this.ctx.observeIdentifier(key);
-    return this.map.has(key);
+    const rawKey = unwrap(key);
+    this.#ctx.observeIdentifier(rawKey);
+    return this.map.has(rawKey);
   }
 
   set(key: K, value: V): this {
+    const rawKey = unwrap(key);
+    const rawValue = unwrap(value);
     const size = this.map.size;
-    const oldValue = this.map.get(key);
-    this.map.set(key, value);
+    const oldValue = this.map.get(rawKey);
+    this.map.set(rawKey, rawValue);
     atomic(() => {
-      if (size !== this.map.size) this.ctx.modifyIdentifier(_size);
-      if (oldValue !== value) this.ctx.modifyIdentifier(key);
+      if (size !== this.map.size) this.#ctx.modifyIdentifier(_size);
+      if (oldValue !== rawValue) this.#ctx.modifyIdentifier(rawKey);
     });
     return this;
   }
 
   get size(): number {
-    return this.ctx.observeIdentifier(_size, this.ctx.value.size);
+    return this.#ctx.observeIdentifier(_size, this.#ctx.value.size);
   }
 
   /** Returns an iterable of entries in the map. */
   *[Symbol.iterator](): MapIterator<[K, V]> {
-    this.ctx.observeIdentifier(_size);
+    this.#ctx.observeIdentifier(_size);
     for (const entry of this.map) {
-      const observable = this.ctx.observeIdentifier(entry[0], entry[1]);
+      const observable = this.#ctx.observeIdentifier(entry[0], entry[1]);
       yield [entry[0], observable];
     }
   }
@@ -78,7 +92,7 @@ export class ObservableMap<K, V> extends Map<K, V> {
   }
 
   keys(): MapIterator<K> {
-    this.ctx.observeIdentifier(_size);
+    this.#ctx.observeIdentifier(_size);
     return this.map.keys();
   }
 

@@ -1,11 +1,11 @@
 import { jest } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useRefWithDeps } from 'keck/react/useRefWithDeps';
+import { useSyncMemo } from 'keck/react/useSyncMemo';
 import { useState } from 'react';
 
-describe('useRefWithDeps', () => {
-  test('ref value is recreated when deps change', async () => {
+describe('useSyncMemo', () => {
+  test('value is recreated when deps change', async () => {
     const mockRender = jest.fn();
 
     const object1 = {};
@@ -14,8 +14,8 @@ describe('useRefWithDeps', () => {
     function TestComponent() {
       const [, forceRerender] = useState({});
       const [dep, setDep] = useState(1);
-      const value = useRefWithDeps(() => (dep === 1 ? object1 : object2), [dep]);
-      mockRender(value.current);
+      const value = useSyncMemo(() => (dep === 1 ? object1 : object2), [dep]);
+      mockRender(value);
       return (
         <>
           <button type="button" onClick={() => forceRerender({})}>

@@ -32,7 +32,7 @@ export function transformInPlace<TSource>(target: unknown, source: TSource): TSo
   if (isPlainObject(target) && isPlainObject(source)) {
     // Remove keys in target that do not exist in source
     for (const key in target) {
-      if (!Object.prototype.hasOwnProperty.call(source, key)) {
+      if (!Object.hasOwn(source, key)) {
         delete target[key];
       }
     }

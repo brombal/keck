@@ -1,5 +1,5 @@
 import type { ObservableFactory } from 'keck/factories/observableFactories';
-import { atomic } from 'keck/methods/atomic';
+import { atomic, atomicAllowPromise } from 'keck/methods/atomic';
 import { unwrap } from 'keck/methods/unwrap';
 
 const keyLength = Symbol('keyLength');
@@ -17,7 +17,11 @@ export const objectFactory: ObservableFactory<Record<string | symbol, unknown>> 
           if (typeof propValue === 'function') {
             return (...args: unknown[]) => {
               // Todo cache function?
-              return atomic(propValue as () => unknown, args, observable);
+              return atomicAllowPromise(
+                propValue as (...args: unknown[]) => unknown,
+                args,
+                observable,
+              );
             };
           }
           return ctx.observeIdentifier(prop, propValue);

@@ -1,2 +1,2 @@
-export { useObserver } from "./react/useObserver";
-export { reactRef } from "./react/reactRef";
+export { reactRef } from './react/reactRef';
+export { useObserver } from './react/useObserver';

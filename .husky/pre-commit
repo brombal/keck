@@ -1,1 +1,1 @@
-npx biome check --fix --no-errors-on-unmatched --staged
+tsc && lint-staged --no-stash

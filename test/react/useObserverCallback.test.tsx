@@ -13,13 +13,9 @@ describe('useObserverCallback', () => {
     function TestComponent() {
       mockRender();
 
-      const state = useObserver(
-        data,
-        () => {
-          mockCallback();
-        },
-        [],
-      );
+      const state = useObserver(data, () => {
+        mockCallback();
+      }, []);
 
       return (
         <button type="button" onClick={() => (state.value += 1)}>
@@ -38,6 +34,46 @@ describe('useObserverCallback', () => {
     await userEvent.click(screen.getByText('Add 1'));
     expect(mockRender).toHaveBeenCalledTimes(0);
     expect(mockCallback).toHaveBeenCalledTimes(1);
+  });
+
+  test('Returned state subscribes render — reads in render trigger re-renders', async () => {
+    const mockRender = jest.fn();
+    const mockCallback = jest.fn();
+    const data = { value: 0, other: 'x' };
+
+    function TestComponent() {
+      const state = useObserver(data, () => mockCallback(), []);
+      mockRender(state.value);
+      return (
+        <>
+          <button type="button" onClick={() => (state.value += 1)}>
+            Add 1
+          </button>
+          <button type="button" onClick={() => (state.other = 'y')}>
+            Change other
+          </button>
+        </>
+      );
+    }
+
+    render(<TestComponent />);
+    expect(mockRender).toHaveBeenCalledTimes(1);
+    expect(mockRender).toHaveBeenLastCalledWith(0);
+    jest.clearAllMocks();
+
+    // Mutating a property that was read in render triggers a re-render
+    // AND fires the sync callback.
+    await userEvent.click(screen.getByText('Add 1'));
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+    expect(mockRender).toHaveBeenCalledTimes(1);
+    expect(mockRender).toHaveBeenLastCalledWith(1);
+    jest.clearAllMocks();
+
+    // Mutating a property that was NOT read in render fires the callback
+    // but does not trigger a re-render.
+    await userEvent.click(screen.getByText('Change other'));
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+    expect(mockRender).toHaveBeenCalledTimes(0);
   });
 
   test('Returned value re-initializes when deps change', async () => {

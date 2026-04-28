@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { shallowCompare } from 'keck';
 import { useObserver } from 'keck/react';
 
 describe('useObserverCallback derived', () => {
@@ -14,8 +15,10 @@ describe('useObserverCallback derived', () => {
 
       const state = useObserver(
         data,
-        (s) => s.value % 2 === 0,
-        (result) => mockCallback(result),
+        {
+          derive: (s) => s.value % 2 === 0,
+          onChange: (result) => mockCallback(result),
+        },
         [],
       );
 
@@ -36,7 +39,7 @@ describe('useObserverCallback derived', () => {
     expect(mockRender).toHaveBeenCalledTimes(1);
     expect(mockCallback).toHaveBeenCalledTimes(0);
 
-    // Change to 2 (still event; no callback)
+    // Change to 2 (still even; no callback)
     jest.clearAllMocks();
     await userEvent.click(screen.getByText('Add 2'));
     expect(mockRender).toHaveBeenCalledTimes(0);
@@ -54,5 +57,100 @@ describe('useObserverCallback derived', () => {
     await userEvent.click(screen.getByText('Add 2'));
     expect(mockRender).toHaveBeenCalledTimes(0);
     expect(mockCallback).toHaveBeenCalledTimes(0);
+  });
+
+  test('Returned state subscribes render — reads in render trigger re-renders', async () => {
+    const mockRender = jest.fn();
+    const mockCallback = jest.fn();
+    const data = { value: 0 };
+
+    function TestComponent() {
+      const state = useObserver(
+        data,
+        {
+          derive: (s) => s.value % 2 === 0,
+          onChange: (result) => mockCallback(result),
+        },
+        [],
+      );
+      mockRender(state.value);
+      return (
+        <button type="button" onClick={() => (state.value += 1)}>
+          Add 1
+        </button>
+      );
+    }
+
+    render(<TestComponent />);
+    expect(mockRender).toHaveBeenCalledTimes(1);
+    expect(mockRender).toHaveBeenLastCalledWith(0);
+    jest.clearAllMocks();
+
+    // value read in render → re-render on change; parity flips → derived callback fires
+    await userEvent.click(screen.getByText('Add 1'));
+    expect(mockRender).toHaveBeenCalledTimes(1);
+    expect(mockRender).toHaveBeenLastCalledWith(1);
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+    expect(mockCallback).toHaveBeenLastCalledWith(false);
+    jest.clearAllMocks();
+
+    // parity unchanged → no derived callback, but value still changed so still re-renders
+    await userEvent.click(screen.getByText('Add 1'));
+    expect(mockRender).toHaveBeenCalledTimes(1);
+    expect(mockRender).toHaveBeenLastCalledWith(2);
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+    expect(mockCallback).toHaveBeenLastCalledWith(true);
+  });
+
+  test('isEqual prevents onChange from firing when derived value is considered equal', async () => {
+    const mockCallback = jest.fn();
+    const data = { items: ['a', 'b'] as string[] };
+
+    function TestComponent() {
+      const state = useObserver(
+        data,
+        {
+          derive: (s) => [...s.items],
+          onChange: (ids) => mockCallback(ids),
+          isEqual: shallowCompare,
+        },
+        [],
+      );
+
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              state.items = [...state.items];
+            }}
+          >
+            Replace same
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              state.items = [...state.items, 'c'];
+            }}
+          >
+            Add item
+          </button>
+        </>
+      );
+    }
+
+    render(<TestComponent />);
+    expect(mockCallback).toHaveBeenCalledTimes(0);
+
+    // Replace with same contents — shallowCompare returns true, no callback
+    jest.clearAllMocks();
+    await userEvent.click(screen.getByText('Replace same'));
+    expect(mockCallback).toHaveBeenCalledTimes(0);
+
+    // Add a new item — shallowCompare returns false, callback fires
+    jest.clearAllMocks();
+    await userEvent.click(screen.getByText('Add item'));
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+    expect(mockCallback).toHaveBeenCalledWith(['a', 'b', 'c']);
   });
 });

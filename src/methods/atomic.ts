@@ -3,15 +3,21 @@ import { triggerObservations } from 'keck/core/triggerObservations';
 
 export let atomicObservations: Set<Observation> | undefined;
 
-export function atomic<T>(fn: (...args: unknown[]) => T, args?: unknown[], thisArg?: unknown): T;
-
-export function atomic<T, TArgs extends unknown[]>(
-  fn: (...args: TArgs) => T,
-  args: TArgs,
+export function atomic<TReturn, TArgs extends unknown[]>(
+  fn: (...args: TArgs) => TReturn,
+  args?: TArgs,
   thisArg?: unknown,
-): T;
+): TReturn {
+  const result = atomicAllowPromise(fn, args, thisArg);
+  if (result instanceof Promise) {
+    throw new Error(
+      'atomic() does not support async functions. Only the synchronous portion before the first await would be batched; writes after each await would notify observers individually. Restructure the work so the awaits happen outside atomic(), then call atomic() on the synchronous portion that applies the results.',
+    );
+  }
+  return result;
+}
 
-export function atomic<TReturn, TArgs extends any[]>(
+export function atomicAllowPromise<TReturn, TArgs extends unknown[]>(
   fn: (...args: TArgs) => TReturn,
   args?: TArgs,
   thisArg?: unknown,
@@ -22,7 +28,7 @@ export function atomic<TReturn, TArgs extends any[]>(
     thisSetCallback = true;
   }
   try {
-    return fn.apply(thisArg, args as TArgs);
+    return fn.apply(thisArg, (args ?? []) as TArgs);
   } finally {
     if (thisSetCallback) {
       triggerObservations(atomicObservations);

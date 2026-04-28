@@ -1,6 +1,6 @@
 import type { DeriveContext } from 'keck/methods/derive';
 
-import { type RootNode, type Value, getRootNodeForValue } from './RootNode';
+import { getRootNodeForValue, type RootNode, type Value } from './RootNode';
 
 /**
  * An Observation represents a path accessed on an observable proxy that should trigger the proxy's
@@ -57,6 +57,13 @@ export class Observer {
    */
   private _validObservations?: WeakSet<Observation>;
 
+  /**
+   * During a transaction (i.e. a render), property reads stage here instead of going directly to
+   * `_validObservations`. Since `hasObservation()` only checks `_validObservations`, pending
+   * observations can never trigger callbacks. Promoted to `_validObservations` on commitTransaction().
+   */
+  private _pendingObservations?: Set<Observation>;
+
   constructor(
     value: Value,
     public callback?: () => void,
@@ -108,9 +115,49 @@ export class Observer {
     return this._enabled;
   }
 
+  /**
+   * Begins a transaction: clears committed observations and starts a pending staging area.
+   * Reads during the transaction go to `_pendingObservations` and cannot trigger callbacks.
+   * A second call discards the prior pending set, so Strict Mode double-invokes self-correct.
+   */
+  beginTransaction() {
+    this._validObservations = undefined;
+    this._pendingObservations = new Set();
+    this._isFocusing = true;
+  }
+
+  /**
+   * Commits the pending staging area to `_validObservations`, making them live.
+   * Safe to call when no transaction is active (no-op for observations, clears _isFocusing).
+   */
+  commitTransaction() {
+    if (this._pendingObservations !== undefined) {
+      this._validObservations = new WeakSet();
+      for (const obs of this._pendingObservations) {
+        this._validObservations.add(obs);
+      }
+      this._pendingObservations = undefined;
+    }
+    this._isFocusing = false;
+  }
+
+  /**
+   * Discards the pending staging area without touching `_validObservations`.
+   * Used on unmount to release the pending Set without destroying committed observations.
+   * Safe to call when no transaction is active.
+   */
+  discardTransaction() {
+    this._pendingObservations = undefined;
+    this._isFocusing = false;
+  }
+
   addObservation(observation: Observation) {
-    if (!this._validObservations) this._validObservations = new WeakSet();
-    this._validObservations.add(observation);
+    if (this._pendingObservations !== undefined) {
+      this._pendingObservations.add(observation);
+    } else {
+      if (!this._validObservations) this._validObservations = new WeakSet();
+      this._validObservations.add(observation);
+    }
   }
 
   hasObservation(observation: Observation) {

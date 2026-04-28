@@ -140,7 +140,6 @@ describe('Sets', () => {
     const store = observe(data, mockCallback);
     focus(store);
 
-    // biome-ignore lint/complexity/noForEach: this is purposely under test
     store.alphaSet.forEach((_value) => {});
     focus(store, false);
 

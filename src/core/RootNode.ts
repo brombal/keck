@@ -1,15 +1,14 @@
+import { isObservable } from 'keck/core/IsObservable';
 import { ObservableContext } from 'keck/core/ObservableContext';
+import { triggerObservations } from 'keck/core/triggerObservations';
 import { getObservableFactory } from 'keck/factories/observableFactories';
 import { atomicObservations } from 'keck/methods/atomic';
 import { activeDeriveCtx } from 'keck/methods/derive';
 import { isPeeking } from 'keck/methods/peek';
 import { isRef } from 'keck/methods/ref';
 import { silentMode } from 'keck/methods/silent';
-import { PathMap } from 'keck/util/PathMap';
 import { getMapEntry } from 'keck/util/getMapEntry';
-
-import { isObservable } from 'keck/core/IsObservable';
-import { triggerObservations } from 'keck/core/triggerObservations';
+import { PathMap } from 'keck/util/PathMap';
 import type { Observation, Observer } from './Observer';
 
 /**
@@ -167,8 +166,8 @@ export class RootNode {
 
   private getPathEntry(path: Path) {
     return getMapEntry(this.pathEntries, path, () => ({
-      observables: new WeakMap(),
-      observationsForObserver: new WeakMap(),
+      observables: new WeakMap<Observer, ObservableContext<any>>(),
+      observationsForObserver: new WeakMap<Observer, Observation>(),
       allObservations: new Set<WeakRef<Observation>>(),
     }));
   }

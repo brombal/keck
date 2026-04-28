@@ -168,7 +168,6 @@ describe('Arrays', () => {
     const store1 = observe(data, mockFn1);
 
     focus(store1);
-    // biome-ignore lint/complexity/noForEach: <explanation>
     store1.array1.forEach(() => {});
     focus(store1, false);
 

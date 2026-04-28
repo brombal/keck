@@ -7,10 +7,12 @@ describe('observe() with derive', () => {
     const mockDerive = jest.fn();
     const state = observe(
       { value1: 1, value2: 1, value3: 1, value4: {} },
-      () => mockCallback(),
-      (s) => {
-        mockDerive();
-        return s.value1 + s.value2;
+      {
+        derive: (s) => {
+          mockDerive();
+          return s.value1 + s.value2;
+        },
+        onChange: () => mockCallback(),
       },
     );
     jest.clearAllMocks();

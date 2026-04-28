@@ -2,6 +2,22 @@ import { jest } from '@jest/globals';
 import { atomic, focus, observe } from 'keck';
 import { createData } from '../shared-data';
 
+// Type-level tests
+{
+  // Return type is inferred from fn
+  const result = atomic(() => 42);
+  result satisfies number;
+
+  // Args and fn parameter types must match
+  atomic((x: number) => x, [1]);
+  // @ts-expect-error — string is not assignable to number
+  atomic((x: number) => x, ['hello']);
+
+  // Passing args when fn takes none is an error
+  // @ts-expect-error — fn takes no parameters but args are provided
+  atomic(() => 0, [1]);
+}
+
 describe('atomic()', () => {
   test('Atomic modifications only trigger callback once (non-focus mode)', () => {
     const data = createData();
@@ -46,6 +62,26 @@ describe('atomic()', () => {
 
     expect(mockFn1).toHaveBeenCalledTimes(1);
     expect(mockFn2).toHaveBeenCalledTimes(1);
+  });
+
+  test('atomic() returns the function result', () => {
+    expect(atomic(() => 'hi')).toBe('hi');
+  });
+
+  test('atomic() propagates synchronous errors', () => {
+    expect(() =>
+      atomic(() => {
+        throw new Error('x');
+      }),
+    ).toThrow('x');
+  });
+
+  test('atomic() throws when called with an async function', () => {
+    expect(() => atomic(async () => {})).toThrow();
+  });
+
+  test('atomic() throws when the function returns a Promise', () => {
+    expect(() => atomic(() => Promise.resolve(1))).toThrow();
   });
 
   test('Mutating during a callback that was triggered while inside atomic still triggers', () => {

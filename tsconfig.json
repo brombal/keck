@@ -6,6 +6,7 @@
     "declaration": false,
     "rootDir": "./",
     "strict": true,
+    "noEmit": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "moduleResolution": "bundler",

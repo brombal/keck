@@ -1,6 +1,6 @@
 {
   "name": "keck",
-  "version": "1.4.0",
+  "version": "2.0.0",
   "description": "Simple observable state ✨🔭 for React and vanilla JS",
   "author": "Alex Brombal",
   "license": "MIT",
@@ -23,7 +23,9 @@
   },
   "typesVersions": {
     "*": {
-      "react": ["./react.d.ts"]
+      "react": [
+        "./react.d.ts"
+      ]
     }
   },
   "exports": {
@@ -37,26 +39,35 @@
       "import": "./react.js"
     }
   },
+  "lint-staged": {
+    "*.{js,ts,jsx,tsx,json,jsonc}": [
+      "biome check --no-errors-on-unmatched --write"
+    ]
+  },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
+    "@biomejs/biome": "^2.4.12",
+    "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.3.0",
-    "@testing-library/react": "^16.1.0",
-    "@testing-library/user-event": "^14.5.2",
-    "@types/jest": "^29.5.14",
-    "@types/node": "^20.11.20",
-    "@types/react": "^18.2.59",
-    "@types/react-dom": "^18.2.19",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/jest": "^30.0.0",
+    "@types/lodash.clonedeep": "^4.5.9",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "husky": "^9.1.7",
-    "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "rollup": "^4.55.1",
-    "rollup-plugin-dts": "^6.3.0",
+    "jest": "^30.3.0",
+    "jest-environment-jsdom": "^30.3.0",
+    "lint-staged": "^16.4.0",
+    "lodash.clonedeep": "^4.5.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "rollup": "^4.60.1",
+    "rollup-plugin-dts": "^6.4.1",
     "rollup-plugin-filesize": "^10.0.0",
-    "terser": "^5.44.1",
-    "ts-jest": "^29.2.5",
+    "terser": "^5.46.1",
+    "ts-jest": "^29.4.9",
     "tslib": "^2.8.1",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   }
 }

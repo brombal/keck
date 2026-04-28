@@ -12,8 +12,28 @@ interface FactoryObservableContext<TValue extends object> {
     modifyIdentifier(identifier: any): void;
 }
 
-declare function atomic<T>(fn: (...args: unknown[]) => T, args?: unknown[], thisArg?: unknown): T;
-declare function atomic<T, TArgs extends unknown[]>(fn: (...args: TArgs) => T, args: TArgs, thisArg?: unknown): T;
+type AnyConstructor = Function;
+
+/**
+ * This interface is used to create observable objects. To create an observable for a class,
+ * implement this interface and add it to `observableFactories` using the class as the key.
+ */
+interface ObservableFactory<TValue extends object> {
+    /**
+     * Must return an observable wrapper around the given value.
+     */
+    makeObservable: (observableNode: FactoryObservableContext<TValue>) => TValue;
+}
+
+/**
+ * Registers a class that can be observed. You can provide a custom factory that produces observable
+ * instances of the class. If no factory is provided, the default object factory will be used.
+ * @param classConstructor The class to register.
+ * @param factory The factory to use to create observable instances of the class.
+ */
+declare function registerObservableClass(classConstructor: AnyConstructor, factory?: ObservableFactory<any>): void;
+
+declare function atomic<TReturn, TArgs extends unknown[]>(fn: (...args: TArgs) => TReturn, args?: TArgs, thisArg?: unknown): TReturn;
 
 /**
  * Ensures that any changes to deep properties within the given value (which should be an observable type) will trigger
@@ -50,8 +70,13 @@ declare function enable(observable: object): void;
 
 declare function focus(observable: any, enableFocus?: boolean): void;
 
-type ObserverDeriveFn<TValue, TDerived> = (state: TValue) => TDerived;
-declare function observe<TValue extends object, TDerive>(value: TValue, cb?: () => void, deriveFn?: ObserverDeriveFn<TValue, TDerive>, isEqual?: DeriveEqualFn<TDerive>): TValue;
+type ObserveConfig<TValue, TDerived> = {
+    derive: (state: TValue) => TDerived;
+    onChange: (derived: TDerived) => void;
+    isEqual?: DeriveEqualFn<TDerived>;
+};
+declare function observe<TValue extends object>(value: TValue, cb?: () => void): TValue;
+declare function observe<TValue extends object, TDerived>(value: TValue, config: ObserveConfig<TValue, TDerived>): TValue;
 
 declare function peek<T>(fn: () => T): T;
 
@@ -59,6 +84,10 @@ declare function ref<T>(value: T): T;
 declare function isRef(value: any): boolean;
 
 declare function reset(observable: any): void;
+
+declare function beginTransaction(observable: object): void;
+declare function commitTransaction(observable: object): void;
+declare function discardTransaction(observable: object): void;
 
 /**
  * Use `silent` to execute a block of code without triggering any observer callbacks when modifications are made.
@@ -80,27 +109,6 @@ declare function unwrap<T>(observable: T): T;
  */
 declare function shallowCompare<T>(a: T, b: T): boolean;
 
-type AnyConstructor = Function;
-
-/**
- * This interface is used to create observable objects. To create an observable for a class,
- * implement this interface and add it to `observableFactories` using the class as the key.
- */
-interface ObservableFactory<TValue extends object> {
-    /**
-     * Must return an observable wrapper around the given value.
-     */
-    makeObservable: (observableNode: FactoryObservableContext<TValue>) => TValue;
-}
-
-/**
- * Registers a class that can be observed. You can provide a custom factory that produces observable
- * instances of the class. If no factory is provided, the default object factory will be used.
- * @param classConstructor The class to register.
- * @param factory The factory to use to create observable instances of the class.
- */
-declare function registerObservableClass(classConstructor: AnyConstructor, factory?: ObservableFactory<any>): void;
-
 /**
  * Recursively transforms `target` into the shape of `source`, in place.
  *
@@ -121,10 +129,5 @@ declare function registerObservableClass(classConstructor: AnyConstructor, facto
  */
 declare function transformInPlace<TSource>(target: unknown, source: TSource): TSource;
 
-declare global {
-    var keckFinalizationRegistry: FinalizationRegistry<any> | undefined;
-}
-declare function initGarbageCollectionObservation(cb: (heldValue: any) => void): void;
-
-export { atomic, deep, derive, disable, enable, focus, initGarbageCollectionObservation, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };
+export { atomic, beginTransaction, commitTransaction, deep, derive, disable, discardTransaction, enable, focus, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };
 export type { DeriveEqualFn, DeriveFn };

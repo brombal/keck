@@ -180,7 +180,6 @@ describe('Maps', () => {
     const { data } = createData();
     const store = observe(data, mockCallback);
     focus(store);
-    // biome-ignore lint/complexity/noForEach: this is purposely under test
     store.alphaMap.forEach((_value) => {});
 
     store.alphaMap.set('d', 'd');

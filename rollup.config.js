@@ -1,3 +1,4 @@
+import terser from '@rollup/plugin-terser';
 import ts from '@rollup/plugin-typescript';
 import { dts } from 'rollup-plugin-dts';
 import filesize from 'rollup-plugin-filesize';
@@ -14,7 +15,7 @@ export default [
       file: './index.js',
       sourcemap: true,
     },
-    plugins: [ts(), filesize()],
+    plugins: [ts(), terser(), filesize()],
   },
   {
     input: 'src/index.ts',
@@ -30,7 +31,7 @@ export default [
       sourcemap: true,
     },
     external: ['keck', 'react'],
-    plugins: [ts()],
+    plugins: [ts(), terser(), filesize()],
   },
   {
     input: 'src/react.ts',

@@ -245,9 +245,9 @@ describe('useObserver', () => {
 
     render(<TestApp />);
 
-    // ComponentA causes an update during render so it schedules itself to re-render again.
-    // ComponentB renders after ComponentA, so it has not registered its observation yet, so it
-    // is not scheduled for an update. It already sees the updated value, so it renders correctly.
+    // ComponentA writes state.value during its render. In the transaction model, A's observation
+    // is still pending (not committed), so A's write cannot trigger A's own callback. ComponentB
+    // has not yet rendered, so it also has no committed observation. Neither schedules a re-render.
     expect(actions).toEqual([
       'Render ComponentA',
       'Render ComponentB',
@@ -264,20 +264,135 @@ describe('useObserver', () => {
     // Reset the value to 0 via ComponentB
     await userEvent.click(screen.getByText('Reset'));
 
+    // After Reset, both A and B re-render (both had committed observations on value).
+    // ComponentA reads then writes state.value during its render. In the transaction model,
+    // A's observation is in _pendingObservations, so A's write does not trigger A's callback —
+    // no redundant second render for A. B's committed observation IS triggered, so B gets a
+    // deferred re-render via useLayoutEffect.
     expect(actions).toEqual([
       'Render ComponentA',
       'Render ComponentB',
       'Commit ComponentA',
       'Commit ComponentB',
-      'Render ComponentA',
-      'Render ComponentB',
-      'Commit ComponentA',
+      'Render ComponentB', // deferred: ComponentA's write triggered B's committed observation
       'Commit ComponentB',
     ]);
 
     // Final values should be consistent
     expect(screen.getByText('Component A Value: 1')).toBeDefined();
     expect(screen.getByText('Component B Value: 1')).toBeDefined();
+  });
+
+  test('Deferred rerender closure is skipped if component unmounts before layout effect', async () => {
+    // Scenario: ComponentA writes to keck state during its own render. This fires ComponentB's
+    // observer callback while isRendering = true, deferring B's rerender to renderRequests.
+    // In the same React render pass, B is conditionally unmounted. After commit, B's cleanup sets
+    // renderValidRef.current = false. When useLayoutEffect drains renderRequests, the rerender
+    // closure must not call forceRerender on the unmounted component.
+    //
+    // Note: in React 18, setState on an unmounted component is silently ignored, so this passes
+    // whether or not the guard is applied. The guard is correct for defensive purposes and
+    // future React compatibility.
+    const mockRenderB = jest.fn();
+    const data = { value: 0 };
+
+    function ComponentA({ shouldWrite }: { shouldWrite: boolean }) {
+      const state = useObserver(data);
+      if (shouldWrite && state.value === 0) {
+        state.value = 99; // write during render — triggers B's deferred rerender
+      }
+      return <div>A</div>;
+    }
+
+    function ComponentB() {
+      mockRenderB();
+      const state = useObserver(data);
+      return <div>B: {state.value}</div>;
+    }
+
+    function TestApp() {
+      const [showB, setShowB] = useState(true);
+      return (
+        <div>
+          <ComponentA shouldWrite={!showB} />
+          {showB && <ComponentB />}
+          <button type="button" onClick={() => setShowB(false)}>
+            Hide B
+          </button>
+        </div>
+      );
+    }
+
+    render(<TestApp />);
+    expect(mockRenderB).toHaveBeenCalledTimes(1); // initial render
+    mockRenderB.mockClear();
+
+    // Clicking hides B and triggers a React render where A writes during render.
+    // B's callback fires (deferred), then B unmounts. After layout effect, the stale
+    // rerender closure must not trigger a render of the now-unmounted B.
+    await userEvent.click(screen.getByText('Hide B'));
+    expect(mockRenderB).toHaveBeenCalledTimes(0);
+  });
+
+  test('Multiple writes during a render pass produce one batched re-render for the observer', async () => {
+    // When a component writes to two separate observed properties during its render, both writes
+    // fire the observer's deferred callback and add closures to renderRequests. React 18 batches
+    // the resulting forceRerender calls inside useLayoutEffect into a single re-render.
+    const mockRenderB = jest.fn();
+    const data = { x: 0, y: 0 };
+
+    function ComponentA() {
+      const state = useObserver(data);
+      if (state.x === 0) {
+        state.x = 1; // write 1 — defers B's rerender
+        state.y = 1; // write 2 — defers B's rerender again
+      }
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            state.x = 0;
+            state.y = 0;
+          }}
+        >
+          Reset
+        </button>
+      );
+    }
+
+    function ComponentB() {
+      mockRenderB();
+      const state = useObserver(data);
+      return (
+        <div>
+          {state.x},{state.y}
+        </div>
+      );
+    }
+
+    render(
+      <div>
+        <ComponentA />
+        <ComponentB />
+      </div>,
+    );
+
+    // Initial render: A writes during render, but B is not yet committed, so B's deferred
+    // rerenders are blocked (renderValidRef.current = false). B renders once with the
+    // already-modified values.
+    expect(mockRenderB).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('1,1')).toBeDefined();
+    mockRenderB.mockClear();
+
+    // Reset: event handler writes x=0, y=0 (outside render, isRendering=false).
+    // These fire A's and B's callbacks directly. React batches them into one re-render pass.
+    // During that pass, A re-renders and writes x=1, y=1 again (B is now committed).
+    // Both writes fire B's deferred callbacks. useLayoutEffect drains and React batches those
+    // into one additional re-render for B.
+    // Net: 2 renders of B after the click (one from direct callbacks, one from deferred writes).
+    await userEvent.click(screen.getByText('Reset'));
+    expect(mockRenderB).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('1,1')).toBeDefined();
   });
 
   test('Using deps to reset state does not persist previous callbacks', async () => {

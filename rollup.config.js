@@ -1,12 +1,29 @@
-import terser from '@rollup/plugin-terser';
 import ts from '@rollup/plugin-typescript';
 import { dts } from 'rollup-plugin-dts';
-import filesize from 'rollup-plugin-filesize';
+import { minify } from 'terser';
 import tsConfig from './tsconfig.json' with { type: 'json' };
 
 const dtsPlugin = dts({
   compilerOptions: { paths: tsConfig.compilerOptions.paths },
 });
+
+// Minifies output in-memory to report compressed size, but does not write minified output.
+function minifiedSize() {
+  return {
+    name: 'minified-size',
+    async generateBundle(options, bundle) {
+      for (const [fileName, chunk] of Object.entries(bundle)) {
+        if (chunk.type !== 'chunk') continue;
+        const result = await minify(chunk.code, { sourceMap: false });
+        const minBytes = Buffer.byteLength(result.code, 'utf8');
+        const gzipBytes = (await import('node:zlib')).gzipSync(result.code).byteLength;
+        console.log(
+          `${fileName}: ${(minBytes / 1024).toFixed(2)} kB min / ${(gzipBytes / 1024).toFixed(2)} kB gz`,
+        );
+      }
+    },
+  };
+}
 
 export default [
   {
@@ -15,7 +32,7 @@ export default [
       file: './index.js',
       sourcemap: true,
     },
-    plugins: [ts(), terser(), filesize()],
+    plugins: [ts(), minifiedSize()],
   },
   {
     input: 'src/index.ts',
@@ -31,7 +48,7 @@ export default [
       sourcemap: true,
     },
     external: ['keck', 'react'],
-    plugins: [ts(), terser(), filesize()],
+    plugins: [ts(), minifiedSize()],
   },
   {
     input: 'src/react.ts',

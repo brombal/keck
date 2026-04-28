@@ -39,7 +39,12 @@ export interface Observation {
  * collected.
  */
 export class Observer {
-  private _enabled = true;
+  /**
+   * User-controlled enabled state. Set via the public disable()/enable() API.
+   * Independent of transaction state so that a user-disabled observer stays disabled
+   * after a transaction finishes.
+   */
+  private _userEnabled = true;
 
   /**
    * Indicates whether focus mode is enabled, disabled, or paused for this Observer.
@@ -58,9 +63,9 @@ export class Observer {
   private _validObservations?: WeakSet<Observation>;
 
   /**
-   * During a transaction (i.e. a render), property reads stage here instead of going directly to
-   * `_validObservations`. Since `hasObservation()` only checks `_validObservations`, pending
-   * observations can never trigger callbacks. Promoted to `_validObservations` on commitTransaction().
+   * During a transaction, holds a reference to the pending Set owned by the transaction closure.
+   * Reads are routed here instead of _validObservations. The transaction module sets this at
+   * beginTransaction and clears it at commit or discard.
    */
   private _pendingObservations?: Set<Observation>;
 
@@ -84,67 +89,51 @@ export class Observer {
     this._isFocusing = enableFocus;
   }
 
-  /**
-   * Resets all observations of properties of the observable.
-   */
   reset() {
-    // if (this._isFocusing === undefined) {
-    //   throw new Error('reset() can only be called in focus mode');
-    // }
     this._validObservations = undefined;
   }
 
-  /**
-   * Creates an observation on the root, which will trigger the callback
-   * when any property is modified if this Observer is not in focus mode
-   * @private
-   */
   private createRootObservation() {
     this.rootNode.createObservation(this, []);
   }
 
   disable() {
-    this._enabled = false;
+    this._userEnabled = false;
   }
 
   enable() {
-    this._enabled = true;
+    this._userEnabled = true;
   }
 
   get enabled() {
-    return this._enabled;
+    return this._userEnabled && this._pendingObservations === undefined;
   }
 
   /**
-   * Begins a transaction: clears committed observations and starts a pending staging area.
-   * Reads during the transaction go to `_pendingObservations` and cannot trigger callbacks.
-   * A second call discards the prior pending set, so Strict Mode double-invokes self-correct.
+   * Called by the transaction module when a new transaction starts. Borrows the pending Set
+   * from the transaction closure so that addObservation() routes reads there. Disables the
+   * observer so writes during the render cannot trigger this observer's own callback.
    */
-  beginTransaction() {
-    this._validObservations = undefined;
-    this._pendingObservations = new Set();
+  beginTransaction(pending: Set<Observation>) {
+    this._pendingObservations = pending;
     this._isFocusing = true;
   }
 
   /**
-   * Commits the pending staging area to `_validObservations`, making them live.
-   * Safe to call when no transaction is active (no-op for observations, clears _isFocusing).
+   * Called by the transaction module on commit. Promotes the closed-over pending Set to
+   * _validObservations and releases the borrow. Setting _pendingObservations to undefined
+   * also re-enables the observer (enabled = _userEnabled && _pendingObservations === undefined).
    */
-  commitTransaction() {
-    if (this._pendingObservations !== undefined) {
-      this._validObservations = new WeakSet();
-      for (const obs of this._pendingObservations) {
-        this._validObservations.add(obs);
-      }
-      this._pendingObservations = undefined;
-    }
+  commitTransaction(pending: Set<Observation>) {
+    this._validObservations = new WeakSet(pending);
+    this._pendingObservations = undefined;
     this._isFocusing = false;
   }
 
   /**
-   * Discards the pending staging area without touching `_validObservations`.
-   * Used on unmount to release the pending Set without destroying committed observations.
-   * Safe to call when no transaction is active.
+   * Called by the transaction module on discard. Releases the pending Set borrow.
+   * _validObservations is left untouched so pre-transaction subscriptions are automatically
+   * restored. Setting _pendingObservations to undefined also re-enables the observer.
    */
   discardTransaction() {
     this._pendingObservations = undefined;

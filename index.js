@@ -1,2 +1,1071 @@
-const e=new Map;function t(t){return e.get(t)}const r=new WeakMap;class s{rootNode;observer;value;path;observable;static getForObservable(e,t=!0){const s=r.get(e);if(!s&&t)throw new Error("Value is not observable");return s}constructor(e,s,i,o){if(this.rootNode=e,this.observer=s,this.value=i,this.path=o,this.observable=t(i.constructor)?.makeObservable(this),!this.observable)throw new Error(`Keck: value ${i} is not observable`);r.set(this.observable,this)}observeIdentifier(e,t){return this.rootNode.observePath(this.observer,[...this.path,e],t)}modifyIdentifier(e){this.rootNode.modifyPath([...this.path,e])}}function i(e){const t=s.getForObservable(e,!1);return t?t.value:e}const o=Symbol("pathValue");class n{root;constructor(e){this.root=e?.weak?new WeakMap:new Map}set(e,t){let r=this.root;for(let t=0;t<e.length;t++){let s=r.get(e[t]);s||(s=new Map,r.set(e[t],s)),r=s}r.set(o,t)}get(e){let t=this.root;for(let r=0;r<e.length;r++)if(t=t.get(e[r]),!t)return;return t.get(o)}collect(e,t="all"){if(!this.root.entries)throw new Error("Cannot call `collect` on a weak PathMap!");const r=[];let s=this.root;const i="ancestors"===t||"all"===t;let n=0;for(;n<e.length;n++)if(i&&s.has(o)&&r.push(s.get(o)),s=s.get(e[n]),!s)return r;return s.has(o)&&r.push(s.get(o)),"children"!==t&&"all"!==t||this.collectChildren(s,r),r}collectChildren(e,t){for(const r of e.entries())r[0]!==o&&(r[1].has(o)&&t.push(r[1].get(o)),this.collectChildren(r[1],t))}}let a;const c=new n({weak:!0});function l(e,t){let r=!1;a||(a=c.get([e,t]),a||(a={fn:e,isEqual:t,prevResult:void 0},c.set([e,t],a)),r=!0);try{const t=e();return r&&(a.prevResult=t),i(t)}finally{r&&(a=void 0)}}function f(e){const t=a;a=e;try{const t=e.fn();return e.prevResult=t,i(t)}finally{a=t}}function h(e){for(;e.size>0;){const t=new Set,r=new Map;for(const s of e){e.delete(s);let i=!1;if(s.deriveCtxs){i=!0;for(const e of s.deriveCtxs){if(r.has(e)){r.get(e)&&(i=!1);continue}const t=e.prevResult,s=f(e),o=e.isEqual?!e.isEqual(t,s):t!==s;r.set(e,o),o&&(i=!1)}}i||t.add(s.observer)}for(const e of t)e.callback?.()}}let u;function b(e,t,r){const s=d(e,t,r);if(s instanceof Promise)throw new Error("atomic() does not support async functions. Only the synchronous portion before the first await would be batched; writes after each await would notify observers individually. Restructure the work so the awaits happen outside atomic(), then call atomic() on the synchronous portion that applies the results.");return s}function d(e,t,r){let s=!1;u||(u=new Set,s=!0);try{return e.apply(r,t??[])}finally{s&&(h(u),u=void 0)}}const v=Symbol("keyLength"),y={makeObservable:e=>new Proxy(e.value,{get(t,r,s){const i=Reflect.get(e.value,r,s);return"function"==typeof i?(...e)=>d(i,e,s):e.observeIdentifier(r,i)},set(t,r,s,o){const n=i(s);if(Reflect.get(e.value,r,e.value)===n)return!0;const a=Reflect.has(e.value,r);if(Array.isArray(e.value)){const t=e.value.length,s=Reflect.set(e.value,r,n,e.value);return b(()=>{t!==e.value.length&&e.modifyIdentifier("length"),"length"!==r&&e.modifyIdentifier(r)}),s}if(function(e,t){return!!function(e,t){for(;e;){const r=Reflect.getOwnPropertyDescriptor(e,t);if(r)return r;e=Object.getPrototypeOf(e)}return}(e,t)?.set}(e.value,r))return b(()=>{const t=Reflect.set(e.value,r,n,o);return e.modifyIdentifier(r),t});const c=Reflect.set(e.value,r,n,o);return b(()=>{e.modifyIdentifier(r),a||e.modifyIdentifier(v)}),c},ownKeys(t){const r=Reflect.ownKeys(e.value);return e.observeIdentifier(v),r},deleteProperty(t,r){const s=Reflect.deleteProperty(e.value,r);return s&&b(()=>{e.modifyIdentifier(r),e.modifyIdentifier(v)}),s}})};function p(t,r){e.set(t,r||y)}const g=Symbol("size");class O extends Map{#e;constructor(e){super(),this.#e=e,Object.defineProperty(this,"constructor",{value:Map,enumerable:!1,configurable:!0})}get map(){return this.#e.value}clear(){const e=this.map.size;this.map.clear(),e!==this.map.size&&this.#e.modifyIdentifier(g)}delete(e){const t=i(e),r=this.map.delete(t);return r&&b(()=>{this.#e.modifyIdentifier(t),this.#e.modifyIdentifier(g)}),r}forEach(e,t){this.map.forEach((r,s)=>{const i=this.#e.observeIdentifier(s,r);e.call(t,i,s,this)},t),this.size}get(e){const t=i(e),r=this.map.get(t);return this.#e.observeIdentifier(t,r)}has(e){const t=i(e);return this.#e.observeIdentifier(t),this.map.has(t)}set(e,t){const r=i(e),s=i(t),o=this.map.size,n=this.map.get(r);return this.map.set(r,s),b(()=>{o!==this.map.size&&this.#e.modifyIdentifier(g),n!==s&&this.#e.modifyIdentifier(r)}),this}get size(){return this.#e.observeIdentifier(g,this.#e.value.size)}*[Symbol.iterator](){this.#e.observeIdentifier(g);for(const e of this.map){const t=this.#e.observeIdentifier(e[0],e[1]);yield[e[0],t]}}entries(){return this[Symbol.iterator]()}keys(){return this.#e.observeIdentifier(g),this.map.keys()}*values(){for(const e of this[Symbol.iterator]())yield e[1]}}p(Map,{makeObservable:e=>new O(e)});const m=Symbol("size"),w=Symbol("has");class x extends Set{#e;constructor(e){super(),this.#e=e,Object.defineProperty(this,"constructor",{value:Set,enumerable:!1,configurable:!0})}get set(){return this.#e.value}add(e){const t=i(e),r=this.set.size;return this.set.add(t),r!==this.set.size&&b(()=>{this.#e.modifyIdentifier(m),this.#e.modifyIdentifier(t)}),this}clear(){const e=this.set.size;this.set.clear(),e!==this.set.size&&b(()=>{this.#e.modifyIdentifier(m),this.#e.modifyIdentifier(w)})}delete(e){const t=i(e),r=this.set.delete(t);return r&&b(()=>{this.#e.modifyIdentifier(m),this.#e.modifyIdentifier(t)}),r}forEach(e,t){this.set.forEach((r,s)=>{const i=this.#e.observeIdentifier(r,r);e.call(t,i,i,this)},t),this.size}has(e){const t=i(e);return this.#e.observeIdentifier(t),this.#e.observeIdentifier(w),this.set.has(t)}get size(){return this.#e.observeIdentifier(m,this.set.size)}*[Symbol.iterator](){this.#e.observeIdentifier(m);for(const e of this.set)yield this.#e.observeIdentifier(e,e)}*entries(){for(const e of this[Symbol.iterator]())yield[e,e]}keys(){return this[Symbol.iterator]()}values(){return this[Symbol.iterator]()}}function I(e){const r=s.getForObservable(e,!1);if(r)return r.observer.rootNode.observePath(r.observer,r.path,r.value,!0);if(!(e&&"object"==typeof e?t(e.constructor):null))return e;throw new Error("Keck: deep: value is not observable")}function k(e){s.getForObservable(e).observer.disable()}function _(e){s.getForObservable(e).observer.enable()}function S(e,t=!0){s.getForObservable(e).observer.focus(t)}function F(e,r=!1){if(e&&"object"==typeof e&&t(e.constructor))return!0;if(r){let t=String(e);throw!e||"object"!=typeof e&&"function"!=typeof e?"string"==typeof e&&(t=`"${e}"`):t=`of type ${e.constructor.name}`,new Error(`Value ${t} is not observable`)}return!1}p(Set,{makeObservable:e=>new x(e)}),p(Object,y),p(Array,y);let E=!1;function z(e){E=!0;try{return e()}finally{E=!1}}const R=new WeakSet;function j(e){return F(e)&&R.add(e),e}function P(e){return R.has(e)}let M=!1;function C(e){M=!0,e(),M=!1}function W(e,t,r,s,i){let o=e.get(t);return(!o||i&&!i(o))&&(o=r(),e.set(t,o),s&&(s.created=!0)),o}const A=new WeakMap;class N{pathEntries=new n;observePath(e,r,s,i=!1){let o=s;if(!i&&E)return o;const n=s&&"object"==typeof s&&t(s.constructor)&&!P(s);return n&&(o=this.getObservable(e,r,s)),(i||e.isFocusing&&(a||!n))&&this.createObservation(e,r),o}modifyPath(e){const t=this.pathEntries.collect(e,"all");for(const e of t)e.observables=new WeakMap;if(M)return;const r=u||new Set,s=this.pathEntries.collect(e);for(const e of s)for(const t of e.allObservations){const s=t.deref(),i=s?.observer;s&&i?i.hasObservation(s)?i.enabled&&r.add(s):e.observationsForObserver.delete(i):e.allObservations.delete(t)}r!==u&&h(r)}getObservable(e,t,r){return F(r,!0),W(this.getPathEntry(t).observables,e,()=>new s(this,e,r,t),void 0,e=>e.value===r).observable}getPathEntry(e){return W(this.pathEntries,e,()=>({observables:new WeakMap,observationsForObserver:new WeakMap,allObservations:new Set}))}createObservation(e,t){const r=this.getPathEntry(t),s={created:!1},i=W(r.observationsForObserver,e,()=>({observer:e,path:t}),s,t=>e.hasObservation(t));r.allObservations.add(new WeakRef(i)),a?(s.created||i.deriveCtxs)&&(i.deriveCtxs=i.deriveCtxs||new Set,i.deriveCtxs.add(a)):i.deriveCtxs=void 0,e.addObservation(i)}}class T{callback;_enabled=!0;_isFocusing=void 0;rootNode;_validObservations;_pendingObservations;constructor(e,t){this.callback=t,this.rootNode=function(e){return F(e,!0),W(A,e,()=>new WeakRef(new N),{},e=>!!e.deref()).deref()}(e),this.createRootObservation()}get isFocusing(){return this._isFocusing}focus(e){void 0===this._isFocusing&&e&&(this._validObservations=void 0),this._isFocusing=e}reset(){this._validObservations=void 0}createRootObservation(){this.rootNode.createObservation(this,[])}disable(){this._enabled=!1}enable(){this._enabled=!0}get enabled(){return this._enabled}beginTransaction(){this._validObservations=void 0,this._pendingObservations=new Set,this._isFocusing=!0}commitTransaction(){if(void 0!==this._pendingObservations){this._validObservations=new WeakSet;for(const e of this._pendingObservations)this._validObservations.add(e);this._pendingObservations=void 0}this._isFocusing=!1}discardTransaction(){this._pendingObservations=void 0,this._isFocusing=!1}addObservation(e){void 0!==this._pendingObservations?this._pendingObservations.add(e):(this._validObservations||(this._validObservations=new WeakSet),this._validObservations.add(e))}hasObservation(e){return!!this._validObservations?.has(e)}}const K=new Set;let q;function $(e){return K.add(e),q||"undefined"==typeof FinalizationRegistry||(q=new FinalizationRegistry(e=>{for(const t of K)t(e)})),()=>{K.delete(e),0===K.size&&(q=void 0)}}function V(e,t){let r,s,o,n;if(e=i(e),t&&"object"==typeof t){let e;const i=t.derive;r=t=>(e=i(t),e),s=t.isEqual,o=()=>t.onChange(e)}else o=t;const a=new T(e,o);return n=a.rootNode.getObservable(a,[],e),r&&(S(n),l(()=>r(n),s),S(n,!1)),function(e){q?.register(e,"Keck observable released")}(n),n}function D(e){s.getForObservable(e).observer.reset()}function L(e){s.getForObservable(e).observer.beginTransaction()}function B(e){s.getForObservable(e).observer.commitTransaction()}function G(e){s.getForObservable(e).observer.discardTransaction()}function H(e,t){if(e===t)return!0;if("object"!=typeof e||"object"!=typeof t)return!1;if(null===e||null===t)return!1;const r=Object.keys(e),s=Object.keys(t);if(r.length!==s.length)return!1;for(const s of r)if(e[s]!==t[s])return!1;return!0}function J(e,t){if(!U(e)||!U(t))return t;if(Array.isArray(e)!==Array.isArray(t))return t;if(Q(e)&&Q(t))for(const r in e)Object.hasOwn(t,r)||delete e[r];else e.length=t.length;let r;for(r in t){const s=t[r],i=e[r];U(s)&&U(i)?e[r]=J(i,s):e[r]=s}return e}function Q(e){return null!==e&&"object"==typeof e&&"[object Object]"===Object.prototype.toString.call(e)}function U(e){return Array.isArray(e)||Q(e)}export{b as atomic,L as beginTransaction,B as commitTransaction,I as deep,l as derive,k as disable,G as discardTransaction,_ as enable,S as focus,$ as initGarbageCollectionObservation,P as isRef,V as observe,z as peek,j as ref,p as registerObservableClass,D as reset,H as shallowCompare,C as silent,J as transformInPlace,i as unwrap};
+/**
+ * The map of object prototypes to their observable factories.
+ */
+const observableFactories = new Map();
+function getObservableFactory(classConstructor) {
+    return observableFactories.get(classConstructor);
+}
+
+const contextForObservable = new WeakMap();
+/**
+ * An ObservableContext is used to manage additional data associated with an observable proxy
+ * wrapper. Because observable proxies
+ * have to be behaviorally identical to the value they represent, additional data about them has
+ * to be stored in this separate object.
+ *
+ * ObservableContexts are ephemeral objects that are created
+ * internally when a property is accessed, and only exist within the scope of the proxy — they are
+ * garbage collected with the proxy. They also only exist until a descendant property is modified,
+ * which invalidates it and its associated proxy. This invalidation is what allows references
+ * to compare as unequal when the underlying value changes.
+ *
+ * ObservableContext objects are not accessible externally. They only exist while their associated
+ * Observable proxy is in scope somewhere (because their factory maintains a reference to it in the
+ * proxy or subclass it produces). When the original value is garbage collected, so is the
+ * ObservableContext.
+ */
+class ObservableContext {
+    rootNode;
+    observer;
+    value;
+    path;
+    observable;
+    static getForObservable(observable, throwIfMissing = true) {
+        const ctx = contextForObservable.get(observable);
+        if (!ctx && throwIfMissing) {
+            throw new Error('Value is not observable');
+        }
+        return ctx;
+    }
+    constructor(rootNode, observer, value, path) {
+        this.rootNode = rootNode;
+        this.observer = observer;
+        this.value = value;
+        this.path = path;
+        this.observable = getObservableFactory(value.constructor)?.makeObservable(this);
+        if (!this.observable)
+            throw new Error(`Keck: value ${value} is not observable`);
+        contextForObservable.set(this.observable, this);
+    }
+    observeIdentifier(identifier, childValue) {
+        return this.rootNode.observePath(this.observer, [...this.path, identifier], childValue);
+    }
+    /**
+     * Call this method when the value of an identifier has changed. This will notify any observers
+     * to trigger their callbacks, if necessary.
+     *
+     * @param identifier The identifier that has changed.
+     */
+    modifyIdentifier(identifier) {
+        this.rootNode.modifyPath([...this.path, identifier]);
+    }
+}
+
+/**
+ * Returns the original object of an observable wrapper. If `observable` is
+ * not actually an observable, the value will be returned as-is.
+ */
+function unwrap(observable) {
+    const ctx = ObservableContext.getForObservable(observable, false);
+    if (ctx) {
+        return ctx.value;
+    }
+    return observable;
+}
+
+const pathValue = Symbol('pathValue');
+class PathMap {
+    root;
+    constructor(options) {
+        this.root = options?.weak ? new WeakMap() : new Map();
+    }
+    set(path, value) {
+        let currentLevel = this.root;
+        for (let i = 0; i < path.length; i++) {
+            let child = currentLevel.get(path[i]);
+            if (!child) {
+                child = new Map();
+                currentLevel.set(path[i], child);
+            }
+            currentLevel = child;
+        }
+        currentLevel.set(pathValue, value);
+    }
+    /**
+     * Returns the value at the given path, and all children of the path.
+     */
+    get(path) {
+        let currentLevel = this.root;
+        for (let i = 0; i < path.length; i++) {
+            currentLevel = currentLevel.get(path[i]);
+            if (!currentLevel) {
+                return undefined;
+            }
+        }
+        return currentLevel.get(pathValue);
+    }
+    /**
+     * Collects all values located at the given path, all of its parents, and all of its descendants into a flat array.
+     */
+    collect(path, type = 'all') {
+        if (!this.root.entries) {
+            throw new Error('Cannot call `collect` on a weak PathMap!');
+        }
+        const result = [];
+        let currentLevel = this.root;
+        const ancestors = type === 'ancestors' || type === 'all';
+        let i = 0;
+        for (; i < path.length; i++) {
+            if (ancestors && currentLevel.has(pathValue)) {
+                result.push(currentLevel.get(pathValue));
+            }
+            currentLevel = currentLevel.get(path[i]);
+            if (!currentLevel)
+                return result;
+        }
+        if (currentLevel.has(pathValue))
+            result.push(currentLevel.get(pathValue));
+        if (type === 'children' || type === 'all') {
+            this.collectChildren(currentLevel, result);
+        }
+        return result;
+    }
+    collectChildren(entry, result) {
+        for (const child of entry.entries()) {
+            if (child[0] !== pathValue) {
+                if (child[1].has(pathValue)) {
+                    result.push(child[1].get(pathValue));
+                }
+                this.collectChildren(child[1], result);
+            }
+        }
+    }
+}
+
+let activeDeriveCtx;
+const deriveCtxs = new PathMap({ weak: true });
+function derive(fn, isEqual) {
+    let thisSetCallback = false;
+    if (!activeDeriveCtx) {
+        activeDeriveCtx = deriveCtxs.get([fn, isEqual]);
+        if (!activeDeriveCtx) {
+            activeDeriveCtx = { fn, isEqual, prevResult: undefined };
+            deriveCtxs.set([fn, isEqual], activeDeriveCtx);
+        }
+        thisSetCallback = true;
+    }
+    try {
+        const result = fn();
+        if (thisSetCallback) {
+            activeDeriveCtx.prevResult = result;
+        }
+        return unwrap(result);
+    }
+    finally {
+        if (thisSetCallback) {
+            activeDeriveCtx = undefined;
+        }
+    }
+}
+/**
+ * Invokes the derive function of the given context, while setting it as the activeDeriveCtx.
+ * This allows any observations made during the derive function to continue being derived observations.
+ */
+function invokeDeriveCtx(ctx) {
+    const prev = activeDeriveCtx;
+    activeDeriveCtx = ctx;
+    try {
+        const result = ctx.fn();
+        ctx.prevResult = result;
+        return unwrap(result);
+    }
+    finally {
+        activeDeriveCtx = prev;
+    }
+}
+
+function triggerObservations(observations) {
+    while (observations.size > 0) {
+        // The Set of Observers to trigger (prevents triggering the same observer multiple times)
+        const triggerObservers = new Set();
+        // Map of validated DeriveContexts and whether their return values changed
+        // (prevents redundant invocations of derive fn or isEqual)
+        const verifiedDeriveCtxs = new Map();
+        for (const observation of observations) {
+            observations.delete(observation);
+            // By default, we don't skip any Observer callback (for non-focused Observers)
+            let skipObserver = false;
+            // If the observation has derive contexts, validate each one
+            if (observation.deriveCtxs) {
+                // In this case, we skip the observer by default unless one of the derived return values changed
+                skipObserver = true;
+                for (const deriveCtx of observation.deriveCtxs) {
+                    // Already checked; skip and use same result
+                    if (verifiedDeriveCtxs.has(deriveCtx)) {
+                        const changedResult = verifiedDeriveCtxs.get(deriveCtx);
+                        if (changedResult)
+                            skipObserver = false;
+                        continue;
+                    }
+                    // Get next result and compare with previous result
+                    const prevResult = deriveCtx.prevResult;
+                    const nextResult = invokeDeriveCtx(deriveCtx);
+                    const changedResult = deriveCtx.isEqual
+                        ? !deriveCtx.isEqual(prevResult, nextResult)
+                        : prevResult !== nextResult;
+                    verifiedDeriveCtxs.set(deriveCtx, changedResult);
+                    // If the result changed, this observer will be invoked
+                    if (changedResult)
+                        skipObserver = false;
+                }
+            }
+            if (!skipObserver)
+                triggerObservers.add(observation.observer);
+        }
+        for (const observer of triggerObservers) {
+            observer.callback?.();
+        }
+    }
+}
+
+let atomicObservations;
+function atomic(fn, args, thisArg) {
+    const result = atomicAllowPromise(fn, args, thisArg);
+    if (result instanceof Promise) {
+        throw new Error('atomic() does not support async functions. Only the synchronous portion before the first await would be batched; writes after each await would notify observers individually. Restructure the work so the awaits happen outside atomic(), then call atomic() on the synchronous portion that applies the results.');
+    }
+    return result;
+}
+function atomicAllowPromise(fn, args, thisArg) {
+    let thisSetCallback = false;
+    if (!atomicObservations) {
+        atomicObservations = new Set();
+        thisSetCallback = true;
+    }
+    try {
+        return fn.apply(thisArg, (args ?? []));
+    }
+    finally {
+        if (thisSetCallback) {
+            triggerObservations(atomicObservations);
+            atomicObservations = undefined;
+        }
+    }
+}
+
+const keyLength = Symbol('keyLength');
+const objectFactory = {
+    makeObservable: (ctx) => {
+        return new Proxy(
+        // The target of the proxy is not really relevant since we always get/set values directly on the context value object.
+        // It's important to pass the original value though, because it needs to be an array for certain internal checks (Array.isArray, for example)
+        ctx.value, {
+            get(_, prop, observable) {
+                // if (prop === "toJSON") return () => ctx.value;
+                const propValue = Reflect.get(ctx.value, prop, observable);
+                if (typeof propValue === 'function') {
+                    return (...args) => {
+                        // Todo cache function?
+                        return atomicAllowPromise(propValue, args, observable);
+                    };
+                }
+                return ctx.observeIdentifier(prop, propValue);
+            },
+            set(_, prop, newValue, observer) {
+                const rawValue = unwrap(newValue);
+                const oldValue = Reflect.get(ctx.value, prop, ctx.value);
+                if (oldValue === rawValue)
+                    return true;
+                const oldHas = Reflect.has(ctx.value, prop);
+                if (Array.isArray(ctx.value)) {
+                    const arrayLength = ctx.value.length;
+                    const setResult = Reflect.set(ctx.value, prop, rawValue, ctx.value);
+                    atomic(() => {
+                        if (arrayLength !== ctx.value.length)
+                            ctx.modifyIdentifier('length');
+                        if (prop !== 'length')
+                            ctx.modifyIdentifier(prop);
+                    });
+                    return setResult;
+                }
+                // Check if property is a setter or a regular property
+                if (isSetter(ctx.value, prop)) {
+                    return atomic(() => {
+                        const result = Reflect.set(ctx.value, prop, rawValue, observer);
+                        ctx.modifyIdentifier(prop);
+                        return result;
+                    });
+                }
+                const result = Reflect.set(ctx.value, prop, rawValue, observer);
+                atomic(() => {
+                    ctx.modifyIdentifier(prop);
+                    if (!oldHas)
+                        ctx.modifyIdentifier(keyLength);
+                });
+                return result;
+            },
+            ownKeys(_) {
+                const keys = Reflect.ownKeys(ctx.value);
+                ctx.observeIdentifier(keyLength);
+                return keys;
+            },
+            deleteProperty(_, prop) {
+                const res = Reflect.deleteProperty(ctx.value, prop);
+                if (res) {
+                    atomic(() => {
+                        ctx.modifyIdentifier(prop);
+                        ctx.modifyIdentifier(keyLength);
+                    });
+                }
+                return res;
+            },
+        });
+    },
+};
+function findPropertyDescriptor(obj, prop) {
+    while (obj) {
+        const desc = Reflect.getOwnPropertyDescriptor(obj, prop);
+        if (desc)
+            return desc;
+        obj = Object.getPrototypeOf(obj);
+    }
+    return undefined;
+}
+function isSetter(obj, prop) {
+    return !!findPropertyDescriptor(obj, prop)?.set;
+}
+
+/**
+ * Registers a class that can be observed. You can provide a custom factory that produces observable
+ * instances of the class. If no factory is provided, the default object factory will be used.
+ * @param classConstructor The class to register.
+ * @param factory The factory to use to create observable instances of the class.
+ */
+function registerObservableClass(classConstructor, factory) {
+    observableFactories.set(classConstructor, factory || objectFactory);
+}
+
+const _size$1 = Symbol('size');
+class ObservableMap extends Map {
+    #ctx;
+    constructor(ctx) {
+        super();
+        this.#ctx = ctx;
+        Object.defineProperty(this, 'constructor', {
+            value: Map,
+            enumerable: false,
+            configurable: true,
+        });
+    }
+    get map() {
+        return this.#ctx.value;
+    }
+    clear() {
+        const size = this.map.size;
+        this.map.clear();
+        if (size !== this.map.size)
+            this.#ctx.modifyIdentifier(_size$1);
+    }
+    delete(key) {
+        const rawKey = unwrap(key);
+        const res = this.map.delete(rawKey);
+        if (res) {
+            atomic(() => {
+                this.#ctx.modifyIdentifier(rawKey);
+                this.#ctx.modifyIdentifier(_size$1);
+            });
+        }
+        return res;
+    }
+    forEach(callbackFn, thisArg) {
+        this.map.forEach((value, key) => {
+            const observable = this.#ctx.observeIdentifier(key, value);
+            callbackFn.call(thisArg, observable, key, this);
+        }, thisArg);
+        void this.size;
+    }
+    get(key) {
+        const rawKey = unwrap(key);
+        const value = this.map.get(rawKey);
+        return this.#ctx.observeIdentifier(rawKey, value);
+    }
+    has(key) {
+        const rawKey = unwrap(key);
+        this.#ctx.observeIdentifier(rawKey);
+        return this.map.has(rawKey);
+    }
+    set(key, value) {
+        const rawKey = unwrap(key);
+        const rawValue = unwrap(value);
+        const size = this.map.size;
+        const oldValue = this.map.get(rawKey);
+        this.map.set(rawKey, rawValue);
+        atomic(() => {
+            if (size !== this.map.size)
+                this.#ctx.modifyIdentifier(_size$1);
+            if (oldValue !== rawValue)
+                this.#ctx.modifyIdentifier(rawKey);
+        });
+        return this;
+    }
+    get size() {
+        return this.#ctx.observeIdentifier(_size$1, this.#ctx.value.size);
+    }
+    /** Returns an iterable of entries in the map. */
+    *[Symbol.iterator]() {
+        this.#ctx.observeIdentifier(_size$1);
+        for (const entry of this.map) {
+            const observable = this.#ctx.observeIdentifier(entry[0], entry[1]);
+            yield [entry[0], observable];
+        }
+    }
+    entries() {
+        return this[Symbol.iterator]();
+    }
+    keys() {
+        this.#ctx.observeIdentifier(_size$1);
+        return this.map.keys();
+    }
+    *values() {
+        for (const value of this[Symbol.iterator]()) {
+            yield value[1];
+        }
+    }
+}
+registerObservableClass(Map, {
+    makeObservable: (ctx) => {
+        return new ObservableMap(ctx);
+    },
+});
+
+const _size = Symbol('size');
+const _has = Symbol('has');
+class ObservableSet extends Set {
+    #ctx;
+    constructor(ctx) {
+        super();
+        this.#ctx = ctx;
+        Object.defineProperty(this, 'constructor', {
+            value: Set,
+            enumerable: false,
+            configurable: true,
+        });
+    }
+    get set() {
+        return this.#ctx.value;
+    }
+    add(value) {
+        const rawValue = unwrap(value);
+        const size = this.set.size;
+        this.set.add(rawValue);
+        if (size !== this.set.size) {
+            atomic(() => {
+                this.#ctx.modifyIdentifier(_size);
+                this.#ctx.modifyIdentifier(rawValue);
+            });
+        }
+        return this;
+    }
+    clear() {
+        const size = this.set.size;
+        this.set.clear();
+        if (size !== this.set.size) {
+            atomic(() => {
+                this.#ctx.modifyIdentifier(_size);
+                this.#ctx.modifyIdentifier(_has);
+            });
+        }
+    }
+    delete(value) {
+        const rawValue = unwrap(value);
+        const res = this.set.delete(rawValue);
+        if (res) {
+            atomic(() => {
+                this.#ctx.modifyIdentifier(_size);
+                this.#ctx.modifyIdentifier(rawValue);
+            });
+        }
+        return res;
+    }
+    forEach(callbackFn, thisArg) {
+        this.set.forEach((value, _key) => {
+            const observable = this.#ctx.observeIdentifier(value, value);
+            callbackFn.call(thisArg, observable, observable, this);
+        }, thisArg);
+        void this.size;
+    }
+    has(value) {
+        const rawValue = unwrap(value);
+        this.#ctx.observeIdentifier(rawValue);
+        this.#ctx.observeIdentifier(_has);
+        return this.set.has(rawValue);
+    }
+    get size() {
+        return this.#ctx.observeIdentifier(_size, this.set.size);
+    }
+    *[Symbol.iterator]() {
+        this.#ctx.observeIdentifier(_size);
+        for (const value of this.set) {
+            yield this.#ctx.observeIdentifier(value, value);
+        }
+    }
+    *entries() {
+        for (const value of this[Symbol.iterator]()) {
+            yield [value, value];
+        }
+    }
+    keys() {
+        return this[Symbol.iterator]();
+    }
+    values() {
+        return this[Symbol.iterator]();
+    }
+}
+registerObservableClass(Set, {
+    makeObservable: (ctx) => {
+        return new ObservableSet(ctx);
+    },
+});
+
+registerObservableClass(Object, objectFactory);
+registerObservableClass(Array, objectFactory);
+
+/**
+ * Ensures that any changes to deep properties within the given value (which should be an observable type) will trigger
+ * its observer's callback (in React, this ensures that the component is re-rendered on deep property changes).
+ *
+ * If `observable` is not an observable type (e.g. a primitive or null), it will be returned as-is. If `observer`
+ * is an observable type, but is not an observable proxy, an error will be thrown.
+ *
+ * This only applies when the observable is focused (in unfocused mode, all changes trigger the callback). In React,
+ * observers are always focused.
+ *
+ * e.g.
+ * ```ts
+ * const state = observe({ object1: { value1: 'value1' } }, callback);
+ * deep(state.object1);
+ * state.object1.value1 = 'new-value1';
+ * // callback will be triggered
+ * ```
+ */
+function deep(observable) {
+    const ctx = ObservableContext.getForObservable(observable, false);
+    if (ctx) {
+        return ctx.observer.rootNode.observePath(ctx.observer, ctx.path, ctx.value, true);
+    }
+    // It's okay if `observable` is not actually an observable type, just return it as-is
+    const f = observable && typeof observable === 'object'
+        ? getObservableFactory(observable.constructor)
+        : null;
+    if (!f)
+        return observable;
+    // However, if it's an observable type but not actually an observable proxy, throw an error
+    throw new Error('Keck: deep: value is not observable');
+}
+
+/**
+ * Disables an observer, preventing it from triggering its callback when its
+ * observed properties are modified.
+ * @param observable The observable to disable.
+ */
+function disable(observable) {
+    ObservableContext.getForObservable(observable).observer.disable();
+}
+/**
+ * Enables an observer, allowing it to trigger its callback when its observed
+ * properties are modified.
+ * @param observable The observable to enable.
+ */
+function enable(observable) {
+    ObservableContext.getForObservable(observable).observer.enable();
+}
+
+function focus(observable, enableFocus = true) {
+    ObservableContext.getForObservable(observable).observer.focus(enableFocus);
+}
+
+function isObservable(value, throwEx = false) {
+    if (value && typeof value === 'object' && getObservableFactory(value.constructor)) {
+        return true;
+    }
+    if (throwEx) {
+        let valueLabel = String(value);
+        if (value && (typeof value === 'object' || typeof value === 'function'))
+            valueLabel = `of type ${value.constructor.name}`;
+        else if (typeof value === 'string')
+            valueLabel = `"${value}"`;
+        throw new Error(`Value ${valueLabel} is not observable`);
+    }
+    return false;
+}
+
+let peeking = false;
+function isPeeking() {
+    return peeking;
+}
+function peek(fn) {
+    peeking = true;
+    try {
+        return fn();
+    }
+    finally {
+        peeking = false;
+    }
+}
+
+const refMap = new WeakSet();
+function ref(value) {
+    if (isObservable(value))
+        refMap.add(value);
+    return value;
+}
+function isRef(value) {
+    return refMap.has(value);
+}
+
+let silentMode = false;
+/**
+ * Use `silent` to execute a block of code without triggering any observer callbacks when modifications are made.
+ * @param callback The block of code to execute.
+ */
+function silent(callback) {
+    silentMode = true;
+    callback();
+    silentMode = false;
+}
+
+function getMapEntry(map, key, create, meta, isEntryValid) {
+    let value = map.get(key);
+    if (!value || (isEntryValid && !isEntryValid(value))) {
+        value = create();
+        map.set(key, value);
+        if (meta)
+            meta.created = true;
+    }
+    return value;
+}
+
+const rootNodeForValue = new WeakMap();
+function getRootNodeForValue(value) {
+    isObservable(value, true);
+    return getMapEntry(rootNodeForValue, value, () => new WeakRef(new RootNode()), {}, (ref) => !!ref.deref()).deref();
+}
+/**
+ * A RootNode is the root of the observable tracking system for a given object graph. Only one
+ * RootNode exists per root Value object.
+ * It maintains a PathMap of all observed paths, and is responsible for creating Observations
+ * and ObservableContexts as needed.
+ *
+ * When a path is modified, it invalidates all related Observables and triggers the appropriate
+ * Observations.
+ *
+ * RootNode objects are only created by getRootNodeForValue, and are stored in a WeakMap keyed by
+ * the root Value object.
+ */
+class RootNode {
+    /**
+     * A tree structure that mirrors this RootNode's associated value's object structure, containing
+     * information about all of the observations on the value's observed paths.
+     */
+    pathEntries = new PathMap();
+    observePath(observer, path, childValue, force = false) {
+        let returnValue = childValue;
+        if (!force && isPeeking())
+            return returnValue;
+        const isObservable = childValue &&
+            typeof childValue === 'object' &&
+            getObservableFactory(childValue.constructor) &&
+            !isRef(childValue);
+        // If the given value is observable, return the observable for it
+        if (isObservable) {
+            returnValue = this.getObservable(observer, path, childValue);
+        }
+        if (force || (observer.isFocusing && (activeDeriveCtx || !isObservable))) {
+            this.createObservation(observer, path);
+        }
+        return returnValue;
+    }
+    modifyPath(path) {
+        // Invalidate observables for this and all related paths
+        const ancestors = this.pathEntries.collect(path, 'all');
+        for (const pathEntry of ancestors) {
+            pathEntry.observables = new WeakMap();
+        }
+        if (silentMode)
+            return;
+        const observationsToCall = atomicObservations || new Set();
+        const pathEntries = this.pathEntries.collect(path);
+        for (const pathEntry of pathEntries) {
+            for (const observationRef of pathEntry.allObservations) {
+                const observation = observationRef.deref();
+                const observer = observation?.observer;
+                if (!observation || !observer) {
+                    pathEntry.allObservations.delete(observationRef);
+                    continue;
+                }
+                // If the Observation is not valid, remove it from the map
+                // (it could have been cleared out by resetting the observer)
+                if (!observer.hasObservation(observation)) {
+                    pathEntry.observationsForObserver.delete(observer);
+                    continue;
+                }
+                if (!observer.enabled)
+                    continue;
+                observationsToCall.add(observation);
+            }
+        }
+        // If atomicObservers is set, then `atomic()` will handle calling the observers
+        if (observationsToCall !== atomicObservations) {
+            triggerObservations(observationsToCall);
+        }
+    }
+    /**
+     * Returns the observable proxy wrapper for the given observer at the given path and child value.
+     * If no such observable exists yet, or the existing observable does not reference the given
+     * child value, it will be (re-)created.
+     */
+    getObservable(observer, path, childValue) {
+        isObservable(childValue, true);
+        return getMapEntry(this.getPathEntry(path).observables, observer, () => new ObservableContext(this, observer, childValue, path), undefined, 
+        /**
+         * The ObservableContext's value must match childValue. If it doesn't that likely means
+         * the object was replaced and a new ObservableContext needs to be created.
+         */
+        (ctx) => ctx.value === childValue).observable;
+    }
+    getPathEntry(path) {
+        return getMapEntry(this.pathEntries, path, () => ({
+            observables: new WeakMap(),
+            observationsForObserver: new WeakMap(),
+            allObservations: new Set(),
+        }));
+    }
+    createObservation(observer, path) {
+        const pathEntry = this.getPathEntry(path);
+        const getObservationMeta = { created: false };
+        const observation = getMapEntry(pathEntry.observationsForObserver, observer, () => ({ observer, path }), getObservationMeta, (entry) => observer.hasObservation(entry));
+        // If the observation was just created, add it to the set of all observations for this path
+        pathEntry.allObservations.add(new WeakRef(observation));
+        // If there's no activeDeriveCtx, then clear the set (the observation is unconditional)
+        if (!activeDeriveCtx) {
+            observation.deriveCtxs = undefined;
+        }
+        // If there's an activeDeriveCtx, and we just created the observation or there is an existing Set of deriveCtxs, add it to the Set.
+        // Otherwise, there is already an unconditional observation and we shouldn't add this derive fn.
+        else if (getObservationMeta.created || observation.deriveCtxs) {
+            observation.deriveCtxs = observation.deriveCtxs || new Set();
+            observation.deriveCtxs.add(activeDeriveCtx);
+        }
+        observer.addObservation(observation);
+    }
+}
+
+/**
+ * An Observer represents a callback to be triggered when properties on an observable object graph
+ * are modified. An Observer is responsible for creating the Observations that might trigger its
+ * callback, and for tracking which observations are still valid (all Observations, however, are
+ * stored on the RootNode).
+ *
+ * Observers are created directly by the `observe` method, and internally, care is taken to ensure
+ * that no persistent references to Observers exist that might prevent them from being garbage
+ * collected.
+ */
+class Observer {
+    callback;
+    /**
+     * User-controlled enabled state. Set via the public disable()/enable() API.
+     * Independent of transaction state so that a user-disabled observer stays disabled
+     * after a transaction finishes.
+     */
+    _userEnabled = true;
+    /**
+     * Indicates whether focus mode is enabled, disabled, or paused for this Observer.
+     * - `undefined`: focus is disabled (all modifications are observed)
+     * - `true`: focus is enabled
+     * - `false`: focus is paused (new observations are not created but existing ones are still valid)
+     */
+    _isFocusing = undefined;
+    rootNode;
+    /**
+     * A WeakSet of Observations for this Observer; used to invalidate Observables when the Observer's
+     * focus mode is disabled.
+     */
+    _validObservations;
+    /**
+     * During a transaction, holds a reference to the pending Set owned by the transaction closure.
+     * Reads are routed here instead of _validObservations. The transaction module sets this at
+     * beginTransaction and clears it at commit or discard.
+     */
+    _pendingObservations;
+    constructor(value, callback) {
+        this.callback = callback;
+        this.rootNode = getRootNodeForValue(value);
+        this.createRootObservation();
+    }
+    get isFocusing() {
+        return this._isFocusing;
+    }
+    focus(enableFocus) {
+        // Reset observations when enabling focus mode
+        if (this._isFocusing === undefined && enableFocus) {
+            this._validObservations = undefined;
+        }
+        this._isFocusing = enableFocus;
+    }
+    reset() {
+        this._validObservations = undefined;
+    }
+    createRootObservation() {
+        this.rootNode.createObservation(this, []);
+    }
+    disable() {
+        this._userEnabled = false;
+    }
+    enable() {
+        this._userEnabled = true;
+    }
+    get enabled() {
+        return this._userEnabled && this._pendingObservations === undefined;
+    }
+    /**
+     * Called by the transaction module when a new transaction starts. Borrows the pending Set
+     * from the transaction closure so that addObservation() routes reads there. Disables the
+     * observer so writes during the render cannot trigger this observer's own callback.
+     */
+    beginTransaction(pending) {
+        this._pendingObservations = pending;
+        this._isFocusing = true;
+    }
+    /**
+     * Called by the transaction module on commit. Promotes the closed-over pending Set to
+     * _validObservations and releases the borrow. Setting _pendingObservations to undefined
+     * also re-enables the observer (enabled = _userEnabled && _pendingObservations === undefined).
+     */
+    commitTransaction(pending) {
+        this._validObservations = new WeakSet(pending);
+        this._pendingObservations = undefined;
+        this._isFocusing = false;
+    }
+    /**
+     * Called by the transaction module on discard. Releases the pending Set borrow.
+     * _validObservations is left untouched so pre-transaction subscriptions are automatically
+     * restored. Setting _pendingObservations to undefined also re-enables the observer.
+     */
+    discardTransaction() {
+        this._pendingObservations = undefined;
+        this._isFocusing = false;
+    }
+    addObservation(observation) {
+        if (this._pendingObservations !== undefined) {
+            this._pendingObservations.add(observation);
+        }
+        else {
+            if (!this._validObservations)
+                this._validObservations = new WeakSet();
+            this._validObservations.add(observation);
+        }
+    }
+    hasObservation(observation) {
+        return !!this._validObservations?.has(observation);
+    }
+}
+
+const gcCallbacks = new Set();
+let registry;
+function initGarbageCollectionObservation(cb) {
+    gcCallbacks.add(cb);
+    if (!registry && typeof FinalizationRegistry !== 'undefined') {
+        registry = new FinalizationRegistry((heldValue) => {
+            for (const cb of gcCallbacks)
+                cb(heldValue);
+        });
+    }
+    return () => {
+        gcCallbacks.delete(cb);
+        if (gcCallbacks.size === 0)
+            registry = undefined;
+    };
+}
+function registerObservableFinalizer(state) {
+    registry?.register(state, 'Keck observable released');
+}
+
+function observe(value, cbOrConfig) {
+    value = unwrap(value);
+    let deriveFn;
+    let isEqual;
+    let cb;
+    let state;
+    if (cbOrConfig && typeof cbOrConfig === 'object') {
+        let lastDerived;
+        const rawDeriveFn = cbOrConfig.derive;
+        deriveFn = (s) => {
+            lastDerived = rawDeriveFn(s);
+            return lastDerived;
+        };
+        isEqual = cbOrConfig.isEqual;
+        cb = () => cbOrConfig.onChange(lastDerived);
+    }
+    else {
+        cb = cbOrConfig;
+    }
+    const observer = new Observer(value, cb);
+    state = observer.rootNode.getObservable(observer, [], value);
+    if (deriveFn) {
+        focus(state);
+        derive(() => deriveFn(state), isEqual);
+        focus(state, false);
+    }
+    registerObservableFinalizer(state);
+    return state;
+}
+
+function reset(observable) {
+    ObservableContext.getForObservable(observable).observer.reset();
+}
+
+/**
+ * Tracks the discard function for each observer that currently has an active transaction.
+ * When a new transaction starts for the same observer, the prior one is settled first.
+ */
+const activeDiscards = new WeakMap();
+/**
+ * Begins a transaction on the observable. Returns `{ commit, discard }` that are idempotent
+ * and close over their own pending observation Set.
+ *
+ * A microtask is queued to auto-discard if neither `commit` nor `discard` is called before
+ * the end of the current event cycle — covering abandoned renders (Suspense, concurrent
+ * bail-outs) without requiring the caller to handle cleanup explicitly.
+ *
+ * If a prior transaction for the same observer is still active when this is called, it is
+ * discarded before the new transaction begins.
+ */
+function beginTransaction(observable) {
+    const observer = ObservableContext.getForObservable(observable).observer;
+    // Settle any prior active transaction before starting a new one
+    activeDiscards.get(observer)?.();
+    // The pending Set is owned by this closure. The observer borrows a reference during the
+    // transaction so that addObservation() routes reads here instead of _validObservations.
+    const pending = new Set();
+    observer.beginTransaction(pending);
+    let settled = false;
+    const discard = () => {
+        if (settled)
+            return;
+        settled = true;
+        observer.discardTransaction();
+        activeDiscards.delete(observer);
+    };
+    const commit = () => {
+        if (settled)
+            return;
+        settled = true;
+        observer.commitTransaction(pending);
+        activeDiscards.delete(observer);
+    };
+    activeDiscards.set(observer, discard);
+    queueMicrotask(discard);
+    return { commit, discard };
+}
+
+/**
+ * Compares two objects for shallow equality. This is provided as a convenience utility for `derive()`.
+ *
+ * @param a The value to compare
+ * @param b The value to compare against
+ */
+function shallowCompare(a, b) {
+    if (a === b)
+        return true;
+    if (typeof a !== 'object' || typeof b !== 'object')
+        return false;
+    if (a === null || b === null)
+        return false;
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    if (aKeys.length !== bKeys.length)
+        return false;
+    for (const key of aKeys) {
+        if (a[key] !== b[key])
+            return false;
+    }
+    return true;
+}
+
+/**
+ * Recursively transforms `target` into the shape of `source`, in place.
+ *
+ * - Both `target` and `source` must be arrays or plain objects;
+ *   otherwise `source` is returned.
+ * - If both `target` and `source` have the same structure type (array <-> array,
+ *   object <-> object), then we recurse.
+ * - Any mismatch in structure means we directly replace the `target` value with
+ *   the `source` value.
+ * - Any primitive or "complex object" (Date, Set, Map, etc.) in `source`
+ *   directly replaces the value in `target`.
+ * - Any properties in `target` not in `source` are deleted.
+ *
+ * @param target The object/array to transform *in-place*.
+ * @param source The source object/array to match shape.
+ * @returns The same `target` reference, now transformed to match `source`.
+ * @throws If top-level `target` or `source` is not an array or plain object.
+ */
+function transformInPlace(target, source) {
+    if (!isSupportedStructure(target) || !isSupportedStructure(source)) {
+        return source;
+    }
+    // If top-level mismatch, return source directly (new reference).
+    if (Array.isArray(target) !== Array.isArray(source)) {
+        // This effectively discards the old `target` reference.
+        // The caller must use the returned value if they want the new shape.
+        return source;
+    }
+    // If both are supported structures, transform object in place
+    if (isPlainObject(target) && isPlainObject(source)) {
+        // Remove keys in target that do not exist in source
+        for (const key in target) {
+            if (!Object.hasOwn(source, key)) {
+                delete target[key];
+            }
+        }
+    }
+    else {
+        // Both must be arrays: the type-mismatch check above already returned if types differ,
+        // and both are supported structures, so if not plain objects they must be arrays.
+        target.length = source.length;
+    }
+    // For each key in source, set/transform target’s value
+    let key;
+    for (key in source) {
+        const srcVal = source[key];
+        const tgtVal = target[key];
+        if (isSupportedStructure(srcVal) && isSupportedStructure(tgtVal)) {
+            // Supported structures => recurse
+            target[key] = transformInPlace(tgtVal, srcVal);
+        }
+        else {
+            // Type mismatch => direct replacement
+            target[key] = srcVal;
+        }
+    }
+    return target;
+}
+/**
+ * Type guard: returns `true` if `val` is a *plain* JavaScript object
+ * (i.e. `{}` — not `null`, not an array, and not any special built-in).
+ */
+function isPlainObject(val) {
+    return (val !== null &&
+        typeof val === 'object' &&
+        Object.prototype.toString.call(val) === '[object Object]');
+}
+/**
+ * Type guard: returns `true` if `val` is either an array or a plain object.
+ * These are the only two "structures" our transform supports.
+ */
+function isSupportedStructure(val) {
+    return Array.isArray(val) || isPlainObject(val);
+}
+
+export { atomic, beginTransaction, deep, derive, disable, enable, focus, initGarbageCollectionObservation, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };
 //# sourceMappingURL=index.js.map

@@ -1,11 +1,4 @@
-import {
-  beginTransaction,
-  commitTransaction,
-  type DeriveEqualFn,
-  discardTransaction,
-  observe,
-  reset,
-} from 'keck';
+import { beginTransaction, type DeriveEqualFn, observe, reset } from 'keck';
 import { useSyncMemo } from 'keck/react/useSyncMemo';
 import { useInsertionEffect, useLayoutEffect, useRef, useState } from 'react';
 
@@ -183,24 +176,23 @@ export function useObserver(...args: any[]): any {
     return value;
   }, deps || []);
 
-  // Begin transaction: reads during this render go into a pending staging area and cannot trigger
-  // callbacks. If a prior abandoned render left uncommitted observations, the old pending Set is
-  // discarded implicitly when beginTransaction() replaces it.
-  beginTransaction(state);
+  // Begin a transaction for this render. Reads go into the transaction's pending Set and cannot
+  // trigger callbacks. Any prior abandoned transaction for this observer is settled first.
+  // The transaction auto-discards via microtask if the render is abandoned (Suspense, bail-out,
+  // interrupted transition) and commit is never called.
+  const tx = beginTransaction(state);
 
-  // Commit the transaction when the render is confirmed by React. This promotes pending reads to
-  // _validObservations, making them live. isRendering is cleared here so that subsequent writes
-  // (from sibling renders in the same pass) are not incorrectly deferred.
+  // Commit when React confirms the render. Promotes pending reads to _validObservations and
+  // re-enables the observer. isRendering is cleared here so that subsequent writes from sibling
+  // renders in the same pass are not incorrectly deferred.
   useInsertionEffect(() => {
     isRendering = false;
     renderValidRef.current = true;
-    commitTransaction(state);
+    tx.commit();
   });
 
-  // queueMicrotask is only needed to release isRendering when a render is abandoned (Suspense,
-  // interrupted transition) and useInsertionEffect never fires. Pending observations from
-  // abandoned renders are structurally inert — they are never in _validObservations — so no
-  // cleanup of observations is necessary here.
+  // Reset isRendering for abandoned renders where useInsertionEffect never fires. The transaction
+  // handles its own discard via the microtask queued inside beginTransaction.
   queueMicrotask(() => {
     isRendering = false;
   });
@@ -208,12 +200,10 @@ export function useObserver(...args: any[]): any {
   // biome-ignore lint/correctness/useExhaustiveDependencies: just used for unmounting cleanup
   useInsertionEffect(() => {
     return () => {
-      // Setting renderValidRef to false prevents the observer callback from scheduling a re-render
-      // after this component unmounts (or during React Strict Mode's simulated unmount/remount).
-      // discardTransaction releases the pending Set without destroying _validObservations, which
-      // must be preserved so Strict Mode's remount can continue observing without a new render.
+      // Prevents the observer callback from scheduling a re-render after unmount (or during
+      // Strict Mode's simulated unmount/remount). Any in-flight transaction auto-discards via
+      // its own microtask, so no explicit discard is needed here.
       renderValidRef.current = false;
-      discardTransaction(state);
     };
   }, []);
 

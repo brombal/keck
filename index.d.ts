@@ -91,9 +91,22 @@ declare function reset(observable: any): void;
  */
 declare function silent(callback: () => void): void;
 
-declare function beginTransaction(observable: object): void;
-declare function commitTransaction(observable: object): void;
-declare function discardTransaction(observable: object): void;
+interface Transaction {
+    commit: () => void;
+    discard: () => void;
+}
+/**
+ * Begins a transaction on the observable. Returns `{ commit, discard }` that are idempotent
+ * and close over their own pending observation Set.
+ *
+ * A microtask is queued to auto-discard if neither `commit` nor `discard` is called before
+ * the end of the current event cycle — covering abandoned renders (Suspense, concurrent
+ * bail-outs) without requiring the caller to handle cleanup explicitly.
+ *
+ * If a prior transaction for the same observer is still active when this is called, it is
+ * discarded before the new transaction begins.
+ */
+declare function beginTransaction(observable: object): Transaction;
 
 /**
  * Returns the original object of an observable wrapper. If `observable` is
@@ -131,5 +144,5 @@ declare function shallowCompare<T>(a: T, b: T): boolean;
  */
 declare function transformInPlace<TSource>(target: unknown, source: TSource): TSource;
 
-export { atomic, beginTransaction, commitTransaction, deep, derive, disable, discardTransaction, enable, focus, initGarbageCollectionObservation, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };
-export type { DeriveEqualFn, DeriveFn };
+export { atomic, beginTransaction, deep, derive, disable, enable, focus, initGarbageCollectionObservation, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };
+export type { DeriveEqualFn, DeriveFn, Transaction };

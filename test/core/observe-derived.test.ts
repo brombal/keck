@@ -1,10 +1,10 @@
-import { jest } from '@jest/globals';
 import { atomic, observe } from 'keck';
+import { vi } from 'vitest';
 
 describe('observe() with derive', () => {
   test('Changing derive fn return value triggers callback', () => {
-    const mockCallback = jest.fn();
-    const mockDerive = jest.fn();
+    const mockCallback = vi.fn();
+    const mockDerive = vi.fn();
     const state = observe(
       { value1: 1, value2: 1, value3: 1, value4: {} },
       {
@@ -15,12 +15,12 @@ describe('observe() with derive', () => {
         onChange: () => mockCallback(),
       },
     );
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     state.value1 = 2;
     expect(mockCallback).toHaveBeenCalledTimes(1);
     expect(mockDerive).toHaveBeenCalledTimes(1);
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     atomic(() => {
       // Current derived output is 3; make a change that will not change output
@@ -29,7 +29,7 @@ describe('observe() with derive', () => {
     });
     expect(mockCallback).toHaveBeenCalledTimes(0);
     expect(mockDerive).toHaveBeenCalledTimes(1);
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     // One more time for good measure
     atomic(() => {
@@ -39,13 +39,13 @@ describe('observe() with derive', () => {
     });
     expect(mockCallback).toHaveBeenCalledTimes(1);
     expect(mockDerive).toHaveBeenCalledTimes(1);
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     // Modifying property that is not accessed in derive fn does not invoke derive fn or trigger callback
     state.value3 = 2;
     expect(mockCallback).toHaveBeenCalledTimes(0);
     expect(mockDerive).toHaveBeenCalledTimes(0);
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   // TODO: For now it's not recommended to use multiple different observable objects in a derive

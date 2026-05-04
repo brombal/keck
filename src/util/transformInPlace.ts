@@ -16,7 +16,16 @@
  * @returns The same `target` reference, now transformed to match `source`.
  * @throws If top-level `target` or `source` is not an array or plain object.
  */
+import { fromSnapshot } from './fromSnapshot';
+
 export function transformInPlace<TSource>(target: unknown, source: TSource): TSource {
+  // A class that implements [fromSnapshot] takes full responsibility for
+  // restoring itself from the plain-object snapshot. Skip all merge logic.
+  if (target !== null && typeof target === 'object' && fromSnapshot in (target as object)) {
+    ((target as any)[fromSnapshot] as (s: unknown) => void)(source);
+    return target as unknown as TSource;
+  }
+
   if (!isSupportedStructure(target) || !isSupportedStructure(source)) {
     return source;
   }
@@ -49,8 +58,15 @@ export function transformInPlace<TSource>(target: unknown, source: TSource): TSo
     const tgtVal = target[key];
 
     if (isSupportedStructure(srcVal) && isSupportedStructure(tgtVal)) {
-      // Supported structures => recurse
+      // Supported structures => recurse (also handles [fromSnapshot] at deeper levels)
       (target as PlainObject)[key] = transformInPlace(tgtVal, srcVal);
+    } else if (
+      tgtVal !== null &&
+      typeof tgtVal === 'object' &&
+      fromSnapshot in (tgtVal as object)
+    ) {
+      // Nested class instance with [fromSnapshot]: update in place, keep the reference
+      ((tgtVal as any)[fromSnapshot] as (s: unknown) => void)(srcVal);
     } else {
       // Type mismatch => direct replacement
       (target as PlainObject)[key] = srcVal;

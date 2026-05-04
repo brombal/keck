@@ -1,9 +1,9 @@
-import { jest } from '@jest/globals';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { observe } from 'keck';
 import { useObserver } from 'keck/react';
 import { StrictMode } from 'react';
+import { vi } from 'vitest';
 
 describe('useObserver - React Strict Mode', () => {
   test('Component re-renders correctly after Strict Mode effects cycle', async () => {
@@ -11,7 +11,7 @@ describe('useObserver - React Strict Mode', () => {
     // After this cycle the component must still re-render when a subscribed property changes.
     // In Strict Mode, React also double-invokes the render function body, so each actual
     // React render produces two calls to the component function.
-    const mockRender = jest.fn();
+    const mockRender = vi.fn();
     const data = { count: 0 };
 
     function Counter() {
@@ -50,7 +50,7 @@ describe('useObserver - React Strict Mode', () => {
   test('Subscriptions are correct after re-render in Strict Mode', async () => {
     // After the Strict Mode effects cycle, only properties read in the final committed render
     // should be subscribed. Verifies that the cleanup does not destroy the committed observations.
-    const mockRender = jest.fn();
+    const mockRender = vi.fn();
     const rawData = { a: 0, b: 0 };
     const writer = observe(rawData); // external proxy to drive writes
 
@@ -92,7 +92,7 @@ describe('useObserver - React Strict Mode', () => {
 
   test('Callback fires exactly once per change in Strict Mode', async () => {
     // Verifies the Strict Mode effects cycle does not duplicate the observer or its callback.
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const data = { value: 0 };
 
     function TestComponent() {

@@ -1,8 +1,8 @@
-import { jest } from '@jest/globals';
 import { act, render, screen } from '@testing-library/react';
 import { observe } from 'keck';
 import { useObserver } from 'keck/react';
 import { Component, type ReactNode } from 'react';
+import { vi } from 'vitest';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
@@ -15,10 +15,10 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 }
 
 describe('useObserver - error boundary', () => {
-  let consoleError: ReturnType<typeof jest.spyOn>;
+  let consoleError: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -31,7 +31,7 @@ describe('useObserver - error boundary', () => {
     // writes should trigger immediate re-renders in other components — not be deferred.
     const rawData = { value: 0 };
     const writer = observe(rawData);
-    const mockRender = jest.fn();
+    const mockRender = vi.fn();
 
     function ThrowingComponent(): ReactNode {
       useObserver(rawData);
@@ -75,7 +75,7 @@ describe('useObserver - error boundary', () => {
     // component's observer callback — same structural guarantee as the Suspense case.
     const rawData = { a: 0 };
     const writer = observe(rawData);
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
 
     function ThrowingComponent(): ReactNode {
       const state = useObserver(rawData);

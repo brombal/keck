@@ -1,10 +1,10 @@
-import { jest } from '@jest/globals';
 import { disable, enable, observe } from 'keck';
+import { vi } from 'vitest';
 import { createData } from '../shared-data';
 
 describe('disable()', () => {
   test('Callbacks are not triggered when observer is disabled (non-focus mode)', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
 
     const data = createData();
     const store = observe(data, mockCallback);
@@ -14,7 +14,7 @@ describe('disable()', () => {
     store.object1.value1 = 'new-object1-value1';
 
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     enable(store);
 
@@ -24,7 +24,7 @@ describe('disable()', () => {
   });
 
   test('Callbacks are not triggered when observer is disabled (focus mode)', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
 
     const data = createData();
     const store = observe(data, mockCallback);

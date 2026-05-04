@@ -9,7 +9,7 @@ import { useObserver, reactRef } from "keck/react";
 
 | Entry point | Exports |
 | --- | --- |
-| `keck` | `observe`, `derive`, `deep`, `unwrap`, `peek`, `silent`, `atomic`, `ref`, `isRef`, `reset`, `disable`, `enable`, `focus`, `beginTransaction`, `commitTransaction`, `discardTransaction`, `shallowCompare`, `transformInPlace`, `registerObservableClass`, `initGarbageCollectionObservation` |
+| `keck` | `observe`, `derive`, `deep`, `focus`, `unwrap`, `peek`, `silent`, `atomic`, `connectDevTools`, `ref`, `isRef`, `reset`, `disable`, `enable`, `shallowCompare`, `transformInPlace`, `registerObservableClass`, `initGarbageCollectionObservation` |
 | `keck/react` | `useObserver`, `reactRef` |
 
 ## React
@@ -85,6 +85,31 @@ Creates an observable proxy outside React. The callback fires synchronously for 
 const state = observe({ count: 0 }, () => console.log("changed"));
 ```
 
+### `observe(value, { focusable: true, onChange })`
+
+```ts
+function observe<TValue extends object>(
+  value: TValue,
+  config: { focusable: true; onChange: () => void },
+): TValue;
+```
+
+Creates a focusable observer. The callback fires only for properties read during a `focus()` session. Use this when you want the observer to track a specific set of reads rather than firing on every change.
+
+```ts
+const cart = observe(
+  { items: [] as string[], couponCode: "" },
+  { focusable: true, onChange: () => console.log("changed") },
+);
+
+const session = focus(cart);
+void cart.items.length;
+session.commit();
+
+cart.couponCode = "SAVE10"; // no callback — couponCode wasn't focused
+cart.items.push("sku_1");   // callback fires
+```
+
 ### `observe(value, { derive, onChange, isEqual? })`
 
 ```ts
@@ -130,6 +155,7 @@ Returns the raw underlying value for a Keck proxy. Non-observable values are ret
 Runs `fn` without creating observations for reads inside it.
 
 ### `atomic<T>(fn: (...args: unknown[]) => T, args?: unknown[], thisArg?: unknown): T`
+### `atomic<T>(name: string, fn: (...args: unknown[]) => T, args?: unknown[], thisArg?: unknown): T`
 
 Runs multiple writes and notifies observers once at the end. `fn` must be synchronous — passing an async function throws. If you need to batch writes after async work, await first and then call `atomic()`:
 
@@ -148,6 +174,15 @@ atomic(() => {
 });
 ```
 
+Pass a name as the first argument to label the batch as a named action. The name appears as the action type in Redux DevTools and is available as `actionName` in observer callbacks:
+
+```ts
+atomic("updateProfile", () => {
+  state.firstName = "Ada";
+  state.lastName = "Lovelace";
+});
+```
+
 The `args` and `thisArg` parameters let you invoke a reusable function atomically with specific call-site arguments. Most callers only need the first form.
 
 ```ts
@@ -157,23 +192,51 @@ function applyName(this: unknown, first: string, last: string) {
 }
 
 atomic(applyName, ["Ada", "Lovelace"], context);
+atomic("updateProfile", applyName, ["Ada", "Lovelace"], context);
 ```
 
 ### `silent(callback: () => void): void`
 
 Runs writes without notifying observers.
 
+### `connectDevTools<T extends object>(store: T, options?: DevToolsOptions): () => void`
+
+```ts
+interface DevToolsOptions {
+  name?: string;
+}
+```
+
+Connects a store to the Redux DevTools Extension. Each mutation appears as an action in the DevTools panel. Returns a disconnect function.
+
+```ts
+const disconnect = connectDevTools(store, { name: "AppStore" });
+```
+
+Does nothing when the extension is not installed. See the [Redux DevTools guide](devtools.md) for full usage, named actions, and time-travel behavior.
+
 ## Observer Control
 
 These are most relevant when using `observe()` outside React. The React integration manages them automatically.
 
-### `focus(observable: object, enableFocus?: boolean): void`
+### `focus(observable: object): FocusTransaction`
 
-Enables or disables focused read collection for an observer. When focus is active, only properties read while focused are tracked as subscriptions. Pass `false` to pause focused collection without clearing existing observations.
+```ts
+interface FocusTransaction {
+  commit: () => void;
+  discard: () => void;
+}
+```
+
+Begins a focus session on a focusable observer (one created with `{ focusable: true }`). Property reads on the observable during the session are recorded. Call `commit()` to make those observations active — the observer's callback will fire when any of them are modified. Call `discard()` to abandon the session and restore the previous observations.
+
+Both `commit()` and `discard()` are idempotent. If neither is called, a microtask queued at session start will discard automatically, covering abandoned renders or suspended work.
+
+Throws if called on an observer that was not created with `{ focusable: true }`.
 
 ### `reset(observable: object): void`
 
-Clears current observations for an observer. Only meaningful in focused mode; in unfocused mode the observer fires on every change regardless.
+Clears current observations for an observer. Only meaningful on focusable observers; non-focusable observers fire on every change regardless.
 
 ### `disable(observable: object): void`
 
@@ -241,18 +304,6 @@ transformInPlace(state.profile, await fetchProfile());
 ## Advanced / Framework Integration
 
 These APIs are intended for library authors implementing framework-specific integrations (React, Vue, Svelte, Solid, etc.) rather than for application code. Keck's React integration uses them internally. Most users should not need to call these directly.
-
-### `beginTransaction(observable: object): void`
-
-Starts a transaction: clears committed observations and opens a pending staging area. Reads during the transaction go to the staging area and cannot trigger callbacks. A second call to `beginTransaction()` discards any uncommitted reads from the prior call.
-
-### `commitTransaction(observable: object): void`
-
-Promotes the pending staging area to committed observations, making them live. Safe to call when no transaction is active.
-
-### `discardTransaction(observable: object): void`
-
-Discards the pending staging area without touching committed observations. Safe to call when no transaction is active.
 
 ### `isRef(value: unknown): boolean`
 

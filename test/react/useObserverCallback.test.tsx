@@ -1,13 +1,13 @@
-import { jest } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useObserver } from 'keck/react';
 import { useState } from 'react';
+import { vi } from 'vitest';
 
 describe('useObserverCallback', () => {
   test('Callback fires when any value changes', async () => {
-    const mockRender = jest.fn();
-    const mockCallback = jest.fn();
+    const mockRender = vi.fn();
+    const mockCallback = vi.fn();
     const data = { value: 0 };
 
     function TestComponent() {
@@ -30,15 +30,15 @@ describe('useObserverCallback', () => {
     expect(mockCallback).toHaveBeenCalledTimes(0);
 
     // Change value; callback invoked but no re-render
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     await userEvent.click(screen.getByText('Add 1'));
     expect(mockRender).toHaveBeenCalledTimes(0);
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
   test('Returned state subscribes render — reads in render trigger re-renders', async () => {
-    const mockRender = jest.fn();
-    const mockCallback = jest.fn();
+    const mockRender = vi.fn();
+    const mockCallback = vi.fn();
     const data = { value: 0, other: 'x' };
 
     function TestComponent() {
@@ -59,7 +59,7 @@ describe('useObserverCallback', () => {
     render(<TestComponent />);
     expect(mockRender).toHaveBeenCalledTimes(1);
     expect(mockRender).toHaveBeenLastCalledWith(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mutating a property that was read in render triggers a re-render
     // AND fires the sync callback.
@@ -67,7 +67,7 @@ describe('useObserverCallback', () => {
     expect(mockCallback).toHaveBeenCalledTimes(1);
     expect(mockRender).toHaveBeenCalledTimes(1);
     expect(mockRender).toHaveBeenLastCalledWith(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mutating a property that was NOT read in render fires the callback
     // but does not trigger a re-render.
@@ -77,7 +77,7 @@ describe('useObserverCallback', () => {
   });
 
   test('Returned value re-initializes when deps change', async () => {
-    const mockRender = jest.fn();
+    const mockRender = vi.fn();
 
     const objectRefs = [] as any[];
 
@@ -105,12 +105,12 @@ describe('useObserverCallback', () => {
     render(<TestComponent />);
 
     expect(mockRender).toHaveBeenCalledWith({ stateValue: 0, observerValue: 0 });
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     await userEvent.click(screen.getByText('Add 1'));
     expect(mockRender).toHaveBeenCalledWith({ stateValue: 1, observerValue: 0 });
     expect(objectRefs[0]).toBe(objectRefs[1]); // Same object
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     await userEvent.click(screen.getByText('Change dep'));
     expect(mockRender).toHaveBeenCalledWith({ stateValue: 1, observerValue: 1 });

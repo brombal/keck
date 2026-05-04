@@ -1,10 +1,10 @@
-import { jest } from '@jest/globals';
 import { observe, unwrap } from 'keck';
+import { vi } from 'vitest';
 import { createData } from '../shared-data';
 
 describe('observe()', () => {
   test('Observable properties of the same parent are equal without modification', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const data = createData();
 
     const store1 = observe(data, mockCallback);
@@ -24,7 +24,7 @@ describe('observe()', () => {
   });
 
   test('Observable references are different after modification', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const data = createData();
 
     const store1 = observe(data, mockCallback);
@@ -48,9 +48,9 @@ describe('observe()', () => {
   test('Modifying primitive value triggers callback', () => {
     const data = createData();
 
-    const mockFn1 = jest.fn();
+    const mockFn1 = vi.fn();
     const store1 = observe(data, mockFn1);
-    const mockFn2 = jest.fn();
+    const mockFn2 = vi.fn();
     const store2 = observe(data, mockFn2);
 
     // Modify property
@@ -82,9 +82,9 @@ describe('observe()', () => {
   test('Modifying object references triggers callback', () => {
     const data = createData();
 
-    const mockFn1 = jest.fn();
+    const mockFn1 = vi.fn();
     const store1 = observe(data, mockFn1);
-    const mockFn2 = jest.fn();
+    const mockFn2 = vi.fn();
     const store2 = observe(data, mockFn2);
 
     const newObject1 = { value1: 'new-value1' } as any;
@@ -94,7 +94,7 @@ describe('observe()', () => {
     expect(store2.object1).toEqual({ value1: 'new-value1' });
     expect(mockFn1).toHaveBeenCalledTimes(1);
     expect(mockFn2).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // No modification
     store1.object1 = newObject1;
@@ -110,9 +110,9 @@ describe('observe()', () => {
     const revArray = [...data.array1];
     [revArray[0], revArray[1]] = [revArray[1], revArray[0]];
 
-    const mockFn1 = jest.fn();
+    const mockFn1 = vi.fn();
     const store1 = observe(data, mockFn1);
-    const mockFn2 = jest.fn();
+    const mockFn2 = vi.fn();
     const store2 = observe(data, mockFn2);
 
     const a0 = store1.array1[0];
@@ -122,7 +122,7 @@ describe('observe()', () => {
 
     expect(mockFn1).toHaveBeenCalledTimes(2);
     expect(mockFn2).toHaveBeenCalledTimes(2);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     expect(unwrap(store1.array1)).toBe(data.array1);
     expect(unwrap(store1.array1)).toEqual(revArray);
@@ -153,10 +153,10 @@ describe('observe()', () => {
 
   test('Creating an observable from another observable works', () => {
     const data = createData();
-    const mockFn1 = jest.fn();
+    const mockFn1 = vi.fn();
     const store1 = observe(data, mockFn1);
 
-    const mockFn2 = jest.fn();
+    const mockFn2 = vi.fn();
     const store2 = observe(store1, mockFn2);
 
     expect(store1).not.toBe(store2);

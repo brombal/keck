@@ -1,9 +1,9 @@
-import { jest } from '@jest/globals';
 import { deep, focus, isRef, observe, ref, unwrap } from 'keck';
+import { vi } from 'vitest';
 
 describe('ref()', () => {
   test("Modifying ref inner property doesn't trigger callback (non-focus mode)", () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const data = {
       object1: {} as any,
     };
@@ -17,15 +17,15 @@ describe('ref()', () => {
 
     // Callback was triggered for assigning ref
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Ref's properties should not trigger callback
     state.object1.value = 2;
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
-  test("Modifying ref doesn't trigger callback (focus mode)", () => {
+  test("Modifying ref doesn't trigger callback (focused mode)", () => {
     const data = {
       value: 1,
       object1: { value: 1 },
@@ -33,35 +33,35 @@ describe('ref()', () => {
       object3: {} as any,
     };
 
-    const mockFn1 = jest.fn();
-    const state1 = observe(data, mockFn1);
-    focus(state1);
+    const mockFn1 = vi.fn();
+    const state1 = observe(data, { focusable: true, onChange: mockFn1 });
+    const { commit: commit1 } = focus(state1);
     void state1.object2.value;
     deep(state1.object3);
-    focus(state1, false);
+    commit1();
 
-    const mockFn2 = jest.fn();
-    const state2 = observe(data, mockFn2);
-    focus(state2);
+    const mockFn2 = vi.fn();
+    const state2 = observe(data, { focusable: true, onChange: mockFn2 });
+    const { commit: commit2 } = focus(state2);
     void state2.object2.value;
     deep(state2.object3);
-    focus(state2, false);
+    commit2();
 
     state1.object2 = ref({ value: 1 });
     expect(mockFn1).toHaveBeenCalledTimes(1);
     expect(mockFn2).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     state2.object3 = ref({ value: 1 });
     expect(mockFn1).toHaveBeenCalledTimes(1);
     expect(mockFn2).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Sanity check; un-accessed properties should not trigger callback
     state1.object1.value = 2;
     state2.object1.value = 3;
     expect(mockFn1).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Modifying property of refs should not trigger callbacks
     state1.object2.value = 2;
@@ -70,13 +70,13 @@ describe('ref()', () => {
     state2.object3.value = 3;
     expect(mockFn1).toHaveBeenCalledTimes(0);
     expect(mockFn2).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Replacing ref with other ref should trigger callback
     state1.object3 = ref({});
     expect(mockFn1).toHaveBeenCalledTimes(1);
     expect(mockFn2).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Getting ref values should have original unwrapped values
     expect(state1.object2).toBe(data.object2);
@@ -86,7 +86,7 @@ describe('ref()', () => {
   });
 
   test('Creating ref from primitive has no effect', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const data = {
       object1: {} as any,
     };
@@ -96,7 +96,7 @@ describe('ref()', () => {
     state.object1 = ref(3 as any);
 
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     state.object1 = 4;
     expect(mockCallback).toHaveBeenCalledTimes(1);
@@ -105,7 +105,7 @@ describe('ref()', () => {
   });
 
   test('Creating ref from non-observable value has no effect', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const data = {
       value: 1,
       object1: {
@@ -127,14 +127,14 @@ describe('ref()', () => {
     expect(data.object2).toBe(testObj);
     expect(state.object2).toBe(testObj);
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     state.object2.value = 4;
     expect(mockCallback).toHaveBeenCalledTimes(0);
   });
 
   test('Creating ref from null or undefined value has no effect', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const data = {
       object1: {} as any,
       object2: {} as any,
@@ -150,7 +150,7 @@ describe('ref()', () => {
   });
 
   test('ref() works with non-extensible objects', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const data = {
       frozen: {} as any,
       sealed: {} as any,
@@ -178,7 +178,7 @@ describe('ref()', () => {
     expect(state.sealed).toBe(sealedObj);
     expect(state.nonExtensible).toBe(nonExtObj);
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Modifying mutable property of sealed/non-extensible refs should not trigger callback
     sealedObj.value = 2;
@@ -198,17 +198,18 @@ describe('ref()', () => {
   });
 
   test("Reassigning ref of same object doesn't trigger rerender", () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const state = observe(
       {
         object1: ref({
           value: 'value',
         }),
       },
-      mockCallback,
+      { focusable: true, onChange: mockCallback },
     );
-    focus(state);
+    const { commit } = focus(state);
     void state.object1.value;
+    commit();
 
     // Assigning same ref should not trigger callback
     state.object1 = ref(state.object1);

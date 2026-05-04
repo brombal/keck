@@ -1,5 +1,5 @@
-import { jest } from '@jest/globals';
 import { deep, focus, observe } from 'keck';
+import { vi } from 'vitest';
 
 function noop() {}
 
@@ -36,65 +36,64 @@ describe('Sets', () => {
     expect(data.alphaSet.has('d')).toBe(true);
   });
 
-  test('Modifying set after observing set triggers callback', () => {
-    const mockCallback = jest.fn();
+  test('Modifying set after observing size triggers callback', () => {
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     void store.alphaSet.size;
-    focus(store, false);
+    commit();
 
     // Modify set & check callback counts
     store.alphaSet.add('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.add('d');
     expect(mockCallback).toHaveBeenCalledTimes(0); // Not called again for adding same value
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.delete('a');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.delete('a');
     expect(mockCallback).toHaveBeenCalledTimes(0); // Not called again for deleting same value
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.clear();
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
-  test('Modifying set after observing set triggers callback', () => {
-    const mockCallback = jest.fn();
+  test('Modifying set after deep observing triggers callback', () => {
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     deep(store.alphaSet);
-    focus(store, false);
+    commit();
 
     // Modify set & check callback counts
     store.alphaSet.add('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.clear();
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
   test('Modifying set after calling has() triggers callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
-
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     store.alphaSet.has('a');
     store.alphaSet.has('x');
-    focus(store, false);
+    commit();
 
     // Modify set & check callback counts
     store.alphaSet.add('d'); // 'd' was not observed, should not trigger callback
@@ -108,12 +107,12 @@ describe('Sets', () => {
   });
 
   test('Modifying set after re-adding or deleting non-existent value does not trigger callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     deep(store.alphaSet);
-    focus(store, false);
+    commit();
 
     // Modify set & check callback counts
     store.alphaSet.add('a');
@@ -123,11 +122,11 @@ describe('Sets', () => {
   });
 
   test('Clearing empty set does not trigger callback', () => {
-    const mockCallback = jest.fn();
-    const store = observe({ emptySet: new Set() }, mockCallback);
-    focus(store);
+    const mockCallback = vi.fn();
+    const store = observe({ emptySet: new Set() }, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     deep(store.emptySet);
-    focus(store, false);
+    commit();
 
     // Modify set & check callback counts
     store.emptySet.clear();
@@ -135,127 +134,123 @@ describe('Sets', () => {
   });
 
   test('Modifying set size after calling forEach() triggers callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
-
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     store.alphaSet.forEach((_value) => {});
-    focus(store, false);
+    commit();
 
     // Modify set & check callback counts
     store.alphaSet.add('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.add('d');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.clear();
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
   test('Modifying set size after calling keys() triggers callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
-
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     void [...store.alphaSet.keys()]; // keys() only returns an iterable so we need to spread it to trigger the callback
-    focus(store, false);
+    commit();
 
     // Modify set & check callback counts
     store.alphaSet.add('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.add('d');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.clear();
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
   test('Modifying set size after calling values() triggers callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
-
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     void [...store.alphaSet.values()];
-    focus(store, false);
+    commit();
 
     // Modify set & check callback counts
     store.alphaSet.add('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.add('d');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.clear();
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
   test('Modifying set size after calling entries() triggers callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
-
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     void [...store.alphaSet.entries()];
-    focus(store, false);
+    commit();
 
     // Modify set & check callback counts
     store.alphaSet.add('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.add('d');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaSet.clear();
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
-  test('Modifying set inner value triggers callback (non-focus)', () => {
-    const mockCallback = jest.fn();
+  test('Modifying set inner value triggers callback (non-focused)', () => {
+    const mockCallback = vi.fn();
     const { data, objectSetValues } = createData();
     const store = observe(data, mockCallback);
 
@@ -273,15 +268,14 @@ describe('Sets', () => {
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
-  test('Modifying set inner value triggers callback (focus)', () => {
-    const mockCallback = jest.fn();
+  test('Modifying set inner value triggers callback (focused)', () => {
+    const mockCallback = vi.fn();
     const { data, objectSetValues } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
-
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     const values: any[] = [];
     deep(store.objectSet);
-    focus(store, false);
+    commit();
 
     for (const value of store.objectSet) {
       values.push(value);
@@ -294,12 +288,12 @@ describe('Sets', () => {
   });
 
   test('Modifying Set inner value changes object references', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
-
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     const originalObjectSet = store.objectSet;
+    commit();
 
     // Set should still be equal to original
     expect(store.objectSet).toBe(originalObjectSet);

@@ -1,7 +1,11 @@
-import type { Observation, Observer } from 'keck/core/Observer';
+import { reportError } from 'keck/core/config';
+import type { Observation, Observer, ObserverCallbackContext } from 'keck/core/Observer';
 import { type DeriveContext, invokeDeriveCtx } from 'keck/methods/derive';
 
-export function triggerObservations(observations: Set<Observation>) {
+export function triggerObservations(
+  observations: Set<Observation>,
+  context: ObserverCallbackContext,
+) {
   while (observations.size > 0) {
     // The Set of Observers to trigger (prevents triggering the same observer multiple times)
     const triggerObservers = new Set<Observer>();
@@ -31,10 +35,18 @@ export function triggerObservations(observations: Set<Observation>) {
 
           // Get next result and compare with previous result
           const prevResult = deriveCtx.prevResult;
-          const nextResult = invokeDeriveCtx(deriveCtx);
-          const changedResult = deriveCtx.isEqual
-            ? !deriveCtx.isEqual(prevResult, nextResult)
-            : prevResult !== nextResult;
+          let nextResult: unknown;
+          let changedResult: boolean;
+          try {
+            nextResult = invokeDeriveCtx(deriveCtx);
+            changedResult = deriveCtx.isEqual
+              ? !deriveCtx.isEqual(prevResult, nextResult)
+              : prevResult !== nextResult;
+          } catch (e) {
+            reportError(e);
+            // Treat a throwing derive as "changed" — safer to over-notify than silently suppress
+            changedResult = true;
+          }
 
           verifiedDeriveCtxs.set(deriveCtx, changedResult);
 
@@ -47,7 +59,11 @@ export function triggerObservations(observations: Set<Observation>) {
     }
 
     for (const observer of triggerObservers) {
-      observer.callback?.();
+      try {
+        observer.callback?.(context);
+      } catch (e) {
+        reportError(e);
+      }
     }
   }
 }

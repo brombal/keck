@@ -1,8 +1,8 @@
-import { jest } from '@jest/globals';
 import { act, render, screen } from '@testing-library/react';
 import { observe } from 'keck';
 import { useObserver } from 'keck/react';
 import { Suspense, startTransition } from 'react';
+import { vi } from 'vitest';
 
 describe('useObserver - Suspense and concurrent features', () => {
   test('Abandoned render does not leave stale observations after recovery', async () => {
@@ -18,7 +18,7 @@ describe('useObserver - Suspense and concurrent features', () => {
     const suspensePromise = new Promise<void>((res) => {
       resolvePromise = res;
     });
-    const mockRender = jest.fn();
+    const mockRender = vi.fn();
 
     function SuspendingComponent() {
       mockRender();
@@ -75,7 +75,7 @@ describe('useObserver - Suspense and concurrent features', () => {
     const suspensePromise = new Promise<void>((res) => {
       resolvePromise = res;
     });
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
 
     function SuspendingComponent() {
       const state = useObserver(rawData);
@@ -117,7 +117,7 @@ describe('useObserver - Suspense and concurrent features', () => {
     // that were read in the committed render, not any intermediate render.
     const rawData = { mode: 'a' as 'a' | 'b', a: 0, b: 0 };
     const writer = observe(rawData);
-    const mockRender = jest.fn();
+    const mockRender = vi.fn();
 
     function TestComponent() {
       mockRender();

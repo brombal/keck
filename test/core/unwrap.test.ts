@@ -1,5 +1,5 @@
-import { jest } from '@jest/globals';
 import { focus, observe, unwrap } from 'keck';
+import { vi } from 'vitest';
 import { createData } from '../shared-data';
 
 describe('unwrap()', () => {
@@ -27,11 +27,12 @@ describe('unwrap()', () => {
 
   test('Unwrapping does not create observation', () => {
     const data = createData();
-    const mockCallback = jest.fn();
-    const store1 = observe(data, mockCallback);
-    focus(store1);
+    const mockCallback = vi.fn();
+    const store1 = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store1);
 
     unwrap(store1);
+    commit();
 
     store1.object1.value1 = 'new-object1-value1';
 

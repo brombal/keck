@@ -1,10 +1,10 @@
-import { jest } from '@jest/globals';
 import { deep, focus, observe, unwrap } from 'keck';
+import { vi } from 'vitest';
 import { createData } from '../shared-data';
 
 describe('Arrays', () => {
   test('Modifying array triggers callback and modifies store & source', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const data = createData();
 
     const store = observe(data, mockCallback);
@@ -20,13 +20,13 @@ describe('Arrays', () => {
     expect(store.array1[1].value1).toBe('new-value1');
     expect(unwrap(store.array1[1])).toBe(newArray1);
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     const newArray1_3 = { value1: 'array1-2-value1', value2: 'array1-2-value2' };
     store.array1.push(newArray1_3);
     expect(unwrap(store.array1[3])).toBe(newArray1_3);
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.array2.splice(1, 1);
     expect(mockCallback).toHaveBeenCalledTimes(1);
@@ -46,14 +46,13 @@ describe('Arrays', () => {
   });
 
   test('Push to array triggers callback', () => {
-    const mockCallback = jest.fn();
-
+    const mockCallback = vi.fn();
     const data = createData();
 
-    const store = observe(data, mockCallback);
-    focus(store);
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     deep(store.array1);
-    focus(store, false);
+    commit();
 
     store.array1.push({ value1: 'Movie 3', value2: 'test' });
 
@@ -64,15 +63,13 @@ describe('Arrays', () => {
   // the setter is invoked, the length is already changed and the callback is not triggered due to the identical value being set.
   // There is a special case to handle this in the array observer implementation.
   test('Push to array when observing length triggers callback', () => {
-    const mockCallback = jest.fn();
-
+    const mockCallback = vi.fn();
     const data = createData();
 
-    const store = observe(data, mockCallback);
-    focus(store);
-
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     void store.array1.length;
-    focus(store, false);
+    commit();
 
     store.array1.push({ value1: 'Movie 3', value2: 'test' });
 
@@ -80,26 +77,22 @@ describe('Arrays', () => {
   });
 
   test('Splicing an array triggers callbacks', () => {
-    const mockFn1 = jest.fn();
-    const mockFn2 = jest.fn();
-
+    const mockFn1 = vi.fn();
+    const mockFn2 = vi.fn();
     const data = createData();
 
-    const store1 = observe(data, mockFn1);
-    const store2 = observe(data, mockFn2);
-
-    // Observe store1
-    focus(store1);
+    const store1 = observe(data, { focusable: true, onChange: mockFn1 });
+    const { commit: commit1 } = focus(store1);
     deep(store1.array1);
     deep(store1.array1[1]);
     void store1.array1[1].value1;
-    focus(store1, false);
+    commit1();
 
-    // Observe store2 (differently from store1, to ensure callbacks are being triggered correctly)
-    focus(store2);
+    const store2 = observe(data, { focusable: true, onChange: mockFn2 });
+    const { commit: commit2 } = focus(store2);
     deep(store2.array1[1]);
     void store2.array1[1].value1;
-    focus(store2, false);
+    commit2();
 
     store1.array1.splice(1, 1);
 
@@ -115,27 +108,25 @@ describe('Arrays', () => {
   });
 
   test('Splicing an array and then modifying values triggers callbacks', () => {
-    const mockFn1 = jest.fn();
-    const mockFn2 = jest.fn();
-
+    const mockFn1 = vi.fn();
+    const mockFn2 = vi.fn();
     const data = createData();
 
-    const store1 = observe(data, mockFn1);
-    const store2 = observe(data, mockFn2);
-
-    focus(store1);
+    const store1 = observe(data, { focusable: true, onChange: mockFn1 });
+    const { commit: commit1 } = focus(store1);
     void store1.array1[1].value1;
-    focus(store1, false);
+    commit1();
 
-    focus(store2);
+    const store2 = observe(data, { focusable: true, onChange: mockFn2 });
+    const { commit: commit2 } = focus(store2);
     deep(store2.array1[1]);
-    focus(store2, false);
+    commit2();
 
     store1.array1.splice(1, 1);
     expect(mockFn1).toHaveBeenCalledTimes(1);
     expect(mockFn2).toHaveBeenCalledTimes(1);
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store2.array1[1].value1 = 'new-array1-1-value1';
     expect(mockFn1).toHaveBeenCalledTimes(1);
@@ -161,15 +152,13 @@ describe('Arrays', () => {
    * creating that property later).
    */
   test("Modifying a deep property after forEach doesn't trigger callbacks", () => {
-    const mockFn1 = jest.fn();
-
+    const mockFn1 = vi.fn();
     const data = createData();
 
-    const store1 = observe(data, mockFn1);
-
-    focus(store1);
+    const store1 = observe(data, { focusable: true, onChange: mockFn1 });
+    const { commit } = focus(store1);
     store1.array1.forEach(() => {});
-    focus(store1, false);
+    commit();
 
     store1.array1[0].value1 = 'new-array1-0-value1';
 

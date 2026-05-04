@@ -1,5 +1,7 @@
 # Mental Model
 
+Read this once you've used `useObserver` in a component or two — it answers the "why does this re-render?" questions.
+
 Keck is built around a small set of rules.
 
 ## Observables Are Proxies
@@ -36,8 +38,7 @@ function UserName() {
 
 This component subscribes to `user.name`. It does not subscribe to every property in `user`.
 
-In vanilla TypeScript, `observe()` is unfocused by default and callbacks run for any change. Use `focus()` when you want
-to collect specific reads.
+In vanilla TypeScript, `observe()` is non-focusable by default and callbacks run for any change. Use `observe(data, { focusable: true, onChange })` to create a focusable observer, then `focus()` to record which properties it should track.
 
 ## Object Reads Are Not Whole-Tree Subscriptions
 
@@ -45,7 +46,7 @@ Reading `state.user` by itself does not mean "subscribe to every nested field." 
 
 - Read the specific primitive fields you render.
 - Use `derive()` for computed values.
-- Use `deep(state.user)` when any nested change should re-run an effect, recompute a memoized value, or notify a focused
+- Use `deep(state.user)` when any nested change should re-run an effect, recompute a memoized value, or notify a focusable
   observer.
 
 ## Proxy References Change after Nested Writes

@@ -1,7 +1,33 @@
+const config = {};
+function configure(options) {
+    Object.assign(config, options);
+}
+function resetConfiguration() {
+    config.onError = undefined;
+}
+// Route an error to the configured handler, or rethrow asynchronously so it is never silently swallowed.
+function reportError(error) {
+    if (config.onError) {
+        config.onError(error);
+    }
+    else {
+        setTimeout(() => {
+            throw error;
+        }, 0);
+    }
+}
+
+// Use a globalThis-keyed singleton so all installed copies of keck share the same
+// registry. This lets libraries like keck-forms call registerObservableClass against
+// their bundled keck copy and have it visible to the user's keck copy.
+const REGISTRY_KEY = Symbol.for('keck:observableFactories');
+if (!globalThis[REGISTRY_KEY]) {
+    globalThis[REGISTRY_KEY] = new Map();
+}
 /**
  * The map of object prototypes to their observable factories.
  */
-const observableFactories = new Map();
+const observableFactories = globalThis[REGISTRY_KEY];
 function getObservableFactory(classConstructor) {
     return observableFactories.get(classConstructor);
 }
@@ -57,7 +83,7 @@ class ObservableContext {
      * @param identifier The identifier that has changed.
      */
     modifyIdentifier(identifier) {
-        this.rootNode.modifyPath([...this.path, identifier]);
+        this.rootNode.modifyPath([...this.path, identifier], this.observer);
     }
 }
 
@@ -184,7 +210,7 @@ function invokeDeriveCtx(ctx) {
     }
 }
 
-function triggerObservations(observations) {
+function triggerObservations(observations, context) {
     while (observations.size > 0) {
         // The Set of Observers to trigger (prevents triggering the same observer multiple times)
         const triggerObservers = new Set();
@@ -209,10 +235,19 @@ function triggerObservations(observations) {
                     }
                     // Get next result and compare with previous result
                     const prevResult = deriveCtx.prevResult;
-                    const nextResult = invokeDeriveCtx(deriveCtx);
-                    const changedResult = deriveCtx.isEqual
-                        ? !deriveCtx.isEqual(prevResult, nextResult)
-                        : prevResult !== nextResult;
+                    let nextResult;
+                    let changedResult;
+                    try {
+                        nextResult = invokeDeriveCtx(deriveCtx);
+                        changedResult = deriveCtx.isEqual
+                            ? !deriveCtx.isEqual(prevResult, nextResult)
+                            : prevResult !== nextResult;
+                    }
+                    catch (e) {
+                        reportError(e);
+                        // Treat a throwing derive as "changed" — safer to over-notify than silently suppress
+                        changedResult = true;
+                    }
                     verifiedDeriveCtxs.set(deriveCtx, changedResult);
                     // If the result changed, this observer will be invoked
                     if (changedResult)
@@ -223,23 +258,62 @@ function triggerObservations(observations) {
                 triggerObservers.add(observation.observer);
         }
         for (const observer of triggerObservers) {
-            observer.callback?.();
+            try {
+                observer.callback?.(context);
+            }
+            catch (e) {
+                reportError(e);
+            }
         }
     }
 }
 
 let atomicObservations;
-function atomic(fn, args, thisArg) {
-    const result = atomicAllowPromise(fn, args, thisArg);
+// Source name for the current atomic batch. Set by the first write in the batch;
+// reset to undefined if writes from different-named sources occur in the same batch.
+let atomicSourceName;
+let atomicSourceNameSet = false;
+// Action name for the current atomic batch. Set by the named atomic() overload.
+let atomicActionName;
+// Called by RootNode.modifyPath when a write occurs inside an atomic batch.
+function recordAtomicSource(name) {
+    if (!atomicSourceNameSet) {
+        atomicSourceName = name;
+        atomicSourceNameSet = true;
+    }
+    else if (atomicSourceName !== name) {
+        atomicSourceName = undefined; // multiple different sources — ambiguous
+    }
+}
+function atomic(nameOrFn, fnOrArgs, argsOrThis, thisArg) {
+    let name;
+    let fn;
+    let args;
+    let _thisArg;
+    if (typeof nameOrFn === 'string') {
+        name = nameOrFn;
+        fn = fnOrArgs;
+        args = argsOrThis;
+        _thisArg = thisArg;
+    }
+    else {
+        fn = nameOrFn;
+        args = fnOrArgs;
+        _thisArg = argsOrThis;
+    }
+    const result = atomicAllowPromise(fn, args, _thisArg, name);
     if (result instanceof Promise) {
         throw new Error('atomic() does not support async functions. Only the synchronous portion before the first await would be batched; writes after each await would notify observers individually. Restructure the work so the awaits happen outside atomic(), then call atomic() on the synchronous portion that applies the results.');
     }
     return result;
 }
-function atomicAllowPromise(fn, args, thisArg) {
+function atomicAllowPromise(fn, args, thisArg, name) {
     let thisSetCallback = false;
     if (!atomicObservations) {
         atomicObservations = new Set();
+        atomicSourceName = undefined;
+        atomicSourceNameSet = false;
+        atomicActionName = name;
         thisSetCallback = true;
     }
     try {
@@ -247,7 +321,13 @@ function atomicAllowPromise(fn, args, thisArg) {
     }
     finally {
         if (thisSetCallback) {
-            triggerObservations(atomicObservations);
+            const ctx = { sourceName: atomicSourceName };
+            if (atomicActionName !== undefined)
+                ctx.actionName = atomicActionName;
+            atomicSourceName = undefined;
+            atomicSourceNameSet = false;
+            atomicActionName = undefined;
+            triggerObservations(atomicObservations, ctx);
             atomicObservations = undefined;
         }
     }
@@ -527,6 +607,15 @@ registerObservableClass(Set, {
     },
 });
 
+// Detect multiple keck instances in the same realm and warn. Each copy increments
+// this counter; anything above 1 means the user has duplicate installations.
+const INSTANCE_KEY = Symbol.for('keck:instanceCount');
+globalThis[INSTANCE_KEY] = (globalThis[INSTANCE_KEY] ?? 0) + 1;
+if (globalThis[INSTANCE_KEY] > 1) {
+    console.warn('[Keck] Multiple instances of keck are loaded in the same JavaScript environment. ' +
+        'This usually means a dependency bundles a different version of keck than your project.' +
+        'Ensure all packages share the same keck version to silence this warning.');
+}
 registerObservableClass(Object, objectFactory);
 registerObservableClass(Array, objectFactory);
 
@@ -563,25 +652,93 @@ function deep(observable) {
     throw new Error('Keck: deep: value is not observable');
 }
 
-/**
- * Disables an observer, preventing it from triggering its callback when its
- * observed properties are modified.
- * @param observable The observable to disable.
- */
-function disable(observable) {
-    ObservableContext.getForObservable(observable).observer.disable();
-}
-/**
- * Enables an observer, allowing it to trigger its callback when its observed
- * properties are modified.
- * @param observable The observable to enable.
- */
-function enable(observable) {
-    ObservableContext.getForObservable(observable).observer.enable();
-}
+const fromSnapshot = Symbol('keck.fromSnapshot');
 
-function focus(observable, enableFocus = true) {
-    ObservableContext.getForObservable(observable).observer.focus(enableFocus);
+/**
+ * Recursively transforms `target` into the shape of `source`, in place.
+ *
+ * - Both `target` and `source` must be arrays or plain objects;
+ *   otherwise `source` is returned.
+ * - If both `target` and `source` have the same structure type (array <-> array,
+ *   object <-> object), then we recurse.
+ * - Any mismatch in structure means we directly replace the `target` value with
+ *   the `source` value.
+ * - Any primitive or "complex object" (Date, Set, Map, etc.) in `source`
+ *   directly replaces the value in `target`.
+ * - Any properties in `target` not in `source` are deleted.
+ *
+ * @param target The object/array to transform *in-place*.
+ * @param source The source object/array to match shape.
+ * @returns The same `target` reference, now transformed to match `source`.
+ * @throws If top-level `target` or `source` is not an array or plain object.
+ */
+function transformInPlace(target, source) {
+    // A class that implements [fromSnapshot] takes full responsibility for
+    // restoring itself from the plain-object snapshot. Skip all merge logic.
+    if (target !== null && typeof target === 'object' && fromSnapshot in target) {
+        target[fromSnapshot](source);
+        return target;
+    }
+    if (!isSupportedStructure(target) || !isSupportedStructure(source)) {
+        return source;
+    }
+    // If top-level mismatch, return source directly (new reference).
+    if (Array.isArray(target) !== Array.isArray(source)) {
+        // This effectively discards the old `target` reference.
+        // The caller must use the returned value if they want the new shape.
+        return source;
+    }
+    // If both are supported structures, transform object in place
+    if (isPlainObject(target) && isPlainObject(source)) {
+        // Remove keys in target that do not exist in source
+        for (const key in target) {
+            if (!Object.hasOwn(source, key)) {
+                delete target[key];
+            }
+        }
+    }
+    else {
+        // Both must be arrays: the type-mismatch check above already returned if types differ,
+        // and both are supported structures, so if not plain objects they must be arrays.
+        target.length = source.length;
+    }
+    // For each key in source, set/transform target’s value
+    let key;
+    for (key in source) {
+        const srcVal = source[key];
+        const tgtVal = target[key];
+        if (isSupportedStructure(srcVal) && isSupportedStructure(tgtVal)) {
+            // Supported structures => recurse (also handles [fromSnapshot] at deeper levels)
+            target[key] = transformInPlace(tgtVal, srcVal);
+        }
+        else if (tgtVal !== null &&
+            typeof tgtVal === 'object' &&
+            fromSnapshot in tgtVal) {
+            // Nested class instance with [fromSnapshot]: update in place, keep the reference
+            tgtVal[fromSnapshot](srcVal);
+        }
+        else {
+            // Type mismatch => direct replacement
+            target[key] = srcVal;
+        }
+    }
+    return target;
+}
+/**
+ * Type guard: returns `true` if `val` is a *plain* JavaScript object
+ * (i.e. `{}` — not `null`, not an array, and not any special built-in).
+ */
+function isPlainObject(val) {
+    return (val !== null &&
+        typeof val === 'object' &&
+        Object.prototype.toString.call(val) === '[object Object]');
+}
+/**
+ * Type guard: returns `true` if `val` is either an array or a plain object.
+ * These are the only two "structures" our transform supports.
+ */
+function isSupportedStructure(val) {
+    return Array.isArray(val) || isPlainObject(val);
 }
 
 function isObservable(value, throwEx = false) {
@@ -668,6 +825,12 @@ class RootNode {
      * information about all of the observations on the value's observed paths.
      */
     pathEntries = new PathMap();
+    /**
+     * Strongly-held references to Observers that have registered callbacks. An Observer is added
+     * here by observe() and removed by unobserve(). Without this, an Observer created with a
+     * callback would be GC'd as soon as the caller drops the returned proxy reference.
+     */
+    callbackObservers = new Set();
     observePath(observer, path, childValue, force = false) {
         let returnValue = childValue;
         if (!force && isPeeking())
@@ -685,7 +848,7 @@ class RootNode {
         }
         return returnValue;
     }
-    modifyPath(path) {
+    modifyPath(path, sourceObserver) {
         // Invalidate observables for this and all related paths
         const ancestors = this.pathEntries.collect(path, 'all');
         for (const pathEntry of ancestors) {
@@ -716,7 +879,10 @@ class RootNode {
         }
         // If atomicObservers is set, then `atomic()` will handle calling the observers
         if (observationsToCall !== atomicObservations) {
-            triggerObservations(observationsToCall);
+            triggerObservations(observationsToCall, { sourceName: sourceObserver?.name });
+        }
+        else {
+            recordAtomicSource(sourceObserver?.name);
         }
     }
     /**
@@ -771,46 +937,54 @@ class RootNode {
  * collected.
  */
 class Observer {
-    callback;
     /**
      * User-controlled enabled state. Set via the public disable()/enable() API.
-     * Independent of transaction state so that a user-disabled observer stays disabled
-     * after a transaction finishes.
+     * Independent of focus state so that a user-disabled observer stays disabled
+     * after a focus session finishes.
      */
     _userEnabled = true;
     /**
-     * Indicates whether focus mode is enabled, disabled, or paused for this Observer.
-     * - `undefined`: focus is disabled (all modifications are observed)
-     * - `true`: focus is enabled
-     * - `false`: focus is paused (new observations are not created but existing ones are still valid)
+     * Fixed at construction time. Focusable observers only trigger callbacks for properties
+     * explicitly accessed during a focus session. Non-focusable observers trigger on any deep change.
      */
-    _isFocusing = undefined;
-    rootNode;
+    isFocusable;
     /**
-     * A WeakSet of Observations for this Observer; used to invalidate Observables when the Observer's
-     * focus mode is disabled.
+     * True while a focus session is in progress (between beginCapture and commitCapture/discardCapture).
+     * Only focusable observers use focus sessions.
+     */
+    _isInSession = false;
+    rootNode;
+    name;
+    callback;
+    /**
+     * A WeakSet of Observations for this Observer; used to check whether an observation is still
+     * valid when a path is modified.
      */
     _validObservations;
     /**
-     * During a transaction, holds a reference to the pending Set owned by the transaction closure.
-     * Reads are routed here instead of _validObservations. The transaction module sets this at
-     * beginTransaction and clears it at commit or discard.
+     * During a focus session, holds a reference to the pending Set owned by the focus closure.
+     * Reads are routed here instead of _validObservations. The focus module sets this at
+     * beginCapture and clears it at commit or discard.
      */
     _pendingObservations;
-    constructor(value, callback) {
+    constructor(value, config) {
+        const { name, callback, focusable } = config;
+        this.name = name;
         this.callback = callback;
+        this.isFocusable = focusable;
         this.rootNode = getRootNodeForValue(value);
-        this.createRootObservation();
-    }
-    get isFocusing() {
-        return this._isFocusing;
-    }
-    focus(enableFocus) {
-        // Reset observations when enabling focus mode
-        if (this._isFocusing === undefined && enableFocus) {
-            this._validObservations = undefined;
+        // Non-focusable observers watch all changes via a root-level observation.
+        // Focusable observers register observations only during focus sessions.
+        if (!this.isFocusable) {
+            this.createRootObservation();
         }
-        this._isFocusing = enableFocus;
+    }
+    /**
+     * True when property reads should register observations. This is the case for focusable
+     * observers that are currently in an active focus session.
+     */
+    get isFocusing() {
+        return this.isFocusable && this._isInSession;
     }
     reset() {
         this._validObservations = undefined;
@@ -828,32 +1002,32 @@ class Observer {
         return this._userEnabled && this._pendingObservations === undefined;
     }
     /**
-     * Called by the transaction module when a new transaction starts. Borrows the pending Set
-     * from the transaction closure so that addObservation() routes reads there. Disables the
-     * observer so writes during the render cannot trigger this observer's own callback.
+     * Called by the capture module when a new session starts. Borrows the pending Set
+     * from the capture closure so that addObservation() routes reads there. Disables the
+     * observer so writes during the session cannot trigger this observer's own callback.
      */
-    beginTransaction(pending) {
+    beginCapture(pending) {
         this._pendingObservations = pending;
-        this._isFocusing = true;
+        this._isInSession = true;
     }
     /**
-     * Called by the transaction module on commit. Promotes the closed-over pending Set to
+     * Called by the capture module on commit. Promotes the closed-over pending Set to
      * _validObservations and releases the borrow. Setting _pendingObservations to undefined
      * also re-enables the observer (enabled = _userEnabled && _pendingObservations === undefined).
      */
-    commitTransaction(pending) {
+    commitCapture(pending) {
         this._validObservations = new WeakSet(pending);
         this._pendingObservations = undefined;
-        this._isFocusing = false;
+        this._isInSession = false;
     }
     /**
-     * Called by the transaction module on discard. Releases the pending Set borrow.
-     * _validObservations is left untouched so pre-transaction subscriptions are automatically
+     * Called by the capture module on discard. Releases the pending Set borrow.
+     * _validObservations is left untouched so pre-session observations are automatically
      * restored. Setting _pendingObservations to undefined also re-enables the observer.
      */
-    discardTransaction() {
+    discardCapture() {
         this._pendingObservations = undefined;
-        this._isFocusing = false;
+        this._isInSession = false;
     }
     addObservation(observation) {
         if (this._pendingObservations !== undefined) {
@@ -872,13 +1046,14 @@ class Observer {
 
 const gcCallbacks = new Set();
 let registry;
+function fireGcCallbacks(heldValue) {
+    for (const cb of gcCallbacks)
+        cb(heldValue);
+}
 function initGarbageCollectionObservation(cb) {
     gcCallbacks.add(cb);
     if (!registry && typeof FinalizationRegistry !== 'undefined') {
-        registry = new FinalizationRegistry((heldValue) => {
-            for (const cb of gcCallbacks)
-                cb(heldValue);
-        });
+        registry = new FinalizationRegistry(fireGcCallbacks);
     }
     return () => {
         gcCallbacks.delete(cb);
@@ -890,33 +1065,106 @@ function registerObservableFinalizer(state) {
     registry?.register(state, 'Keck observable released');
 }
 
+/**
+ * Tracks the discard function for each observer that currently has an active focus session.
+ * When a new session starts for the same observer, the prior one is settled first.
+ */
+const activeDiscards = new WeakMap();
+/**
+ * Begins a focus session on a focusable observable. Returns `{ commit, discard }` that are
+ * idempotent and close over their own pending observation Set.
+ *
+ * During the session, property reads on the observable are recorded. On `commit()`, those
+ * observations become active and will trigger the observer's callback when modified. On
+ * `discard()`, the session is abandoned and prior observations are restored.
+ *
+ * A microtask is queued to auto-discard if neither `commit` nor `discard` is called before
+ * the end of the current event cycle — covering abandoned renders (Suspense, concurrent
+ * bail-outs) without requiring the caller to handle cleanup explicitly.
+ *
+ * If a prior session for the same observer is still active when this is called, it is
+ * discarded before the new session begins.
+ *
+ * Throws if called on a non-focusable observer.
+ */
+function focus(observable) {
+    const observer = ObservableContext.getForObservable(observable).observer;
+    if (!observer.isFocusable) {
+        throw new Error('focus() can only be called on a focusable observer (created with { focusable: true })');
+    }
+    // Settle any prior active session before starting a new one
+    activeDiscards.get(observer)?.();
+    // The pending Set is owned by this closure. The observer borrows a reference during the
+    // session so that addObservation() routes reads here instead of _validObservations.
+    const pending = new Set();
+    observer.beginCapture(pending);
+    let settled = false;
+    const discard = () => {
+        if (settled)
+            return;
+        settled = true;
+        observer.discardCapture();
+        activeDiscards.delete(observer);
+    };
+    const commit = () => {
+        if (settled)
+            return;
+        settled = true;
+        observer.commitCapture(pending);
+        activeDiscards.delete(observer);
+    };
+    activeDiscards.set(observer, discard);
+    queueMicrotask(discard);
+    return { commit, discard };
+}
+
 function observe(value, cbOrConfig) {
     value = unwrap(value);
     let deriveFn;
     let isEqual;
     let cb;
+    let isFocusable = false;
+    let name;
     let state;
     if (cbOrConfig && typeof cbOrConfig === 'object') {
-        let lastDerived;
-        const rawDeriveFn = cbOrConfig.derive;
-        deriveFn = (s) => {
-            lastDerived = rawDeriveFn(s);
-            return lastDerived;
-        };
-        isEqual = cbOrConfig.isEqual;
-        cb = () => cbOrConfig.onChange(lastDerived);
+        if ('derive' in cbOrConfig) {
+            isFocusable = true;
+            name = cbOrConfig.name;
+            let lastDerived;
+            const rawDeriveFn = cbOrConfig.derive;
+            deriveFn = (s) => {
+                lastDerived = rawDeriveFn(s);
+                return lastDerived;
+            };
+            isEqual = cbOrConfig.isEqual;
+            cb = (ctx) => cbOrConfig.onChange(lastDerived, ctx);
+        }
+        else if ('focusable' in cbOrConfig) {
+            isFocusable = true;
+            name = cbOrConfig.name;
+            cb = cbOrConfig.onChange;
+        }
+        else {
+            // NamedConfig: name only, no callback
+            name = cbOrConfig.name;
+        }
     }
     else {
         cb = cbOrConfig;
     }
-    const observer = new Observer(value, cb);
+    const observer = new Observer(value, { name, callback: cb, focusable: isFocusable });
     state = observer.rootNode.getObservable(observer, [], value);
     if (deriveFn) {
-        focus(state);
+        const session = focus(state);
         derive(() => deriveFn(state), isEqual);
-        focus(state, false);
+        session.commit();
     }
-    registerObservableFinalizer(state);
+    if (cb) {
+        observer.rootNode.callbackObservers.add(observer);
+    }
+    else {
+        registerObservableFinalizer(state);
+    }
     return state;
 }
 
@@ -924,48 +1172,68 @@ function reset(observable) {
     ObservableContext.getForObservable(observable).observer.reset();
 }
 
-/**
- * Tracks the discard function for each observer that currently has an active transaction.
- * When a new transaction starts for the same observer, the prior one is settled first.
- */
-const activeDiscards = new WeakMap();
-/**
- * Begins a transaction on the observable. Returns `{ commit, discard }` that are idempotent
- * and close over their own pending observation Set.
- *
- * A microtask is queued to auto-discard if neither `commit` nor `discard` is called before
- * the end of the current event cycle — covering abandoned renders (Suspense, concurrent
- * bail-outs) without requiring the caller to handle cleanup explicitly.
- *
- * If a prior transaction for the same observer is still active when this is called, it is
- * discarded before the new transaction begins.
- */
-function beginTransaction(observable) {
-    const observer = ObservableContext.getForObservable(observable).observer;
-    // Settle any prior active transaction before starting a new one
-    activeDiscards.get(observer)?.();
-    // The pending Set is owned by this closure. The observer borrows a reference during the
-    // transaction so that addObservation() routes reads here instead of _validObservations.
-    const pending = new Set();
-    observer.beginTransaction(pending);
-    let settled = false;
-    const discard = () => {
-        if (settled)
+function connectDevTools(store, options) {
+    const ext = globalThis.__REDUX_DEVTOOLS_EXTENSION__;
+    if (!ext)
+        return () => { };
+    const raw = unwrap(store);
+    const devtools = ext.connect({ name: options?.name ?? 'Keck Store' });
+    devtools.init(JSON.parse(JSON.stringify(raw)));
+    let suppressNotification = false;
+    const proxy = observe(raw, (ctx) => {
+        if (suppressNotification)
             return;
-        settled = true;
-        observer.discardTransaction();
-        activeDiscards.delete(observer);
+        const type = ctx.actionName && ctx.sourceName
+            ? `${ctx.actionName} (${ctx.sourceName})`
+            : (ctx.actionName ?? ctx.sourceName ?? '@@keck/mutation');
+        devtools.send({ type }, JSON.parse(JSON.stringify(unwrap(store))));
+    });
+    const unsubscribe = devtools.subscribe((message) => {
+        if (message.type === 'DISPATCH' && message.payload.type === 'JUMP_TO_ACTION') {
+            suppressNotification = true;
+            transformInPlace(proxy, JSON.parse(message.state));
+            suppressNotification = false;
+        }
+    });
+    return () => {
+        unsubscribe();
+        reset(proxy);
     };
-    const commit = () => {
-        if (settled)
-            return;
-        settled = true;
-        observer.commitTransaction(pending);
-        activeDiscards.delete(observer);
-    };
-    activeDiscards.set(observer, discard);
-    queueMicrotask(discard);
-    return { commit, discard };
+}
+
+/**
+ * Disables an observer, preventing it from triggering its callback when its
+ * observed properties are modified.
+ * @param observable The observable to disable.
+ */
+function disable(observable) {
+    ObservableContext.getForObservable(observable).observer.disable();
+}
+/**
+ * Enables an observer, allowing it to trigger its callback when its observed
+ * properties are modified.
+ * @param observable The observable to enable.
+ */
+function enable(observable) {
+    ObservableContext.getForObservable(observable).observer.enable();
+}
+
+/**
+ * Releases the callback registered for the given observable proxy, stopping future invocations.
+ * The proxy itself remains valid for reads and writes.
+ *
+ * Must be called to clean up any observer created with a callback (via `observe(value, cb)` or
+ * `observe(value, { focusable, onChange })`) when it is no longer needed, since those observers
+ * are held strongly by the library and will not be garbage collected on their own.
+ */
+function unobserve(state) {
+    const ctx = ObservableContext.getForObservable(state, false);
+    if (!ctx)
+        return;
+    const { observer } = ctx;
+    observer.rootNode.callbackObservers.delete(observer);
+    observer.reset();
+    fireGcCallbacks('Keck observable released');
 }
 
 /**
@@ -992,80 +1260,5 @@ function shallowCompare(a, b) {
     return true;
 }
 
-/**
- * Recursively transforms `target` into the shape of `source`, in place.
- *
- * - Both `target` and `source` must be arrays or plain objects;
- *   otherwise `source` is returned.
- * - If both `target` and `source` have the same structure type (array <-> array,
- *   object <-> object), then we recurse.
- * - Any mismatch in structure means we directly replace the `target` value with
- *   the `source` value.
- * - Any primitive or "complex object" (Date, Set, Map, etc.) in `source`
- *   directly replaces the value in `target`.
- * - Any properties in `target` not in `source` are deleted.
- *
- * @param target The object/array to transform *in-place*.
- * @param source The source object/array to match shape.
- * @returns The same `target` reference, now transformed to match `source`.
- * @throws If top-level `target` or `source` is not an array or plain object.
- */
-function transformInPlace(target, source) {
-    if (!isSupportedStructure(target) || !isSupportedStructure(source)) {
-        return source;
-    }
-    // If top-level mismatch, return source directly (new reference).
-    if (Array.isArray(target) !== Array.isArray(source)) {
-        // This effectively discards the old `target` reference.
-        // The caller must use the returned value if they want the new shape.
-        return source;
-    }
-    // If both are supported structures, transform object in place
-    if (isPlainObject(target) && isPlainObject(source)) {
-        // Remove keys in target that do not exist in source
-        for (const key in target) {
-            if (!Object.hasOwn(source, key)) {
-                delete target[key];
-            }
-        }
-    }
-    else {
-        // Both must be arrays: the type-mismatch check above already returned if types differ,
-        // and both are supported structures, so if not plain objects they must be arrays.
-        target.length = source.length;
-    }
-    // For each key in source, set/transform target’s value
-    let key;
-    for (key in source) {
-        const srcVal = source[key];
-        const tgtVal = target[key];
-        if (isSupportedStructure(srcVal) && isSupportedStructure(tgtVal)) {
-            // Supported structures => recurse
-            target[key] = transformInPlace(tgtVal, srcVal);
-        }
-        else {
-            // Type mismatch => direct replacement
-            target[key] = srcVal;
-        }
-    }
-    return target;
-}
-/**
- * Type guard: returns `true` if `val` is a *plain* JavaScript object
- * (i.e. `{}` — not `null`, not an array, and not any special built-in).
- */
-function isPlainObject(val) {
-    return (val !== null &&
-        typeof val === 'object' &&
-        Object.prototype.toString.call(val) === '[object Object]');
-}
-/**
- * Type guard: returns `true` if `val` is either an array or a plain object.
- * These are the only two "structures" our transform supports.
- */
-function isSupportedStructure(val) {
-    return Array.isArray(val) || isPlainObject(val);
-}
-
-export { atomic, beginTransaction, deep, derive, disable, enable, focus, initGarbageCollectionObservation, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };
+export { atomic, configure, connectDevTools, deep, derive, disable, enable, focus, fromSnapshot, initGarbageCollectionObservation, isRef, observe, peek, ref, registerObservableClass, reset, resetConfiguration, shallowCompare, silent, transformInPlace, unobserve, unwrap };
 //# sourceMappingURL=index.js.map

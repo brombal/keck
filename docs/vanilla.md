@@ -1,6 +1,8 @@
 # Vanilla TypeScript Guide
 
-Keck is React-first. Most of the time, `useObserver` inside a component is the right entry point. This guide covers the cases where you need observable state outside a component tree — workers, CLI tools, integration code, custom hooks built on top of `observe()`, or shared module-level state that components subscribe to.
+Keck is React-first. Most of the time, `useObserver` inside a component is the right entry point.
+
+This guide covers the cases where you need observable state outside a component tree — workers, CLI tools, integration code, custom hooks built on top of `observe()`, or shared module-level state that components subscribe to.
 
 For concepts that apply equally in React and vanilla code — derived values, deep tracking, batching, custom classes, getters and setters — see the [Mental Model](mental-model.md), the [Custom Classes guide](classes.md), and the [API reference](api.md).
 
@@ -42,7 +44,7 @@ Helpers that write through property assignment, such as `transformInPlace()`, al
 
 ## Focused Observers
 
-By default, an `observe()` callback fires for any change. `focus()` lets the observer track only the properties read while focus is active.
+By default, an `observe()` callback fires for any change. Pass `{ focusable: true, onChange }` to create a focusable observer that only tracks properties read during a `focus()` session.
 
 ```ts
 import { focus, observe } from "keck";
@@ -52,16 +54,17 @@ const cart = observe(
     items: [] as Array<{ id: string; price: number }>,
     couponCode: "",
   },
-  () => {
-    console.log("Observed cart value changed");
+  {
+    focusable: true,
+    onChange: () => console.log("Observed cart value changed"),
   },
 );
 
-focus(cart);
+const session = focus(cart);
 void cart.items.length;
-focus(cart, false);
+session.commit();
 
-cart.couponCode = "SAVE10"; // no callback — couponCode wasn't read while focused
+cart.couponCode = "SAVE10"; // no callback — couponCode wasn't focused
 cart.items.push({ id: "sku_1", price: 24 }); // callback fires
 ```
 
@@ -98,11 +101,14 @@ This is the vanilla equivalent of `useObserver(data, { derive, onChange })`.
 ```ts
 import { disable, enable, focus, observe, reset } from "keck";
 
-const cart = observe({ items: [] as string[], couponCode: "" }, () => console.log("changed"));
+const cart = observe(
+  { items: [] as string[], couponCode: "" },
+  { focusable: true, onChange: () => console.log("changed") },
+);
 
-focus(cart);
-void cart.items.length; // observed
-focus(cart, false);
+const session = focus(cart);
+void cart.items.length; // focused
+session.commit();
 
 reset(cart); // clears the focused observation on items.length
 
@@ -111,7 +117,7 @@ cart.items.push("sku_1"); // no callback — the observation was cleared
 
 `disable(observer)` pauses callbacks until `enable(observer)` resumes them. Both retain the observer's accumulated observations.
 
-`reset(observer)` clears all of the observer's focused observations so the next focused pass starts fresh. It is meaningful only in focused mode; in unfocused mode the observer fires on every change regardless of what was read, so `reset()` has no observable effect.
+`reset(observer)` clears all of a focusable observer's observations so the next focus session starts fresh. It is meaningful only on focusable observers; non-focusable observers fire on every change regardless of what was read, so `reset()` has no observable effect.
 
 ## Batching and Silent Writes
 

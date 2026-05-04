@@ -1,20 +1,25 @@
 import './factories/index';
 
+export { configure, resetConfiguration } from './core/config';
 export { registerObservableClass } from './factories/registerObservableClass';
 export { atomic } from './methods/atomic';
 export { deep } from './methods/deep';
 export type { DeriveEqualFn, DeriveFn } from './methods/derive';
 export { derive } from './methods/derive';
+export type { DevToolsOptions } from './methods/devtools';
+export { connectDevTools } from './methods/devtools';
 export { disable, enable } from './methods/disable-enable';
+export type { FocusTransaction } from './methods/focus';
 export { focus } from './methods/focus';
+export type { ObserverCallbackContext } from './methods/observe';
 export { observe } from './methods/observe';
 export { peek } from './methods/peek';
 export { isRef, ref } from './methods/ref';
 export { reset } from './methods/reset';
 export { silent } from './methods/silent';
-export type { Transaction } from './methods/transaction';
-export { beginTransaction } from './methods/transaction';
+export { unobserve } from './methods/unobserve';
 export { unwrap } from './methods/unwrap';
+export { fromSnapshot } from './util/fromSnapshot';
 export { initGarbageCollectionObservation } from './util/garbageCollection';
 export { shallowCompare } from './util/shallowCompare';
 export { transformInPlace } from './util/transformInPlace';

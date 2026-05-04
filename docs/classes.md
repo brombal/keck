@@ -101,7 +101,7 @@ Treat `atomic()` itself as synchronous. Pass a sync callback only.
 
 ## Getters and Setters
 
-Getter and setter properties work the same as plain fields. Reading a getter during a focused observation subscribes the observer to whatever observable values the getter reads internally. Writing to a setter goes through `atomic()` and fires observers exactly once for that assignment.
+Getter and setter properties work the same as plain fields. Reading a getter during a focus session subscribes the observer to whatever observable values the getter reads internally. Writing to a setter goes through `atomic()` and fires observers exactly once for that assignment.
 
 ```ts
 import { focus, observe, registerObservableClass } from "keck";
@@ -121,11 +121,11 @@ class PriceModel {
 
 registerObservableClass(PriceModel);
 
-const model = observe(new PriceModel(), () => console.log("model changed"));
+const model = observe(new PriceModel(), { focusable: true, onChange: () => console.log("model changed") });
 
-focus(model);
-void model.total; // observes subtotal and taxRate via the getter
-focus(model, false);
+const session = focus(model);
+void model.total; // focuses subtotal and taxRate via the getter
+session.commit();
 
 model.taxRate = 0.1; // logs once — total depends on taxRate
 model.discount = 5;  // logs once — the setter's write to subtotal is atomic

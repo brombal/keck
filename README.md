@@ -17,44 +17,24 @@ function Counter() {
 }
 ```
 
-No setters. No reducers. No action names. No selectors. Just normal objects with fine-grained subscriptions. The returned proxy has the same TypeScript type as the object you pass in — no wrapper types or casting required.
+## What Keck Does
 
-## Why Keck
-
-- **Direct mutation with React updates**: write `state.user.name = "Ada"` and React updates the components that depend
-  on that value.
-- **Fine-grained rendering**: reads during render become subscriptions, so unrelated changes do not fan out through the
-  tree.
-- **Shared state without providers**: several components can observe the same object and each re-renders independently
-  for the properties it actually read.
-- **Derived values**: compute values from state and re-render only when the computed result changes.
-- **TypeScript-first**: observable values keep the exact type of the object you pass in — no wrapper types, no type gymnastics.
-
-## If You're Already Using...
-
-**Valtio** — Valtio requires two mental models: a mutable proxy for writing and an immutable snapshot for reading.
-Keck uses a single proxy for both. You read and write through the same object everywhere, and subscription tracking
-happens automatically from what you render — no `useSnapshot` call, no separate read/write paths to keep straight.
-
-**Zustand** — Zustand gives you fine-grained control via selectors, but you have to write them. Keck derives
-subscriptions from your render output automatically, so components update only for the data they actually rendered
-without any manual selector work. There's also no store factory or `set` callback — just a plain object you mutate
-directly.
-
-**Jotai or Recoil** — Atom-based libraries work well when state is naturally small and independent, but fitting
-relational or nested data into atoms often takes real effort. Keck lets you keep state as plain nested objects with
-no atom definitions, no selectors, and no Provider. If your state already looks like a JavaScript object, Keck
-fits it without restructuring.
-
-## Installation
-
-```bash
-npm install keck
-```
-
-**3.44 KB** minified and gzipped (core). The React entry point adds **757 B**. No runtime dependencies — React is a peer dependency.
-
-Requires React 18.2 or newer. Compatible with Strict Mode, Suspense, and `startTransition`.
+- **Mutate state directly** — assign to a property and components update: `state.count++`, `state.user.name = "Ada"`,
+  `state.cart.items.push(item)`. If you've been told that mutating state in React is dangerous, that instinct comes
+  from a real place — but the danger is specific to bypassing React's change detection. Keck's proxy closes that gap,
+  so writes are always tracked. For updates that need logic or guard rails, regular setter methods and class methods
+  work as expected. [More on this →](docs/mutability.md)
+- **Fine-grained re-renders, automatically** — Keck records what each component reads during render and re-renders only
+  when those specific values change. A component that reads `state.user.name` only re-renders when that value changes;
+  everything else in your store is irrelevant to it.
+- **Your state is a real, mutable object** — one reference, always current; stale copies are not a concern. Keck works
+  with plain JavaScript objects or instances of your own classes — it adds nothing to the object itself and requires no
+  special interfaces or base classes. Your TypeScript types come through unchanged. A lightweight proxy wraps the object
+  to track subscriptions, and removing it when you need the raw data is a one-call operation.
+- **Shared state, each component independent** — multiple components can observe the same object, each calling
+  `useObserver(store)` and re-rendering only for the values it actually reads. No store factory or subscription
+  boilerplate required.
+- **Tiny** — 4.78 KB gzipped core, 0.99 KB for React. No runtime dependencies.
 
 ## A Real Shared Store
 
@@ -160,9 +140,9 @@ export function CartItemList() {
 
 ## How It Works
 
-`useObserver(data)` returns a proxy for `data`. When a component renders, Keck tracks the leaf reads — primitives,
-`size`, `length`, `has(...)`, and any other value that is not itself an observable object. When you later write through
-any Keck proxy for the same underlying object, Keck notifies only the observers whose reads were affected.
+`useObserver(data)` returns a proxy for `data`. During render, Keck records which leaf values — primitives, `length`,
+`size`, collection membership — the component actually reads. Those reads become subscriptions. When you later mutate
+through any proxy for the same underlying object, only the components that read the affected values are re-rendered.
 
 ```tsx
 function ProfileName() {
@@ -195,6 +175,33 @@ function AutosaveProfile() {
 }
 ```
 
+For a full explanation of the rules, see the [Mental Model](docs/mental-model.md).
+
+## Coming from Another Library?
+
+**Valtio** — Keck uses one proxy for both reading and writing. Valtio separates these: you write through a mutable
+proxy and read through an immutable snapshot, which means keeping two mental models in sync and remembering to call
+`useSnapshot` in every component. With Keck you read and write through the same object everywhere, and subscription
+tracking happens automatically from what you render.
+
+**Zustand** — Keck derives subscriptions from your render output automatically, so components update only for the data
+they actually rendered. Zustand gives you fine-grained control via selectors — functions you write that pull a specific
+slice of state so a component doesn't over-subscribe — but you have to write them. Keck does that tracking for you.
+There's also no store factory or `set` callback; just a plain object you mutate directly.
+
+**Jotai or Recoil** — Keck lets you keep state as plain nested objects, no restructuring required. Atom-based libraries
+break state into individual atoms — small, independent pieces — which works well for naturally isolated state but can
+require real effort when data is relational or nested. Keck fits nested data natively, with no atom definitions, no
+selectors, and no Provider.
+
+## Installation
+
+```bash
+npm install keck
+```
+
+Requires React 18.2 or newer. Compatible with Strict Mode, Suspense, and `startTransition`.
+
 ## Documentation
 
 - [Getting started](docs/getting-started.md): install, first component, shared state, and common patterns.
@@ -203,12 +210,14 @@ function AutosaveProfile() {
 - [Custom classes](docs/classes.md): registering classes, methods, getters and setters, async writes.
 - [Recipes](docs/recipes.md): user accounts, shopping carts, persistence, API boundaries, and form resets.
 - [Mental model](docs/mental-model.md): the rules that make Keck predictable.
+- [Mutability in Keck](docs/mutability.md): why mutation is safe here, and how it compares to immutable patterns.
+- [Redux DevTools](docs/devtools.md): connecting to the DevTools extension, named actions, and time-travel.
 - [API reference](docs/api.md): all public exports.
 
 ## API at a Glance
 
 ```ts
-import { atomic, deep, derive, observe, ref, unwrap } from "keck";
+import { atomic, configure, connectDevTools, deep, derive, observe, ref, unobserve, unwrap } from "keck";
 
 import { reactRef, useObserver } from "keck/react";
 ```
@@ -220,10 +229,32 @@ import { reactRef, useObserver } from "keck/react";
 | `useObserver(data, { derive, onChange, isEqual? }, deps?)` | React state plus a synchronous callback when a derived result changes. |
 | `observe(data, cb?)` | Observable state outside React. |
 | `observe(data, { derive, onChange, isEqual? })` | Observable state outside React with a derived callback. |
+| `unobserve(state)` | Release a callback-based observer created with `observe`. |
 | `derive(fn, isEqual?)` | Computed values that notify only when the result changes. |
 | `deep(value)` | Subscribe to any nested change under an observable object. |
 | `unwrap(value)` | Get the raw object at API and library boundaries. |
 | `atomic(fn)` | Batch multiple writes into one notification pass. |
+| `atomic(name, fn)` | Batch with a named action label for DevTools. |
+| `connectDevTools(store, options?)` | Connect a store to the Redux DevTools extension. |
+| `configure({ onError? })` | Set a global error handler for observer and derive errors. |
+| `resetConfiguration()` | Reset global configuration. |
+| `fromSnapshot(obs, snap)` | Rehydrate observable state from a plain-object snapshot. |
+
+## SSR / Server-side compatibility
+
+Keck's core (`keck`) has zero browser-specific globals and works in any JS environment — Node.js, edge
+runtimes (Cloudflare Workers, Deno Deploy), and Deno. You can safely import and use `observe`, `atomic`,
+`derive`, and all other core APIs during server-side rendering.
+
+**`keck/react`** uses React hooks (`useSyncExternalStore`, `useInsertionEffect`, etc.). These are safe for
+SSR because React's server renderer never calls effects — subscriptions only attach in the browser.
+
+**`connectDevTools`** connects to the Redux DevTools browser extension. Calling it on the server is safe
+(it returns a no-op), but it will never connect. Import it conditionally or only in browser-only code if
+you want to avoid loading it on the server altogether.
+
+**Garbage collection** (`initGarbageCollectionObservation`) uses `FinalizationRegistry` and `WeakRef`,
+which are available in Node.js 14+ and all modern edge runtimes.
 
 ## Reliability
 
@@ -231,8 +262,8 @@ Keck is used in production applications. The test suite covers React rendering b
 values, arrays, Maps, Sets, custom classes, refs, and utilities.
 
 ```text
-Test Suites: 30 passed, 30 total
-Tests:       159 passed, 159 total
+Test Suites: 40 passed, 40 total
+Tests:       239 passed, 239 total
 ```
 
 ## License

@@ -1,12 +1,12 @@
-import { jest } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useSyncMemo } from 'keck/react/useSyncMemo';
 import { useState } from 'react';
+import { vi } from 'vitest';
 
 describe('useSyncMemo', () => {
   test('value is recreated when deps change', async () => {
-    const mockRender = jest.fn();
+    const mockRender = vi.fn();
 
     const object1 = {};
     const object2 = {};
@@ -30,14 +30,14 @@ describe('useSyncMemo', () => {
 
     render(<TestComponent />);
     expect(mockRender).toHaveBeenCalledWith(object1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     await userEvent.click(screen.getByText('rerender'));
     expect(mockRender).toHaveBeenCalledWith(object1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     await userEvent.click(screen.getByText('+1'));
     expect(mockRender).toHaveBeenCalledWith(object2);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 });

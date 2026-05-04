@@ -1,13 +1,13 @@
-import { jest } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { observe } from 'keck';
 import { useObserver } from 'keck/react';
 import { useInsertionEffect, useState } from 'react';
+import { vi } from 'vitest';
 
 describe('useObserver', () => {
   test('Component only re-renders when accessed properties are modified', async () => {
-    const mockRender = jest.fn();
+    const mockRender = vi.fn();
     const data = {
       value: 0,
     };
@@ -40,28 +40,28 @@ describe('useObserver', () => {
 
     render(<ObserverTest />);
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Checkbox is visible; click button; expect render count to be 1
     await userEvent.click(screen.getByText('+1'));
     expect(mockRender).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Hide value; click button; expect render count to be 0
     await userEvent.click(screen.getByRole('checkbox'));
     expect(mockRender).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     await userEvent.click(screen.getByText('+1'));
     expect(mockRender).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Show value; click button; expect render count to be 1
     await userEvent.click(screen.getByRole('checkbox'));
     expect(mockRender).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     await userEvent.click(screen.getByText('+1'));
     expect(mockRender).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('Garbage collector is called when component unmounts', async () => {
@@ -69,7 +69,7 @@ describe('useObserver', () => {
       value: 0,
     };
 
-    const mockCleanupFn = jest.fn();
+    const mockCleanupFn = vi.fn();
     const r = new FinalizationRegistry(mockCleanupFn);
 
     function GcTestInner() {
@@ -120,7 +120,7 @@ describe('useObserver', () => {
     // Expect the cleanup function to be called
     expect(mockCleanupFn).toHaveBeenCalledTimes(3);
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test('Component does not try to re-render after unmount', async () => {
@@ -128,7 +128,7 @@ describe('useObserver', () => {
       value: 0,
     };
 
-    const renderMockFn = jest.fn();
+    const renderMockFn = vi.fn();
 
     function GcTestInner(props: { id: string }) {
       const state = useObserver(data);
@@ -182,7 +182,7 @@ describe('useObserver', () => {
 
     // Click the toggle button
     await userEvent.click(screen.getByText('Toggle'));
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     // Click the +1 button
     await userEvent.click(screen.getByTestId('store-button-2'));
@@ -293,7 +293,7 @@ describe('useObserver', () => {
     // Note: in React 18, setState on an unmounted component is silently ignored, so this passes
     // whether or not the guard is applied. The guard is correct for defensive purposes and
     // future React compatibility.
-    const mockRenderB = jest.fn();
+    const mockRenderB = vi.fn();
     const data = { value: 0 };
 
     function ComponentA({ shouldWrite }: { shouldWrite: boolean }) {
@@ -338,7 +338,7 @@ describe('useObserver', () => {
     // When a component writes to two separate observed properties during its render, both writes
     // fire the observer's deferred callback and add closures to renderRequests. React 18 batches
     // the resulting forceRerender calls inside useLayoutEffect into a single re-render.
-    const mockRenderB = jest.fn();
+    const mockRenderB = vi.fn();
     const data = { x: 0, y: 0 };
 
     function ComponentA() {
@@ -396,11 +396,11 @@ describe('useObserver', () => {
   });
 
   test('Using deps to reset state does not persist previous callbacks', async () => {
-    const mockCallbackC = jest.fn();
+    const mockCallbackC = vi.fn();
     const data = observe({ value: 0 }, mockCallbackC);
 
-    const mockCallbackA = jest.fn();
-    const mockCallbackB = jest.fn();
+    const mockCallbackA = vi.fn();
+    const mockCallbackB = vi.fn();
 
     function ComponentA(props: { resetKey: number }) {
       useObserver(data, mockCallbackA, [props.resetKey]);
@@ -435,18 +435,39 @@ describe('useObserver', () => {
     expect(mockCallbackA).toHaveBeenCalledTimes(1);
     expect(mockCallbackB).toHaveBeenCalledTimes(1);
     expect(mockCallbackC).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     await userEvent.click(screen.getByText('Reset'));
     expect(mockCallbackA).toHaveBeenCalledTimes(0);
     expect(mockCallbackB).toHaveBeenCalledTimes(0);
     expect(mockCallbackC).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     data.value++;
     expect(mockCallbackA).toHaveBeenCalledTimes(1);
     expect(mockCallbackB).toHaveBeenCalledTimes(1);
     expect(mockCallbackC).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
+  });
+
+  test('getComponentName reads component name from captureOwnerStack in React 19', () => {
+    // In React 19, captureOwnerStack() is the public API for getting the component stack.
+    // Verify that useObserver uses the component name as the observer's sourceName.
+    const sharedData = { value: 0 };
+    const onChange = vi.fn();
+    observe(sharedData, onChange);
+
+    function NamedComponent() {
+      const state = useObserver(sharedData);
+      // Write during render so we can capture the sourceName immediately
+      if (state.value === 0) state.value = 1;
+      return null;
+    }
+
+    render(<NamedComponent />);
+
+    // The observer name should match the component function name
+    const ctx = onChange.mock.calls[0]?.[0] as { sourceName?: string } | undefined;
+    expect(ctx?.sourceName).toBe('NamedComponent');
   });
 });

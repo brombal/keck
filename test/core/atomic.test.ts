@@ -1,5 +1,5 @@
-import { jest } from '@jest/globals';
 import { atomic, focus, observe } from 'keck';
+import { vi } from 'vitest';
 import { createData } from '../shared-data';
 
 // Type-level tests
@@ -22,10 +22,10 @@ describe('atomic()', () => {
   test('Atomic modifications only trigger callback once (non-focus mode)', () => {
     const data = createData();
 
-    const mockFn1 = jest.fn();
+    const mockFn1 = vi.fn();
     const store1 = observe(data, mockFn1);
 
-    const mockFn2 = jest.fn();
+    const mockFn2 = vi.fn();
     const _store2 = observe(data, mockFn2);
 
     atomic(() => {
@@ -37,22 +37,22 @@ describe('atomic()', () => {
     expect(mockFn2).toHaveBeenCalledTimes(1);
   });
 
-  test('Atomic modifications only trigger callback once (focus mode)', () => {
+  test('Atomic modifications only trigger callback once (focused mode)', () => {
     const data = createData();
 
-    const mockFn1 = jest.fn();
-    const store1 = observe(data, mockFn1);
-    focus(store1);
+    const mockFn1 = vi.fn();
+    const store1 = observe(data, { focusable: true, onChange: mockFn1 });
+    const { commit: commit1 } = focus(store1);
     void store1.object1.value1;
     void store1.object1.value2;
-    focus(store1, false);
+    commit1();
 
-    const mockFn2 = jest.fn();
-    const store2 = observe(data, mockFn2);
-    focus(store2);
+    const mockFn2 = vi.fn();
+    const store2 = observe(data, { focusable: true, onChange: mockFn2 });
+    const { commit: commit2 } = focus(store2);
     void store2.object1.value1;
     void store2.object2.value1;
-    focus(store2, false);
+    commit2();
 
     atomic(() => {
       store1.object1.value1 = 'new-value1';
@@ -88,8 +88,8 @@ describe('atomic()', () => {
     const data1 = { value1: 0 };
     const data2 = { value2: 0 };
 
-    const mockFn1 = jest.fn();
-    const mockFn2 = jest.fn();
+    const mockFn1 = vi.fn();
+    const mockFn2 = vi.fn();
 
     const store1 = observe(data1, () => {
       store2.value2++;
@@ -103,7 +103,7 @@ describe('atomic()', () => {
 
     expect(mockFn1).toHaveBeenCalledTimes(1);
     expect(mockFn2).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     atomic(() => {
       store1.value1++;

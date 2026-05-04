@@ -1,5 +1,5 @@
-import { jest } from '@jest/globals';
-import { focus, initGarbageCollectionObservation, observe } from 'keck';
+import { initGarbageCollectionObservation, observe, unobserve } from 'keck';
+import { vi } from 'vitest';
 import { createData } from './shared-data';
 
 const data = createData();
@@ -7,43 +7,11 @@ const data = createData();
 // Persistent observer ensures that garbage collection is still triggered if multiple observers exist
 (window as any).observer = observe(data);
 
-describe('Garbage collection', () => {
-  /**
-   * Test utility for garbage collection.
-   * This will run the given callback, which should create and return an observable that invokes the given observeCb when modified.
-   * After the observable goes out of scope, garbage collection is triggered, and this will test that the FinalizationRegistry callback is invoked
-   * and that observeCb is not called after garbage collection.
-   */
-  async function sharedGcTest(cb: (observeCb: () => void) => any, afterGcCb?: () => void) {
-    expect(global.gc).toBeDefined();
-
-    const mockCleanupFn = jest.fn();
-    const r = new FinalizationRegistry(mockCleanupFn);
-
-    const mockCallback = jest.fn();
-
-    (() => {
-      const store = cb(mockCallback);
-      r.register(store, 'value1');
-    })();
-
-    jest.clearAllMocks();
-
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    global.gc!();
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(mockCleanupFn).toHaveBeenCalledTimes(1);
-
-    afterGcCb?.();
-
-    expect(mockCallback).toHaveBeenCalledTimes(0);
-  }
-
+describe('Garbage collection — proxy-only observers', () => {
   test('Smoke test for WeakRef', async () => {
     let ref: WeakRef<any>;
 
-    const mockCleanupFn = jest.fn();
+    const mockCleanupFn = vi.fn();
     const r = new FinalizationRegistry(mockCleanupFn);
 
     (() => {
@@ -60,64 +28,118 @@ describe('Garbage collection', () => {
     expect(mockCleanupFn).toHaveBeenCalledTimes(1);
   });
 
-  test('Garbage is collected when observable goes out of scope (unfocused; no modifications)', async () => {
-    const mockCb = jest.fn();
-    const state = observe(data, mockCb);
+  test("Proxy-only observer is GC'd when not retained", async () => {
+    expect(global.gc).toBeDefined();
 
-    await sharedGcTest(
-      (cb) => {
-        // This observable should be garbage collected; cb will not be called
-        return observe(data, cb);
-      },
-      () => {
-        state.value1 = 'new-value1';
-        expect(mockCb).toHaveBeenCalledTimes(1);
-      },
-    );
+    const mockCleanupFn = vi.fn();
+    const r = new FinalizationRegistry(mockCleanupFn);
+
+    (() => {
+      const state = observe(data);
+      r.register(state, 'proxy');
+    })();
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    global.gc!();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(mockCleanupFn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Callback subscription lifetime', () => {
+  test('Callback fires even when observe() result is not retained', async () => {
+    expect(global.gc).toBeDefined();
+
+    // Create a persistent observable to use as the write vehicle after GC
+    const persistentState = observe(data);
+
+    const mockCallback = vi.fn();
+
+    // Common usage: register a callback without saving the returned proxy.
+    // The proxy is the only strong reference to the Observer, so it is
+    // immediately eligible for garbage collection.
+    observe(data, mockCallback);
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    global.gc!();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Write through a different (persistent) proxy on the same data so the
+    // mutation reaches all registered observers.
+    persistentState.value1 = 'gc-test-value';
+
+    expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
-  test('Garbage is collected when observable goes out of scope (unfocused; property modified)', async () => {
-    await sharedGcTest((cb) => {
-      const state = observe(data, cb);
-      state.value1 = 'value1-new';
-      return state;
-    });
+  test('Callback fires after GC when observe() result was never assigned', async () => {
+    expect(global.gc).toBeDefined();
+
+    const persistentState = observe(data);
+    const mockCallback = vi.fn();
+
+    observe(data, mockCallback);
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    global.gc!();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    persistentState.value1 = 'gc-test-value-2';
+
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+
+    unobserve(persistentState); // cleanup — persistentState has no callback so this is a no-op
   });
 
-  test('Garbage is collected when observable goes out of scope (focused; no observations; no modifications)', async () => {
-    await sharedGcTest((cb) => {
-      const state = observe(data, cb);
-      focus(state);
-      return state;
-    });
+  test('unobserve() is a no-op for non-observable objects', () => {
+    // Should not throw when passed a plain object or proxy-only observable
+    expect(() => unobserve({} as any)).not.toThrow();
+    const proxy = observe(data); // proxy-only, no callback — unobserve is a benign no-op
+    expect(() => unobserve(proxy)).not.toThrow();
   });
 
-  test('Garbage is collected when observable goes out of scope (focused; no observations; property modified)', async () => {
-    await sharedGcTest((cb) => {
-      const state = observe(data, cb);
-      focus(state);
-      state.value1 = 'value1-new';
-      return state;
-    });
+  test('Callback stops firing after unobserve()', () => {
+    const persistentState = observe(data);
+    const mockCallback = vi.fn();
+
+    const state = observe(data, mockCallback);
+    unobserve(state);
+
+    persistentState.value1 = 'after-unobserve';
+
+    expect(mockCallback).toHaveBeenCalledTimes(0);
   });
 
-  test('Garbage is collected when observable goes out of scope (focused; property observed; no modifications)', async () => {
-    await sharedGcTest((cb) => {
-      const state = observe(data, cb);
-      focus(state);
-      void state.value1;
-      return state;
-    });
+  test('Proxy remains usable for writes after unobserve()', () => {
+    const mockCallback = vi.fn();
+    const otherCallback = vi.fn();
+
+    const state = observe(data, mockCallback);
+    const other = observe(data, otherCallback);
+
+    unobserve(state);
+
+    // Writing through the unobserved proxy still triggers other observers
+    state.value1 = 'written-after-unobserve';
+
+    expect(mockCallback).toHaveBeenCalledTimes(0);
+    expect(otherCallback).toHaveBeenCalledTimes(1);
+
+    unobserve(other);
   });
 
-  test('Garbage is collected when observable goes out of scope (focused; property observed; property modified)', async () => {
-    await sharedGcTest((cb) => {
-      const state = observe(data, cb);
-      focus(state);
-      void state.value1;
-      state.value1 = 'value1-new';
-      return state;
-    });
+  test('Focusable callback observer persists until unobserve()', () => {
+    const persistentState = observe(data);
+    const mockCallback = vi.fn();
+
+    observe(data, { focusable: true, onChange: mockCallback });
+    // result not saved — Observer is still held strongly
+
+    // (no focus session, so callback won't fire for focusable — just verify no throw)
+    persistentState.value1 = 'focusable-test';
+
+    // focusable observer has no observations yet so callback does not fire
+    expect(mockCallback).toHaveBeenCalledTimes(0);
   });
 });
 
@@ -127,12 +149,22 @@ describe('initGarbageCollectionObservation', () => {
     unsubs.splice(0).forEach((u) => void u());
   });
 
-  test('callback fires when observe() result is garbage collected', async () => {
-    const gcCallback = jest.fn();
+  test('callback fires when unobserve() is called on a callback observer', async () => {
+    const gcCallback = vi.fn();
+    unsubs.push(initGarbageCollectionObservation(gcCallback));
+
+    const state = observe(data, vi.fn());
+    unobserve(state);
+
+    expect(gcCallback).toHaveBeenCalledWith('Keck observable released');
+  });
+
+  test('callback fires when proxy-only observe() result is garbage collected', async () => {
+    const gcCallback = vi.fn();
     unsubs.push(initGarbageCollectionObservation(gcCallback));
 
     (() => {
-      observe(data, jest.fn());
+      observe(data); // no callback — GC-based cleanup
     })();
 
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -142,36 +174,26 @@ describe('initGarbageCollectionObservation', () => {
     expect(gcCallback).toHaveBeenCalledWith('Keck observable released');
   });
 
-  test('multiple callbacks all fire', async () => {
-    const cb1 = jest.fn();
-    const cb2 = jest.fn();
+  test('multiple callbacks all fire on unobserve()', () => {
+    const cb1 = vi.fn();
+    const cb2 = vi.fn();
     unsubs.push(initGarbageCollectionObservation(cb1));
     unsubs.push(initGarbageCollectionObservation(cb2));
 
-    (() => {
-      observe(data, jest.fn());
-    })();
-
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    global.gc!();
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    const state = observe(data, vi.fn());
+    unobserve(state);
 
     expect(cb1).toHaveBeenCalledWith('Keck observable released');
     expect(cb2).toHaveBeenCalledWith('Keck observable released');
   });
 
-  test('unsubscribed callback does not fire', async () => {
-    const cb = jest.fn();
+  test('unsubscribed callback does not fire', () => {
+    const cb = vi.fn();
     const unsub = initGarbageCollectionObservation(cb);
     unsub();
 
-    (() => {
-      observe(data, jest.fn());
-    })();
-
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    global.gc!();
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    const state = observe(data, vi.fn());
+    unobserve(state);
 
     expect(cb).not.toHaveBeenCalled();
   });

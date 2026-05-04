@@ -1,5 +1,5 @@
 import { RefObject } from 'react';
-import { DeriveEqualFn } from 'keck';
+import { ObserverCallbackContext, DeriveEqualFn } from 'keck';
 
 /**
  * Creates a "ref" object compatible with React refs. You can use this within a Keck observable to store DOM elements.
@@ -68,7 +68,7 @@ declare function useObserver<TData extends object>(data: TData, deps?: unknown[]
  * @param cb The callback to invoke when any property changes.
  * @param deps Optional dependency array to refresh the callback, in case it references values from the component scope.
  */
-declare function useObserver<TData extends object>(data: TData, cb: () => void, deps?: unknown[]): TData;
+declare function useObserver<TData extends object>(data: TData, cb: (context: ObserverCallbackContext) => void, deps?: unknown[]): TData;
 /**
  * Registers a callback that is invoked synchronously when the result of `config.derive` changes.
  * The callback is only active while the component is mounted.
@@ -88,7 +88,7 @@ declare function useObserver<TData extends object>(data: TData, cb: () => void, 
  */
 declare function useObserver<TData extends object, TDerived>(data: TData, config: {
     derive: (state: TData) => TDerived;
-    onChange: (derived: TDerived) => void;
+    onChange: (derived: TDerived, context: ObserverCallbackContext) => void;
     isEqual?: DeriveEqualFn<TDerived>;
 }, deps?: unknown[]): TData;
 

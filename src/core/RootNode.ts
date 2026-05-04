@@ -2,7 +2,7 @@ import { isObservable } from 'keck/core/IsObservable';
 import { ObservableContext } from 'keck/core/ObservableContext';
 import { triggerObservations } from 'keck/core/triggerObservations';
 import { getObservableFactory } from 'keck/factories/observableFactories';
-import { atomicObservations } from 'keck/methods/atomic';
+import { atomicObservations, recordAtomicSource } from 'keck/methods/atomic';
 import { activeDeriveCtx } from 'keck/methods/derive';
 import { isPeeking } from 'keck/methods/peek';
 import { isRef } from 'keck/methods/ref';
@@ -78,6 +78,13 @@ export class RootNode {
    */
   pathEntries = new PathMap<RootNodePathEntry>();
 
+  /**
+   * Strongly-held references to Observers that have registered callbacks. An Observer is added
+   * here by observe() and removed by unobserve(). Without this, an Observer created with a
+   * callback would be GC'd as soon as the caller drops the returned proxy reference.
+   */
+  callbackObservers = new Set<Observer>();
+
   observePath(observer: Observer, path: Path, childValue: Value, force = false) {
     let returnValue = childValue;
 
@@ -101,7 +108,7 @@ export class RootNode {
     return returnValue;
   }
 
-  modifyPath(path: Path) {
+  modifyPath(path: Path, sourceObserver?: Observer) {
     // Invalidate observables for this and all related paths
     const ancestors = this.pathEntries.collect(path, 'all');
     for (const pathEntry of ancestors) {
@@ -139,7 +146,9 @@ export class RootNode {
 
     // If atomicObservers is set, then `atomic()` will handle calling the observers
     if (observationsToCall !== atomicObservations) {
-      triggerObservations(observationsToCall);
+      triggerObservations(observationsToCall, { sourceName: sourceObserver?.name });
+    } else {
+      recordAtomicSource(sourceObserver?.name);
     }
   }
 

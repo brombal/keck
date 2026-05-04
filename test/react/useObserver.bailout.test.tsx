@@ -1,8 +1,8 @@
-import { jest } from '@jest/globals';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useObserver } from 'keck/react';
 import { useEffect, useState } from 'react';
+import { vi } from 'vitest';
 
 describe('useObserver - React bail-out renders', () => {
   test('bail-out render does not destroy subscriptions', async () => {
@@ -22,7 +22,7 @@ describe('useObserver - React bail-out renders', () => {
     // that produces at least one abandoned render (demonstrated by 2+ renders on click 1).
 
     const rawData = { value: '' };
-    const mockRender = jest.fn();
+    const mockRender = vi.fn();
 
     function TestComponent() {
       mockRender();

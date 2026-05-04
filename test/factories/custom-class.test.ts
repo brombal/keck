@@ -1,6 +1,6 @@
-import { jest } from '@jest/globals';
 import { focus, observe, peek, registerObservableClass } from 'keck';
 import { observableFactories } from 'keck/factories/observableFactories';
+import { vi } from 'vitest';
 
 describe('Custom classes', () => {
   class Counter {
@@ -44,29 +44,29 @@ describe('Custom classes', () => {
   registerObservableClass(Counter);
 
   test('Method that modifies its own property does so atomically', async () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const store = observe(new Counter(), mockCallback);
 
     // Call method that modifies property atomically
     store.increase(2);
     expect(mockCallback).toHaveBeenCalledTimes(1);
     expect(store.value).toBe(2);
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   test('Async modifications are not atomic', async () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const store = observe(new Counter(), mockCallback);
 
     // Async method is not atomic
     await store.increaseAsync(3);
     expect(mockCallback).toHaveBeenCalledTimes(3);
     expect(store.value).toBe(3);
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   test('Setter works as expected', async () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const store = observe(new Counter(), mockCallback);
 
     expect(mockCallback).toHaveBeenCalledTimes(0);
@@ -78,11 +78,11 @@ describe('Custom classes', () => {
   });
 
   test('Getter that uses other observable property works as expected', async () => {
-    const mockCallback = jest.fn();
-    const store = observe(new Counter(), mockCallback);
-    focus(store);
+    const mockCallback = vi.fn();
+    const store = observe(new Counter(), { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     void store.doubleValue;
-    focus(store, false);
+    commit();
 
     expect(mockCallback).toHaveBeenCalledTimes(0);
 
@@ -97,7 +97,7 @@ describe('Custom classes', () => {
     registerObservableClass(BrokenClass, { makeObservable: () => null as any });
 
     try {
-      const state = observe({ obj: new BrokenClass() }, jest.fn());
+      const state = observe({ obj: new BrokenClass() }, vi.fn());
       expect(() => state.obj).toThrow('is not observable');
     } finally {
       observableFactories.delete(BrokenClass);
@@ -105,20 +105,20 @@ describe('Custom classes', () => {
   });
 
   test('Nested custom value is observable', async () => {
-    const mockCallback = jest.fn();
-    const store = observe(new Counter(), mockCallback);
-    focus(store);
+    const mockCallback = vi.fn();
+    const store = observe(new Counter(), { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     peek(() => store.innerCounter); // creates the inner counter without observing
     void store.innerCounter.value;
-    focus(store, false);
+    commit();
 
     // Expect 1 call to callback because the class created the inner observer when it was accessed.
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     store.innerCounter.increase(3);
     expect(mockCallback).toHaveBeenCalledTimes(1);
     expect(store.innerCounter.value).toBe(3);
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 });

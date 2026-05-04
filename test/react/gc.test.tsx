@@ -1,7 +1,7 @@
-import { jest } from '@jest/globals';
 import { render } from '@testing-library/react';
 import { initGarbageCollectionObservation } from 'keck';
 import { useObserver } from 'keck/react';
+import { vi } from 'vitest';
 
 const data = { value: 1 };
 
@@ -12,7 +12,7 @@ describe('useObserver garbage collection', () => {
   });
 
   test("callback fires when useObserver component unmounts and is GC'd", async () => {
-    const gcCallback = jest.fn();
+    const gcCallback = vi.fn();
     unsubs.push(initGarbageCollectionObservation(gcCallback));
 
     function Component() {

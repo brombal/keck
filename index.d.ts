@@ -2,6 +2,11 @@ type DeriveFn<T> = () => T;
 type DeriveEqualFn<T> = (prevResult: T, nextResult: T) => boolean;
 declare function derive<T>(fn: DeriveFn<T>, isEqual?: DeriveEqualFn<T>): T;
 
+interface ObserverCallbackContext {
+    sourceName?: string;
+    actionName?: string;
+}
+
 /**
  * The public interface to an ObservableContext that is made available to Observable factories.
  */
@@ -11,6 +16,12 @@ interface FactoryObservableContext<TValue extends object> {
     observeIdentifier(identifier: any): void;
     modifyIdentifier(identifier: any): void;
 }
+
+type KeckConfig = {
+    onError?: (error: unknown) => void;
+};
+declare function configure(options: Partial<KeckConfig>): void;
+declare function resetConfiguration(): void;
 
 type AnyConstructor = Function;
 
@@ -33,6 +44,7 @@ interface ObservableFactory<TValue extends object> {
  */
 declare function registerObservableClass(classConstructor: AnyConstructor, factory?: ObservableFactory<any>): void;
 
+declare function atomic<TReturn, TArgs extends unknown[]>(name: string, fn: (...args: TArgs) => TReturn, args?: TArgs, thisArg?: unknown): TReturn;
 declare function atomic<TReturn, TArgs extends unknown[]>(fn: (...args: TArgs) => TReturn, args?: TArgs, thisArg?: unknown): TReturn;
 
 /**
@@ -55,6 +67,11 @@ declare function atomic<TReturn, TArgs extends unknown[]>(fn: (...args: TArgs) =
  */
 declare function deep<T>(observable: T): T;
 
+interface DevToolsOptions {
+    name?: string;
+}
+declare function connectDevTools<T extends object>(store: T, options?: DevToolsOptions): () => void;
+
 /**
  * Disables an observer, preventing it from triggering its callback when its
  * observed properties are modified.
@@ -68,15 +85,47 @@ declare function disable(observable: object): void;
  */
 declare function enable(observable: object): void;
 
-declare function focus(observable: any, enableFocus?: boolean): void;
+interface FocusTransaction {
+    commit: () => void;
+    discard: () => void;
+}
+/**
+ * Begins a focus session on a focusable observable. Returns `{ commit, discard }` that are
+ * idempotent and close over their own pending observation Set.
+ *
+ * During the session, property reads on the observable are recorded. On `commit()`, those
+ * observations become active and will trigger the observer's callback when modified. On
+ * `discard()`, the session is abandoned and prior observations are restored.
+ *
+ * A microtask is queued to auto-discard if neither `commit` nor `discard` is called before
+ * the end of the current event cycle — covering abandoned renders (Suspense, concurrent
+ * bail-outs) without requiring the caller to handle cleanup explicitly.
+ *
+ * If a prior session for the same observer is still active when this is called, it is
+ * discarded before the new session begins.
+ *
+ * Throws if called on a non-focusable observer.
+ */
+declare function focus(observable: object): FocusTransaction;
 
-type ObserveConfig<TValue, TDerived> = {
+type NamedConfig = {
+    name: string;
+};
+type DeriveConfig<TValue, TDerived> = {
+    name?: string;
     derive: (state: TValue) => TDerived;
-    onChange: (derived: TDerived) => void;
+    onChange: (derived: TDerived, context: ObserverCallbackContext) => void;
     isEqual?: DeriveEqualFn<TDerived>;
 };
-declare function observe<TValue extends object>(value: TValue, cb?: () => void): TValue;
-declare function observe<TValue extends object, TDerived>(value: TValue, config: ObserveConfig<TValue, TDerived>): TValue;
+type FocusableConfig = {
+    name?: string;
+    focusable: true;
+    onChange: (context: ObserverCallbackContext) => void;
+};
+declare function observe<TValue extends object>(value: TValue, cb?: (context: ObserverCallbackContext) => void): TValue;
+declare function observe<TValue extends object>(value: TValue, config: NamedConfig): TValue;
+declare function observe<TValue extends object>(value: TValue, config: FocusableConfig): TValue;
+declare function observe<TValue extends object, TDerived>(value: TValue, config: DeriveConfig<TValue, TDerived>): TValue;
 
 declare function peek<T>(fn: () => T): T;
 
@@ -91,28 +140,23 @@ declare function reset(observable: any): void;
  */
 declare function silent(callback: () => void): void;
 
-interface Transaction {
-    commit: () => void;
-    discard: () => void;
-}
 /**
- * Begins a transaction on the observable. Returns `{ commit, discard }` that are idempotent
- * and close over their own pending observation Set.
+ * Releases the callback registered for the given observable proxy, stopping future invocations.
+ * The proxy itself remains valid for reads and writes.
  *
- * A microtask is queued to auto-discard if neither `commit` nor `discard` is called before
- * the end of the current event cycle — covering abandoned renders (Suspense, concurrent
- * bail-outs) without requiring the caller to handle cleanup explicitly.
- *
- * If a prior transaction for the same observer is still active when this is called, it is
- * discarded before the new transaction begins.
+ * Must be called to clean up any observer created with a callback (via `observe(value, cb)` or
+ * `observe(value, { focusable, onChange })`) when it is no longer needed, since those observers
+ * are held strongly by the library and will not be garbage collected on their own.
  */
-declare function beginTransaction(observable: object): Transaction;
+declare function unobserve(state: object): void;
 
 /**
  * Returns the original object of an observable wrapper. If `observable` is
  * not actually an observable, the value will be returned as-is.
  */
 declare function unwrap<T>(observable: T): T;
+
+declare const fromSnapshot: unique symbol;
 
 declare function initGarbageCollectionObservation(cb: (heldValue: any) => void): () => void;
 
@@ -124,25 +168,7 @@ declare function initGarbageCollectionObservation(cb: (heldValue: any) => void):
  */
 declare function shallowCompare<T>(a: T, b: T): boolean;
 
-/**
- * Recursively transforms `target` into the shape of `source`, in place.
- *
- * - Both `target` and `source` must be arrays or plain objects;
- *   otherwise `source` is returned.
- * - If both `target` and `source` have the same structure type (array <-> array,
- *   object <-> object), then we recurse.
- * - Any mismatch in structure means we directly replace the `target` value with
- *   the `source` value.
- * - Any primitive or "complex object" (Date, Set, Map, etc.) in `source`
- *   directly replaces the value in `target`.
- * - Any properties in `target` not in `source` are deleted.
- *
- * @param target The object/array to transform *in-place*.
- * @param source The source object/array to match shape.
- * @returns The same `target` reference, now transformed to match `source`.
- * @throws If top-level `target` or `source` is not an array or plain object.
- */
 declare function transformInPlace<TSource>(target: unknown, source: TSource): TSource;
 
-export { atomic, beginTransaction, deep, derive, disable, enable, focus, initGarbageCollectionObservation, isRef, observe, peek, ref, registerObservableClass, reset, shallowCompare, silent, transformInPlace, unwrap };
-export type { DeriveEqualFn, DeriveFn, Transaction };
+export { atomic, configure, connectDevTools, deep, derive, disable, enable, focus, fromSnapshot, initGarbageCollectionObservation, isRef, observe, peek, ref, registerObservableClass, reset, resetConfiguration, shallowCompare, silent, transformInPlace, unobserve, unwrap };
+export type { DeriveEqualFn, DeriveFn, DevToolsOptions, FocusTransaction, ObserverCallbackContext };

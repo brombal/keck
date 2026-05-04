@@ -1,5 +1,5 @@
-import { jest } from '@jest/globals';
 import { deep, focus, observe } from 'keck';
+import { vi } from 'vitest';
 
 const createData = () => {
   const alphaMapValues: [string, string][] = [
@@ -36,10 +36,10 @@ describe('Maps', () => {
   test('Modifying map takes effect and triggers callback', () => {
     const { data } = createData();
 
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const store = observe(data, mockCallback);
 
-    // Modify set & check values
+    // Modify map & check values
     store.alphaMap.set('d', 'd');
 
     // Only called once even though value and map size changed
@@ -52,112 +52,116 @@ describe('Maps', () => {
   });
 
   test('Modifying Map after deep observing it triggers callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     deep(store.alphaMap);
-    focus(store, false);
+    commit();
 
     store.alphaMap.set('d', 'd');
-    expect(mockCallback).toHaveBeenCalledTimes(1); // Modified size & added value
-    jest.clearAllMocks();
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+    vi.clearAllMocks();
 
     store.alphaMap.delete('d');
-    expect(mockCallback).toHaveBeenCalledTimes(1); // Modified size & deleted value
-    jest.clearAllMocks();
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+    vi.clearAllMocks();
 
     store.alphaMap.clear();
-    expect(mockCallback).toHaveBeenCalledTimes(1); // Modified size
+    expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
   test('Modifying Map after observing size triggers callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     void store.alphaMap.size;
-    focus(store, false);
+    commit();
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.set('d', 'd');
-    expect(mockCallback).toHaveBeenCalledTimes(0); // Not called again for adding same value
-    jest.clearAllMocks();
+    expect(mockCallback).toHaveBeenCalledTimes(0);
+    vi.clearAllMocks();
 
     store.alphaMap.delete('a');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.delete('a');
-    expect(mockCallback).toHaveBeenCalledTimes(0); // Not called again for deleting same value
-    jest.clearAllMocks();
+    expect(mockCallback).toHaveBeenCalledTimes(0);
+    vi.clearAllMocks();
 
     store.alphaMap.clear();
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
   test('Modifying Map after calling get() triggers callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
-
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     store.alphaMap.get('d');
+    commit();
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.set('d', 'd');
-    expect(mockCallback).toHaveBeenCalledTimes(0); // Not modified
+    expect(mockCallback).toHaveBeenCalledTimes(0);
   });
 
   test('Modifying Map after calling get() for unrelated key does not trigger callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     store.alphaMap.get('a');
+    commit();
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(0);
   });
 
   test('Modifying Map after calling has() triggers callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     store.alphaMap.has('d');
+    commit();
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(0);
   });
 
   test('Modifying Map after calling has() for unrelated key does not trigger callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     store.alphaMap.has('a');
+    commit();
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(0);
   });
 
   test('Adding existing values or deleting non-existent values from Map does not trigger callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     deep(store.alphaMap);
+    commit();
 
     store.alphaMap.set('a', 'a');
     expect(mockCallback).toHaveBeenCalledTimes(0);
@@ -166,11 +170,15 @@ describe('Maps', () => {
   });
 
   test('Clearing empty Map does not trigger callback', () => {
-    const mockCallback = jest.fn();
-    const store = observe({ emptyMap: new Map(), emptySet: new Set() }, mockCallback);
-    focus(store);
+    const mockCallback = vi.fn();
+    const store = observe(
+      { emptyMap: new Map(), emptySet: new Set() },
+      { focusable: true, onChange: mockCallback },
+    );
+    const { commit } = focus(store);
     deep(store.emptyMap);
     deep(store.emptySet);
+    commit();
 
     store.emptyMap.clear();
     store.emptySet.clear();
@@ -178,115 +186,119 @@ describe('Maps', () => {
   });
 
   test('Modifying Map size after calling forEach() triggers callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     store.alphaMap.forEach((_value) => {});
+    commit();
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.clear();
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
   test('Modifying Map size after calling keys() triggers callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
-    void [...store.alphaMap.keys()]; // keys() only returns an iterable so we need to spread it to trigger the callback
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
+    void [...store.alphaMap.keys()];
+    commit();
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.clear();
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
   test('Modifying Map size after calling values() triggers callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     void [...store.alphaMap.values()];
+    commit();
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.clear();
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
   test('Modifying Map size after calling entries() triggers callback', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     void [...store.alphaMap.entries()];
+    commit();
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.set('d', 'd');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(1);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.delete('d');
     expect(mockCallback).toHaveBeenCalledTimes(0);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     store.alphaMap.clear();
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
-  test('Modifying Map inner value triggers callback (non-focus)', () => {
-    const mockCallback = jest.fn();
+  test('Modifying Map inner value triggers callback (non-focused)', () => {
+    const mockCallback = vi.fn();
     const { data, objectMapValues } = createData();
     const store = observe(data, mockCallback);
 
@@ -299,13 +311,13 @@ describe('Maps', () => {
     expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
-  test('Modifying Map inner value triggers callback (focus)', () => {
-    const mockCallback = jest.fn();
+  test('Modifying Map inner value triggers callback (focused)', () => {
+    const mockCallback = vi.fn();
     const { data, objectMapValues } = createData();
-    const store = observe(data, mockCallback);
-    focus(store);
-
+    const store = observe(data, { focusable: true, onChange: mockCallback });
+    const { commit } = focus(store);
     void (store.objectMap.get(objectMapValues[0][0]) as any).y;
+    commit();
 
     const value = store.objectMap.get(objectMapValues[0][0])!;
     value.y = 123;
@@ -316,7 +328,7 @@ describe('Maps', () => {
   });
 
   test('Object references are changed when modifying map inner value', () => {
-    const mockCallback = jest.fn();
+    const mockCallback = vi.fn();
     const { data, objectMapValues } = createData();
     const store = observe(data, mockCallback);
 

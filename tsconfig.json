@@ -11,7 +11,7 @@
     "allowSyntheticDefaultImports": true,
     "moduleResolution": "bundler",
     "lib": ["esnext", "dom"],
-    "types": ["node", "jest"],
+    "types": ["node", "vitest/globals"],
     "paths": {
       "keck/*": ["./src/*"],
       "keck": ["./src/index.ts"]

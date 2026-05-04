@@ -1,12 +1,14 @@
 const gcCallbacks = new Set<(heldValue: any) => void>();
 let registry: FinalizationRegistry<string> | undefined;
 
+export function fireGcCallbacks(heldValue: string): void {
+  for (const cb of gcCallbacks) cb(heldValue);
+}
+
 export function initGarbageCollectionObservation(cb: (heldValue: any) => void): () => void {
   gcCallbacks.add(cb);
   if (!registry && typeof FinalizationRegistry !== 'undefined') {
-    registry = new FinalizationRegistry((heldValue) => {
-      for (const cb of gcCallbacks) cb(heldValue);
-    });
+    registry = new FinalizationRegistry(fireGcCallbacks);
   }
   return () => {
     gcCallbacks.delete(cb);

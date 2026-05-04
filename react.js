@@ -1,5 +1,6 @@
-import { ref, reset, observe, beginTransaction } from 'keck';
-import { useRef, useState, useInsertionEffect, useLayoutEffect } from 'react';
+import { ref, unobserve, observe, focus } from 'keck';
+import * as React from 'react';
+import { useRef, useSyncExternalStore, useCallback, useInsertionEffect, useLayoutEffect } from 'react';
 
 /**
  * Creates a "ref" object compatible with React refs. You can use this within a Keck observable to store DOM elements.
@@ -45,6 +46,34 @@ function useSyncMemo(factory, deps) {
     return ref.current;
 }
 
+// In production this assignment is: () => undefined, making the real implementation dead code.
+const getComponentName = process.env.NODE_ENV !== 'production'
+    ? () => {
+        try {
+            // React 18: fiber is available via ReactCurrentOwner
+            const fiber = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED
+                ?.ReactCurrentOwner?.current;
+            /* istanbul ignore next -- React 18 path, unreachable on React 19+ */
+            if (fiber)
+                return fiber.type?.displayName || fiber.type?.name || undefined;
+            // React 19+: captureOwnerStack() is a public dev API that returns the component stack as a string.
+            // The first entry is the currently-rendering component.
+            const captureOwnerStack = React.captureOwnerStack;
+            /* istanbul ignore else -- React 19+ always has captureOwnerStack */
+            if (typeof captureOwnerStack === 'function') {
+                const stack = captureOwnerStack();
+                const match = stack?.match(/^\n\s+at (\w+)\s/);
+                /* istanbul ignore else -- only anonymous/unnamed components produce no match */
+                if (match?.[1]) {
+                    return match[1];
+                }
+            }
+        }
+        catch /* istanbul ignore next */ {
+            return undefined;
+        }
+    }
+    : /* istanbul ignore next */ () => undefined;
 /**
  * `isRendering` informally tracks whether react is currently in a render phase. This is set to true directly inside useObserver,
  * and then immediately set to false when useInsertionEffect is invoked. Any keck state updates
@@ -76,6 +105,7 @@ function useObserver(...args) {
             : undefined;
     const isEqual = config?.isEqual;
     isRendering = true;
+    const componentName = getComponentName();
     const cbRef = useRef(cb);
     const deriveFnRef = useRef(deriveFn);
     const isEqualRef = useRef(isEqual);
@@ -83,51 +113,68 @@ function useObserver(...args) {
     deriveFnRef.current = deriveFn;
     isEqualRef.current = isEqual;
     // Side-effect observer (callback/derive modes only; no-op for render mode)
-    useSyncMemo((previous) => {
+    const sideEffectProxy = useSyncMemo((previous) => {
         if (mode === 'render')
             return data;
         if (previous)
-            reset(previous);
+            unobserve(previous);
         if (mode === 'callback') {
-            return observe(data, () => cbRef.current?.());
+            return observe(data, (ctx) => cbRef.current?.(ctx));
         }
         return observe(data, {
             derive: (s) => deriveFnRef.current(s),
-            onChange: (derived) => cbRef.current?.(derived),
+            onChange: (derived, ctx) => cbRef.current?.(derived, ctx),
             isEqual: isEqualRef.current ? (a, b) => isEqualRef.current(a, b) : undefined,
         });
     }, [...(deps || []), mode]);
+    const sideEffectProxyRef = useRef(sideEffectProxy);
+    sideEffectProxyRef.current = sideEffectProxy;
     const renderValidRef = useRef(false);
-    const [, forceRerender] = useState({});
+    // versionRef is a monotonically increasing counter that acts as the snapshot for
+    // useSyncExternalStore. It increments each time an observed property changes, which causes
+    // React to detect the change and schedule a synchronous re-render — preventing tearing in
+    // concurrent mode (transitions, Suspense) where sibling components may render at different times.
+    const versionRef = useRef(0);
+    const notifyRef = useRef(null);
+    useSyncExternalStore(useCallback((notify) => {
+        notifyRef.current = notify;
+        return () => {
+            notifyRef.current = null;
+        };
+    }, []), useCallback(() => versionRef.current, []));
     // Render observer: tracks property reads during render and triggers re-renders on change.
-    // forceRerender is stable (React guarantee) so no cbRef is needed here.
     const state = useSyncMemo((previous) => {
         if (previous)
-            reset(previous);
-        const value = observe(data, () => {
-            // React may abandon the render for Suspense, etc. In that case, we should not attempt to re-render.
-            if (!renderValidRef.current)
-                return;
-            const rerender = () => {
-                // Re-check renderValidRef inside the deferred closure: if this component unmounted between
-                // when the callback fired and when the layout effect drains renderRequests, skip the call.
-                if (renderValidRef.current)
-                    forceRerender({});
-            };
-            if (isRendering) {
-                renderRequests.add(rerender); // Other components — defer
-            }
-            else {
-                rerender(); // Current component or not in render phase — safe to re-render immediately
-            }
+            unobserve(previous);
+        const value = observe(data, {
+            name: componentName,
+            focusable: true,
+            onChange: () => {
+                const rerender = () => {
+                    // Re-check renderValidRef inside the deferred closure: if this component unmounted between
+                    // when the callback fired and when the layout effect drains renderRequests, skip the call.
+                    if (renderValidRef.current) {
+                        versionRef.current++;
+                        notifyRef.current?.();
+                    }
+                };
+                if (isRendering) {
+                    renderRequests.add(rerender); // Other components — defer
+                }
+                else {
+                    rerender(); // Current component or not in render phase — safe to re-render immediately
+                }
+            },
         });
         return value;
     }, deps || []);
-    // Begin a transaction for this render. Reads go into the transaction's pending Set and cannot
-    // trigger callbacks. Any prior abandoned transaction for this observer is settled first.
-    // The transaction auto-discards via microtask if the render is abandoned (Suspense, bail-out,
+    const stateRef = useRef(state);
+    stateRef.current = state;
+    // Begin a capture session for this render. Reads go into the session's pending Set and cannot
+    // trigger callbacks. Any prior abandoned session for this observer is settled first.
+    // The session auto-discards via microtask if the render is abandoned (Suspense, bail-out,
     // interrupted transition) and commit is never called.
-    const tx = beginTransaction(state);
+    const tx = focus(state);
     // Commit when React confirms the render. Promotes pending reads to _validObservations and
     // re-enables the observer. isRendering is cleared here so that subsequent writes from sibling
     // renders in the same pass are not incorrectly deferred.
@@ -136,20 +183,22 @@ function useObserver(...args) {
         renderValidRef.current = true;
         tx.commit();
     });
-    // Reset isRendering for abandoned renders where useInsertionEffect never fires. The transaction
-    // handles its own discard via the microtask queued inside beginTransaction.
+    // Reset isRendering for abandoned renders where useInsertionEffect never fires. The capture
+    // session handles its own discard via the microtask queued inside capture().
     queueMicrotask(() => {
         isRendering = false;
     });
-    // biome-ignore lint/correctness/useExhaustiveDependencies: just used for unmounting cleanup
     useInsertionEffect(() => {
         return () => {
             // Prevents the observer callback from scheduling a re-render after unmount (or during
             // Strict Mode's simulated unmount/remount). Any in-flight transaction auto-discards via
             // its own microtask, so no explicit discard is needed here.
             renderValidRef.current = false;
+            unobserve(stateRef.current);
+            if (mode !== 'render')
+                unobserve(sideEffectProxyRef.current);
         };
-    }, []);
+    }, [mode]);
     // Process any deferred render requests
     useLayoutEffect(() => {
         for (const rerender of renderRequests) {

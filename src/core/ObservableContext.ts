@@ -83,6 +83,6 @@ export class ObservableContext<TValue extends object> {
    * @param identifier The identifier that has changed.
    */
   modifyIdentifier(identifier: any): void {
-    this.rootNode.modifyPath([...this.path, identifier]);
+    this.rootNode.modifyPath([...this.path, identifier], this.observer);
   }
 }

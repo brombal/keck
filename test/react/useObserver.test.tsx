@@ -283,6 +283,55 @@ describe('useObserver', () => {
     expect(screen.getByText('Component B Value: 1')).toBeDefined();
   });
 
+  test('Write during a descendant render re-renders an ancestor that already read the value', async () => {
+    // The reverse ordering of the previous test: the reader (Parent) renders BEFORE
+    // the writer (Child), so at the moment of the write the Parent's render observer is
+    // mid-focus-session with a pending observation on `value`. The write must be recorded and
+    // fire when the Parent's session commits, producing one corrective re-render — otherwise the
+    // Parent's UI shows the stale value indefinitely.
+
+    const data = { value: 0 };
+
+    function Parent() {
+      const state = useObserver(data);
+      // Read completes before Child renders; Parent's output depends on this snapshot
+      const seen = state.value;
+      return (
+        <div>
+          <div>Parent sees: {seen}</div>
+          <Child />
+        </div>
+      );
+    }
+
+    function Child() {
+      const state = useObserver(data);
+      // Simulates a child applying external state during its own render (inequality-guarded,
+      // so it converges). This is a cross-observer write from the Parent's perspective.
+      if (state.value === 0) state.value = 1;
+      return (
+        <div>
+          Child sees: {state.value}
+          <button onClick={() => (state.value = 0)} type="button">
+            Reset
+          </button>
+        </div>
+      );
+    }
+
+    render(<Parent />);
+
+    // Mount: Parent read 0, Child wrote 1 during its render — Parent must converge to 1
+    expect(await screen.findByText('Parent sees: 1')).toBeDefined();
+    expect(screen.getByText('Child sees: 1')).toBeDefined();
+
+    // Event-driven variant: Reset writes 0, both components re-render (Parent first, reading 0),
+    // Child writes 1 during its render again — Parent must converge again
+    await userEvent.click(screen.getByText('Reset'));
+    expect(await screen.findByText('Parent sees: 1')).toBeDefined();
+    expect(screen.getByText('Child sees: 1')).toBeDefined();
+  });
+
   test('Deferred rerender closure is skipped if component unmounts before layout effect', async () => {
     // Scenario: ComponentA writes to keck state during its own render. This fires ComponentB's
     // observer callback while isRendering = true, deferring B's rerender to renderRequests.

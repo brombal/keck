@@ -131,6 +131,23 @@ export class RootNode {
           continue;
         }
 
+        // A write to an observation that is pending in an active focus session means the
+        // session's consumer may have already read a value that is now stale. The callback
+        // cannot fire mid-session (the consumer may be mid-render), so the observation is
+        // marked stale and the focus module triggers the callback when the session settles.
+        // Writes made through the observer's own proxy are exempt: the consumer made them
+        // itself and can re-read the fresh value (the render-adjustment pattern).
+        //
+        // Pending observations must not fall through to the hasObservation() eviction below:
+        // they aren't in _validObservations yet, and evicting them from observationsForObserver
+        // (their only strong holder) would leave them subject to GC after the session commits.
+        if (observer.hasPendingObservation(observation)) {
+          if (observer !== sourceObserver) {
+            observer.markStalePending(observation, sourceObserver?.name);
+          }
+          continue;
+        }
+
         // If the Observation is not valid, remove it from the map
         // (it could have been cleared out by resetting the observer)
         if (!observer.hasObservation(observation)) {
@@ -138,7 +155,16 @@ export class RootNode {
           continue;
         }
 
-        if (!observer.enabled) continue;
+        if (!observer.enabled) {
+          // A valid observation not yet re-read in an active focus session: only relevant if
+          // the session is discarded (restoring this observation for a consumer whose last
+          // committed state read the old value). markStaleCommitted records it; the settle
+          // logic drops it on commit.
+          if (observer.isFocusing && observer !== sourceObserver) {
+            observer.markStaleCommitted(observation, sourceObserver?.name);
+          }
+          continue;
+        }
 
         observationsToCall.add(observation);
       }

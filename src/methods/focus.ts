@@ -1,6 +1,8 @@
 import { ObservableContext } from 'keck/core/ObservableContext';
-import type { Observation, Observer } from 'keck/core/Observer';
+import type { Observation, Observer, StaleObservations } from 'keck/core/Observer';
 import type { Observable } from 'keck/core/RootNode';
+import { triggerObservations } from 'keck/core/triggerObservations';
+import { atomicObservations, recordAtomicSource } from 'keck/methods/atomic';
 
 export interface FocusTransaction {
   commit: () => void;
@@ -20,6 +22,10 @@ const activeDiscards = new WeakMap<Observer, () => void>();
  * During the session, property reads on the observable are recorded. On `commit()`, those
  * observations become active and will trigger the observer's callback when modified. On
  * `discard()`, the session is abandoned and prior observations are restored.
+ *
+ * Writes made by *other* observers during the session to properties the session (or, for
+ * discard, a prior committed session) has observed are not lost: they are recorded as stale and
+ * the observer's callback is triggered when the session settles.
  *
  * A microtask is queued to auto-discard if neither `commit` nor `discard` is called before
  * the end of the current event cycle — covering abandoned renders (Suspense, concurrent
@@ -52,19 +58,36 @@ export function focus(observable: object): FocusTransaction {
   const discard = () => {
     if (settled) return;
     settled = true;
-    observer.discardCapture();
+    const stale = observer.discardCapture();
     activeDiscards.delete(observer);
+    triggerStaleObservations(stale);
   };
 
   const commit = () => {
     if (settled) return;
     settled = true;
-    observer.commitCapture(pending);
+    const stale = observer.commitCapture(pending);
     activeDiscards.delete(observer);
+    triggerStaleObservations(stale);
   };
 
   activeDiscards.set(observer, discard);
   queueMicrotask(discard);
 
   return { commit, discard };
+}
+
+/**
+ * Triggers the observer callbacks for observations that were written to (by other observers)
+ * during the session. Mirrors RootNode.modifyPath's handling of an active `atomic()` batch:
+ * if one exists, the observations join the batch and fire when it completes.
+ */
+function triggerStaleObservations(stale: StaleObservations | undefined) {
+  if (!stale) return;
+  if (atomicObservations) {
+    for (const observation of stale.observations) atomicObservations.add(observation);
+    recordAtomicSource(stale.sourceName);
+  } else {
+    triggerObservations(stale.observations, { sourceName: stale.sourceName });
+  }
 }

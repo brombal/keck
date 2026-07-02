@@ -97,6 +97,10 @@ interface FocusTransaction {
  * observations become active and will trigger the observer's callback when modified. On
  * `discard()`, the session is abandoned and prior observations are restored.
  *
+ * Writes made by *other* observers during the session to properties the session (or, for
+ * discard, a prior committed session) has observed are not lost: they are recorded as stale and
+ * the observer's callback is triggered when the session settles.
+ *
  * A microtask is queued to auto-discard if neither `commit` nor `discard` is called before
  * the end of the current event cycle — covering abandoned renders (Suspense, concurrent
  * bail-outs) without requiring the caller to handle cleanup explicitly.

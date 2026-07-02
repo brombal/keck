@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-07-02
+
+### Fixed
+
+- Writes made by another observer during an active focus session are no longer silently lost. Previously, a cross-observer write to a property the session had already read (or to a committed observation from a prior session) was dropped because the mid-session observer's callback is disabled; the observer's callback now fires when the session settles. In React terms: a component that writes shared state during its render now correctly re-renders ancestor components that read that state earlier in the same render pass, instead of leaving them showing a stale value indefinitely. Writes made through the observer's own proxy are exempt (the render-adjustment pattern is unaffected), and stale notifications fired from a `commit()`/`discard()` inside `atomic()` join the atomic batch.
+- A mid-session write to a pending-only observation (a path first read in the current session) no longer evicts the Observation from its only strong holder, which could cause notifications for that path to silently stop after a garbage collection pass.
+
 ## [2.3.0] - 2026-05-23
 
 ### Added

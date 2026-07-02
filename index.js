@@ -866,14 +866,38 @@ class RootNode {
                     pathEntry.allObservations.delete(observationRef);
                     continue;
                 }
+                // A write to an observation that is pending in an active focus session means the
+                // session's consumer may have already read a value that is now stale. The callback
+                // cannot fire mid-session (the consumer may be mid-render), so the observation is
+                // marked stale and the focus module triggers the callback when the session settles.
+                // Writes made through the observer's own proxy are exempt: the consumer made them
+                // itself and can re-read the fresh value (the render-adjustment pattern).
+                //
+                // Pending observations must not fall through to the hasObservation() eviction below:
+                // they aren't in _validObservations yet, and evicting them from observationsForObserver
+                // (their only strong holder) would leave them subject to GC after the session commits.
+                if (observer.hasPendingObservation(observation)) {
+                    if (observer !== sourceObserver) {
+                        observer.markStalePending(observation, sourceObserver?.name);
+                    }
+                    continue;
+                }
                 // If the Observation is not valid, remove it from the map
                 // (it could have been cleared out by resetting the observer)
                 if (!observer.hasObservation(observation)) {
                     pathEntry.observationsForObserver.delete(observer);
                     continue;
                 }
-                if (!observer.enabled)
+                if (!observer.enabled) {
+                    // A valid observation not yet re-read in an active focus session: only relevant if
+                    // the session is discarded (restoring this observation for a consumer whose last
+                    // committed state read the old value). markStaleCommitted records it; the settle
+                    // logic drops it on commit.
+                    if (observer.isFocusing && observer !== sourceObserver) {
+                        observer.markStaleCommitted(observation, sourceObserver?.name);
+                    }
                     continue;
+                }
                 observationsToCall.add(observation);
             }
         }
@@ -967,6 +991,26 @@ class Observer {
      * beginCapture and clears it at commit or discard.
      */
     _pendingObservations;
+    /**
+     * Observations that were *pending* (read earlier in the active focus session) when another
+     * observer wrote to them. The session's consumer read a value that is now stale, but the
+     * callback cannot fire mid-session (the consumer may be mid-render), so these are recorded
+     * and triggered when the session settles.
+     */
+    _stalePendingObservations;
+    /**
+     * Observations that were *committed* (valid from a prior session) but not yet re-read in the
+     * active focus session when another observer wrote to them. These only matter if the session
+     * is discarded: the restored observations belong to a consumer whose last committed state read
+     * the old value. On commit they are irrelevant — either the session re-read the path (fresh
+     * value) or the new committed observations no longer include it.
+     */
+    _staleCommittedObservations;
+    /**
+     * The sourceName of the most recent write that marked an observation stale, passed through to
+     * the callback context when the session settles.
+     */
+    _staleSourceName;
     constructor(value, config) {
         const { name, callback, focusable } = config;
         this.name = name;
@@ -1014,20 +1058,68 @@ class Observer {
      * Called by the capture module on commit. Promotes the closed-over pending Set to
      * _validObservations and releases the borrow. Setting _pendingObservations to undefined
      * also re-enables the observer (enabled = _userEnabled && _pendingObservations === undefined).
+     *
+     * Returns the stale observations that should now trigger the callback (see StaleObservations),
+     * or undefined if there are none.
      */
     commitCapture(pending) {
         this._validObservations = new WeakSet(pending);
         this._pendingObservations = undefined;
         this._isInSession = false;
+        return this._takeStaleObservations('commit');
     }
     /**
      * Called by the capture module on discard. Releases the pending Set borrow.
      * _validObservations is left untouched so pre-session observations are automatically
      * restored. Setting _pendingObservations to undefined also re-enables the observer.
+     *
+     * Returns the stale observations that should now trigger the callback (see StaleObservations),
+     * or undefined if there are none.
      */
     discardCapture() {
         this._pendingObservations = undefined;
         this._isInSession = false;
+        return this._takeStaleObservations('discard');
+    }
+    /**
+     * Collects and clears the stale observations recorded during the session, filtered to those
+     * that are relevant for the way the session settled:
+     *
+     * - On commit, only stale *pending* observations fire: they were just promoted to
+     *   _validObservations, and the consumer committed a read of a value that changed after the
+     *   read. Stale *committed* observations are dropped — either the session re-read the path
+     *   (fresh value) or the new observations no longer include it.
+     * - On discard, the prior observations are restored, so any stale observation still in
+     *   _validObservations fires: the consumer's last committed state read the old value, and the
+     *   write would have triggered normally had the session not briefly existed.
+     *
+     * Respects the user-controlled disable() state.
+     */
+    _takeStaleObservations(settle) {
+        const stalePending = this._stalePendingObservations;
+        const staleCommitted = this._staleCommittedObservations;
+        const sourceName = this._staleSourceName;
+        this._stalePendingObservations = undefined;
+        this._staleCommittedObservations = undefined;
+        this._staleSourceName = undefined;
+        if (!this._userEnabled || (!stalePending && !staleCommitted))
+            return undefined;
+        const observations = new Set();
+        if (settle === 'commit') {
+            for (const observation of stalePending || [])
+                observations.add(observation);
+        }
+        else {
+            for (const observation of stalePending || []) {
+                if (this.hasObservation(observation))
+                    observations.add(observation);
+            }
+            for (const observation of staleCommitted || []) {
+                if (this.hasObservation(observation))
+                    observations.add(observation);
+            }
+        }
+        return observations.size ? { observations, sourceName } : undefined;
     }
     addObservation(observation) {
         if (this._pendingObservations !== undefined) {
@@ -1041,6 +1133,28 @@ class Observer {
     }
     hasObservation(observation) {
         return !!this._validObservations?.has(observation);
+    }
+    /**
+     * True if the observation was read during the currently-active focus session.
+     */
+    hasPendingObservation(observation) {
+        return !!this._pendingObservations?.has(observation);
+    }
+    /**
+     * Records that a pending observation was written to by another observer during the active
+     * focus session. Called by RootNode.modifyPath; triggered when the session settles.
+     */
+    markStalePending(observation, sourceName) {
+        (this._stalePendingObservations ??= new Set()).add(observation);
+        this._staleSourceName = sourceName;
+    }
+    /**
+     * Records that a committed (valid, not re-read this session) observation was written to by
+     * another observer during the active focus session. Only fires if the session is discarded.
+     */
+    markStaleCommitted(observation, sourceName) {
+        (this._staleCommittedObservations ??= new Set()).add(observation);
+        this._staleSourceName = sourceName;
     }
 }
 
@@ -1078,6 +1192,10 @@ const activeDiscards = new WeakMap();
  * observations become active and will trigger the observer's callback when modified. On
  * `discard()`, the session is abandoned and prior observations are restored.
  *
+ * Writes made by *other* observers during the session to properties the session (or, for
+ * discard, a prior committed session) has observed are not lost: they are recorded as stale and
+ * the observer's callback is triggered when the session settles.
+ *
  * A microtask is queued to auto-discard if neither `commit` nor `discard` is called before
  * the end of the current event cycle — covering abandoned renders (Suspense, concurrent
  * bail-outs) without requiring the caller to handle cleanup explicitly.
@@ -1103,19 +1221,38 @@ function focus(observable) {
         if (settled)
             return;
         settled = true;
-        observer.discardCapture();
+        const stale = observer.discardCapture();
         activeDiscards.delete(observer);
+        triggerStaleObservations(stale);
     };
     const commit = () => {
         if (settled)
             return;
         settled = true;
-        observer.commitCapture(pending);
+        const stale = observer.commitCapture(pending);
         activeDiscards.delete(observer);
+        triggerStaleObservations(stale);
     };
     activeDiscards.set(observer, discard);
     queueMicrotask(discard);
     return { commit, discard };
+}
+/**
+ * Triggers the observer callbacks for observations that were written to (by other observers)
+ * during the session. Mirrors RootNode.modifyPath's handling of an active `atomic()` batch:
+ * if one exists, the observations join the batch and fire when it completes.
+ */
+function triggerStaleObservations(stale) {
+    if (!stale)
+        return;
+    if (atomicObservations) {
+        for (const observation of stale.observations)
+            atomicObservations.add(observation);
+        recordAtomicSource(stale.sourceName);
+    }
+    else {
+        triggerObservations(stale.observations, { sourceName: stale.sourceName });
+    }
 }
 
 function observe(value, cbOrConfig) {

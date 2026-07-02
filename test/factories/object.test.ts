@@ -132,3 +132,27 @@ describe('object', () => {
     expect(mockCallback).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('constructor property', () => {
+  test('constructor is the native class, constructable, and identity-stable', () => {
+    const store = observe({ obj: { a: 1 }, arr: [1, 2, 3] });
+
+    // Identity: not wrapped into a bound/arrow function
+    expect(store.obj.constructor).toBe(Object);
+    expect(store.arr.constructor).toBe(Array);
+
+    // Constructable — this is what lodash cloneDeep does for arrays (new array.constructor())
+    expect(new (store.arr.constructor as ArrayConstructor)(2).length).toBe(2);
+  });
+
+  test('lodash-style deep cloning works on observable objects and arrays', () => {
+    const store = observe({ arr: [1, 2, 3], nested: { list: ['a'] } });
+
+    // Minimal recreation of lodash initCloneArray on a proxied array
+    const proxiedArr = store.arr;
+    const Ctor = proxiedArr.constructor as ArrayConstructor;
+    const clone = new Ctor(proxiedArr.length);
+    for (let i = 0; i < proxiedArr.length; i++) clone[i] = proxiedArr[i];
+    expect(clone).toEqual([1, 2, 3]);
+  });
+});

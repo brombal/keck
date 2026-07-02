@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `constructor` accessed through an observable object or array is now returned as-is instead of being wrapped like other function-valued properties. The wrapper was a non-constructable arrow function, which broke identity checks (`observable.constructor === Array` was false) and third-party deep traversal — notably lodash's `cloneDeep`, which calls `new array.constructor()` on arrays and threw `array.constructor is not a constructor` when handed an observable array. This matches `ObservableSet`/`ObservableMap`, which already pin `constructor` to the native class.
+
 ## [2.3.1] - 2026-07-02
 
 ### Fixed

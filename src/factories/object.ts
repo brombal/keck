@@ -14,6 +14,12 @@ export const objectFactory: ObservableFactory<Record<string | symbol, unknown>> 
         get(_, prop, observable) {
           // if (prop === "toJSON") return () => ctx.value;
           const propValue = Reflect.get(ctx.value, prop, observable);
+          // `constructor` is returned as-is (matching ObservableSet/ObservableMap, which pin
+          // their constructor to the native class). Wrapping it like other function properties
+          // would return a non-constructable arrow function and break identity checks — e.g.
+          // lodash's cloneDeep calls `new array.constructor()` on arrays, and
+          // `observable.constructor === Array` should hold.
+          if (prop === 'constructor') return propValue;
           if (typeof propValue === 'function') {
             return (...args: unknown[]) => {
               // Todo cache function?

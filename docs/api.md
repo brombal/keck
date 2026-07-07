@@ -59,6 +59,15 @@ The derive function establishes its own observations. The callback does not depe
 render. It is acceptable to ignore the returned state if the component only needs to keep the derived callback active
 while mounted.
 
+Inside the derive function, every read subscribes — including object and array reference reads, which subscribe
+**deeply** to that subtree, so `deep()` is never needed within a derive function. To watch an entire subtree, return it
+directly (`derive: (state) => state.settings`): a proxy's identity is stable until something inside it mutates, so the
+default strict-equality comparison fires exactly on subtree changes, and not on writes of identical values. `onChange`
+receives the derived value as-is — for objects that is a (new) proxy, so `unwrap()` it before cloning or serializing
+(`structuredClone` throws on proxies).
+
+The observer registered by this overload is released automatically on unmount and when `deps` change.
+
 `data` follows the same initializer semantics as `useObserver(data, deps?)`.
 
 ### `reactRef<T>(): RefObject<T>`
@@ -126,6 +135,10 @@ function observe<TValue extends object, TDerived>(
 Creates an observable proxy where `onChange` fires only when the derived result changes. `isEqual` defaults to strict
 equality.
 
+The derive function's reads have the same semantics as in the `useObserver` derive overload: every read subscribes,
+object reads subscribe deeply, and returning a sub-object watches its whole subtree via proxy identity. This observer
+is held strongly — call `unobserve()` on the returned proxy when it is no longer needed.
+
 ### `derive<T>(fn: () => T, isEqual?: (prev: T, next: T) => boolean): T`
 
 Computes a value from observables and notifies only when the computed result changes.
@@ -137,6 +150,8 @@ const hasItems = derive(() => cart.items.length > 0);
 ### `deep<T>(observable: T): T`
 
 Marks an observable object for deep tracking and returns it unchanged. Primitives, `null`, and values Keck does not know how to observe are returned as-is. Passing a plain observable-capable object (such as a raw `Map`) that is not yet wrapped in a Keck proxy throws an error.
+
+`deep()` is only meaningful for focused observation (render subscriptions and `focus()` sessions). It is never needed inside a `derive` function, where object reads already subscribe deeply, and it has no effect on unfocused `observe()` callbacks, which fire on every mutation regardless.
 
 ```tsx
 useEffect(() => {

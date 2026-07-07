@@ -170,6 +170,17 @@ export function CartAnalytics() {
 This overload is useful when a component needs to attach a lifecycle-bound listener to a computed condition, such as
 cart item count, authentication status, or whether a form has unsaved changes.
 
+Inside the derive function, object reads subscribe deeply, so watching a whole subtree is just returning it —
+`derive: (state) => state.form` — with no `deep()` call and no cloning: the proxy's identity is stable until something
+inside it mutates, so the default strict-equality comparison detects exactly subtree changes. `onChange` receives that
+(new) proxy; `unwrap()` it before cloning or serializing.
+
+"Lifecycle-bound" is load-bearing: the underlying callback observer is released automatically on unmount and deps
+change. Prefer this overload for callbacks on shared or long-lived data — an `observe(data, config)` observer created
+in `useMemo` has no cleanup path, and it stays alive (and firing) for as long as `data` is reachable. (When the
+observed data is created inside the same `useMemo` and discarded with it, the pair is garbage-collected together, so
+that specific case is safe — but this overload still gives deterministic release and deps handling.)
+
 ## Class Instances as State
 
 Keck observes plain objects, arrays, `Map`, and `Set` natively. To use a custom class as observable state — for example a domain model with methods, getters, or computed properties — register it with `registerObservableClass()`. Methods become atomic, getters become reactive, and setters notify observers in one batch. See the [Custom Classes guide](classes.md) for the full behavior.
@@ -234,5 +245,6 @@ Unlike hooks, `derive()` does not depend on call order and can be called conditi
   exported Keck proxy to `useObserver()`; each component still gets its own observer.
 - Do not mutate the raw object when you expect React to update. Writes must go through a Keck proxy.
 - Reading an object reference such as `state.user` does not subscribe to every nested field. Read the fields you render,
-  use `derive()`, or use `deep()` when any nested change should re-run an effect or notify a focused observer.
+  use `derive()`, or use `deep()` when any nested change should re-run an effect or notify a focused observer. (This
+  rule applies to reads during render — inside a `derive` function, object reads do subscribe deeply.)
 - `unwrap()` is best at API boundaries. Rendering unwrapped values bypasses subscriptions.

@@ -55,14 +55,14 @@ state.user.name = 'x'          // fine
 Object.assign(state.user, ...) // fine
 ```
 
-- `atomic(fn, args?, thisArg?)` — batch multiple writes into a single notification pass.
+- `atomic(fn, args?, thisArg?)` — batch multiple writes into a single notification pass. Multi-key writes like `Object.assign(proxy, values)` otherwise notify per key, so callback/derive observers fire repeatedly and evaluate against partially-assigned state; wrap them in `atomic()` to deliver one complete change.
 - `silent(() => { ... })` — writes inside the callback do not trigger observer callbacks or re-renders. Useful when you must write through a proxy but don't want subscribers to react (e.g. resetting derived UI state). For silent initialization of module-level state, prefer mutating the raw object directly — callbacks only fire through the proxy, so writes to the underlying raw object are inherently silent.
 - `transformInPlace(target, source)` — recursively mutate `target` to match `source`'s shape in place; preserves observer subscriptions to `target`. `target` must be a Keck proxy — passing the raw underlying object mutates it correctly but triggers no observer notifications. Use this instead of `Object.assign` when you need fine-grained per-property notifications (so only components subscribed to changed properties re-render). For silent initialization, mutate the raw object directly instead.
 
 ## Reading state beyond direct access
 
-- `derive(fn, isEqual?)` — Returns `fn()`'s value and re-renders the calling component only when the result changes by `isEqual` (default `===`). Pair with `shallowCompare` or a custom comparator for arrays/objects.
-- `deep(obs)` — Marks `obs` for deep observation: any descendant change triggers a re-render or invalidates the dep. Required for focused observers (React render subscriptions, manual `focus()` sessions) when you need an object/array reference itself to invalidate (e.g. `useEffect(..., [deep(state.user)])`). Returns its argument unchanged; safe inline in dep arrays. Non-observables pass through. **`deep()` has no effect on unfocused `observe()` callbacks** — those already fire on every mutation regardless.
+- `derive(fn, isEqual?)` — Returns `fn()`'s value and re-renders the calling component only when the result changes by `isEqual` (default `===`). Pair with `shallowCompare` or a custom comparator for arrays/objects. Inside a derive function, **every** read subscribes — including object/array reference reads, which subscribe **deeply** to that subtree — so `deep()` is never needed within `derive`. Subtree-watch idiom: return the object itself (`derive(() => state.user)`); a proxy's identity is stable until something inside it mutates, so the default `===` comparison fires exactly on subtree changes (and not on writes of identical values).
+- `deep(obs)` — Marks `obs` for deep observation: any descendant change triggers a re-render or invalidates the dep. Required for focused observers (React render subscriptions, manual `focus()` sessions) when you need an object/array reference itself to invalidate (e.g. `useEffect(..., [deep(state.user)])`). Returns its argument unchanged; safe inline in dep arrays. Non-observables pass through. **`deep()` has no effect on unfocused `observe()` callbacks** — those already fire on every mutation regardless — and is never needed inside a `derive` function (see above).
 - `peek(() => state.x)` — Read without subscribing.
 - `unwrap(state.x)` — Return the raw underlying object. Use when handing data to external libraries, fetch bodies, `JSON.stringify` of large graphs, or anything that shouldn't see the proxy. Property access on the unwrapped value does not observe.
 
@@ -81,9 +81,12 @@ Creates a standalone observer outside React. Returns a writable proxy.
 
 - `observe(value)` — proxy only; no callback. Use as a shared module-level store that components subscribe to via `useObserver(store)`.
 - `observe(value, cb)` — **unfocused mode** (default): `cb` fires on any mutation through any proxy for the same underlying data. No property reads, `deep()`, or `focus()` required — the callback fires unconditionally on every change.
-- `observe(value, { derive, onChange, isEqual? })` — `onChange` fires only when `derive(state)` result changes.
+- `observe(value, { derive, onChange, isEqual? })` — `onChange` fires only when `derive(state)` result changes. The derive function's reads define the subscription, with the same semantics as `derive()` above (object reads subscribe deeply; subtree-watch by returning the object and letting proxy identity change detection work). `onChange` receives the derived value as-is — for objects that is a (new) proxy, so `unwrap()` it before cloning or serializing.
 
-**Observers with callbacks are held strongly** — the library keeps a strong reference to any observer created with a callback. Call `unobserve(proxy)` when the observer is no longer needed to release it and stop future callbacks.
+**Observers with callbacks are held strongly by their observed data** — the value's internal root node (itself weakly keyed by the raw value) keeps a strong reference to any observer created with a callback. Practical rule: a callback observer lives, and keeps firing, exactly as long as its observed data is reachable; `unobserve(proxy)` stops it sooner. Two consequences:
+
+- An observer on **shared or long-lived data** (module-level store, context value) must be `unobserve`d when its purpose ends — the data keeps it alive indefinitely otherwise. In React, prefer the `useObserver` callback/derive overloads (auto-released on unmount and deps change) over creating one in `useMemo`/`useRef`, or use `useSyncMemo` and `unobserve` the previous value in the factory.
+- An observer on **data created together with it and dropped together with it** (e.g. a class instance observing itself, a factory observing its own private state) needs no cleanup — data, observer, and callback are garbage-collected as a group once nothing references them. `keck-forms`' KeckForm uses this pattern internally.
 
 **Callbacks only fire through the proxy.** Writes to the raw underlying object (or via `unwrap()`) bypass all callbacks entirely. This is the natural approach for silent initialization — keep a reference to the raw object and mutate it directly:
 
@@ -105,7 +108,7 @@ async function init() {
 - **Raw object mutations are invisible to all observers** — no callbacks fire, no re-renders. This is intentional for silent initialization (see Non-React usage). For all normal state changes that should propagate to subscribers, always mutate through the proxy.
 - **Object reference reads don't subscribe.** `state.user` alone is not enough; read a primitive, use `deep(state.user)`, or `derive(() => ...)`.
 - **Never `===`-compare a proxy with its raw object.** Use `unwrap` first.
-- **Don't pass proxies to external code.** Serializers, API clients, comparison libs, etc. may trigger unintended observations or break on the proxy. Call `unwrap` at the boundary.
+- **Don't pass proxies to external code.** Serializers, API clients, comparison libs, etc. may trigger unintended observations or break on the proxy — `structuredClone` throws a `DataCloneError`. Call `unwrap` at the boundary.
 - **`useObserver({...})` memoizes on mount.** Changing the inline literal alone does not update state — pass `deps` to re-init, or mutate properties.
 - **Custom classes must be registered.** Instances of non-plain classes are not observable unless registered via `registerObservableClass(Ctor, factory?)`.
 

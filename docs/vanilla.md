@@ -94,6 +94,34 @@ session.user = { id: "user_3", role: "admin" };  // callback fires — result ch
 
 This is the vanilla equivalent of `useObserver(data, { derive, onChange })`.
 
+Inside the derive function, every read subscribes, and object reference reads subscribe **deeply**. Watching a whole
+subtree is therefore just returning it:
+
+```ts
+import { observe, unwrap } from "keck";
+
+const table = observe(
+  { filter: { name: "", active: true }, page: 0 },
+  {
+    derive: (state) => state.filter,
+    onChange: (filter) => refetch(unwrap(filter)),
+  },
+);
+
+table.filter.name = "abc"; // fires — the filter subtree changed
+table.page = 2;            // no callback — outside the derived subtree
+```
+
+This works because a proxy's identity is stable until something inside it mutates: `state.filter` returns a new proxy
+after any nested change (including `Set`/`Map` contents), so the default strict-equality comparison detects exactly
+subtree changes — writes of identical values do not fire. `onChange` receives that (new) proxy — `unwrap()` it before
+cloning or serializing (`structuredClone` throws on proxies).
+
+Like any `observe()` callback observer, a derived observer is held strongly by its observed data: it lives (and fires)
+for as long as the data is reachable. Call `unobserve()` on the proxy to stop it sooner. An observer whose data is
+created and dropped together with it (a factory observing its own private state) needs no cleanup — the group is
+garbage-collected together.
+
 ## Observer Lifecycle
 
 `reset()`, `disable()`, and `enable()` are most useful for long-lived imperative observers.

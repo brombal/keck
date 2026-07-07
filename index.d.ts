@@ -127,9 +127,9 @@ type FocusableConfig = {
     onChange: (context: ObserverCallbackContext) => void;
 };
 declare function observe<TValue extends object>(value: TValue, cb?: (context: ObserverCallbackContext) => void): TValue;
-declare function observe<TValue extends object>(value: TValue, config: NamedConfig): TValue;
-declare function observe<TValue extends object>(value: TValue, config: FocusableConfig): TValue;
 declare function observe<TValue extends object, TDerived>(value: TValue, config: DeriveConfig<TValue, TDerived>): TValue;
+declare function observe<TValue extends object>(value: TValue, config: FocusableConfig): TValue;
+declare function observe<TValue extends object>(value: TValue, config: NamedConfig): TValue;
 
 declare function peek<T>(fn: () => T): T;
 

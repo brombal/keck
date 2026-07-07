@@ -29,14 +29,18 @@ export function observe<TValue extends object>(
   cb?: (context: ObserverCallbackContext) => void,
 ): TValue;
 
-export function observe<TValue extends object>(value: TValue, config: NamedConfig): TValue;
-
-export function observe<TValue extends object>(value: TValue, config: FocusableConfig): TValue;
-
+// The config overloads are ordered most-specific first. NamedConfig must come LAST: it matches
+// any config containing `name`, and because a derive function without parameter annotations is
+// context-sensitive (deferred during overload resolution), a DeriveConfig with `name` would
+// otherwise resolve against NamedConfig and leave the derive parameter implicitly `any`.
 export function observe<TValue extends object, TDerived>(
   value: TValue,
   config: DeriveConfig<TValue, TDerived>,
 ): TValue;
+
+export function observe<TValue extends object>(value: TValue, config: FocusableConfig): TValue;
+
+export function observe<TValue extends object>(value: TValue, config: NamedConfig): TValue;
 
 export function observe<TValue extends object, TDerived>(
   value: TValue,

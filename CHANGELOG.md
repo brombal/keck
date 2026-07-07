@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.3.2] - 2026-07-02
+## [2.3.3] - 2026-07-07
+
+### Changed
+
+- Documentation: clarified derive-function subscription semantics (every read subscribes; object reads subscribe deeply, so `deep()` is never needed inside `derive`); documented the subtree-watching idiom (return the observed object from `derive` and let proxy identity drive change detection); noted that `onChange` receives a proxy for object results (`unwrap` before cloning — `structuredClone` throws on proxies); clarified callback-observer lifetime (held strongly by the observed data, so observers on shared/long-lived data need `unobserve` — use the `useObserver` overloads, which auto-release — while an observer whose data is created and dropped with it is GC'd as a group); documented that `Object.assign` on a proxy notifies per key unless wrapped in `atomic()`. Updated `AGENT_REFERENCE.md`, `docs/api.md`, `docs/react.md`, `docs/vanilla.md`.
 
 ### Fixed
 

@@ -1,6 +1,6 @@
 {
   "name": "keck",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "description": "Simple observable state ✨🔭 for React and vanilla JS",
   "author": "Alex Brombal",
   "license": "MIT",

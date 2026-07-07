@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.5] - 2026-07-08
+
+### Fixed
+
+- `observe(value, { name, derive, onChange })` now correctly infers the derive function's parameter type. The `NamedConfig` overload (`{ name: string }`) was declared before the `DeriveConfig` overload, so a derive config that included `name` resolved against `NamedConfig` during overload resolution (unannotated derive functions are context-sensitive and deferred), leaving the derive parameter implicitly `any`. Config overloads are now ordered most-specific first.
+
 ## [2.3.4] - 2026-07-07
 
 ### Fixed

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.4] - 2026-07-07
+
+### Fixed
+
+- Object/class getters that return an already-observable value are no longer double-wrapped. A getter runs with the observable proxy as its receiver, so reads inside it (e.g. `return this.data.nested`) produce observable children; the object factory previously wrapped that result in a second proxy, so `unwrap()` only peeled one layer and external code (`structuredClone`, serializers) received a live proxy. Getter results are now unwrapped before being wrapped for the reading observer, matching how the set trap normalizes written values. This notably affected `keck-forms`' `KeckForm.value` in `onSubmit` callbacks.
+
 ## [2.3.3] - 2026-07-07
 
 ### Changed

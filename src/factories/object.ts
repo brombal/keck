@@ -30,7 +30,11 @@ export const objectFactory: ObservableFactory<Record<string | symbol, unknown>> 
               );
             };
           }
-          return ctx.observeIdentifier(prop, propValue);
+          // Unwrap before wrapping: plain data properties always hold raw values (the set trap
+          // unwraps on write), but a getter runs with the proxy as its receiver and may return an
+          // already-observable value -- wrapping that again would produce a proxy-over-proxy,
+          // which unwrap() only peels one layer of.
+          return ctx.observeIdentifier(prop, unwrap(propValue));
         },
         set(_, prop, newValue, observer) {
           const rawValue = unwrap(newValue);

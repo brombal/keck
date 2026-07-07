@@ -1,4 +1,4 @@
-import { focus, observe, peek, registerObservableClass } from 'keck';
+import { focus, observe, peek, registerObservableClass, unwrap } from 'keck';
 import { observableFactories } from 'keck/factories/observableFactories';
 import { vi } from 'vitest';
 
@@ -120,5 +120,29 @@ describe('Custom classes', () => {
     expect(mockCallback).toHaveBeenCalledTimes(1);
     expect(store.innerCounter.value).toBe(3);
     vi.resetAllMocks();
+  });
+
+  test('Getter returning an already-observable value is not double-wrapped', () => {
+    class Store {
+      data = { nested: { x: 1 } };
+
+      // A getter runs with the proxy as its receiver, so `this.data.nested` is an observable
+      // child. The factory must not wrap the getter's result a second time (a proxy-over-proxy
+      // would need two unwrap() calls to reach the raw value and would break structuredClone).
+      get snapshot() {
+        return this.data.nested;
+      }
+    }
+    registerObservableClass(Store);
+
+    try {
+      const store = observe(new Store(), vi.fn());
+      const raw = unwrap(store).data.nested;
+      const viaGetter = store.snapshot;
+      expect(unwrap(viaGetter)).toBe(raw);
+      expect(() => structuredClone(unwrap(viaGetter))).not.toThrow();
+    } finally {
+      observableFactories.delete(Store);
+    }
   });
 });
